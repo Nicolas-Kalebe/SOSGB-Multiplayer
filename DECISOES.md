@@ -1,0 +1,160 @@
+# DECISÕES — registro completo com contexto
+
+> 🤖 **AUTODOCUMENTAÇÃO OBRIGATÓRIA.** Este projeto se documenta sozinho: registre toda decisão com contexto **neste arquivo** (formato em [`AGENTS.md`](AGENTS.md)), mantenha um `CONTEXTO.md` em cada pasta e abra todo `.md` com este aviso. O resumo de uma linha fica na tabela do [`PLANO.md`](PLANO.md).
+
+Regras deste arquivo:
+- Decisões **nunca são apagadas**. Se mudar, marque `🔁 Substituída por Dx` e crie uma entrada nova.
+- Sempre explique o **porquê**. Uma IA que chegar depois não leu a conversa original.
+
+---
+
+### D1 — Modelo de referência: multiplayer do Stardew Valley
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** o jogo é single-player. O remake de 2025 removeu o multiplayer do original de DS (até 3 jogadores visitando fazendas). O usuário quer jogar com amigos.
+- **Alternativas:** (a) modo "visita", como no DS: só ver e visitar a fazenda dos outros; (b) co-op completo num mundo único.
+- **Decisão:** co-op completo, usando o Stardew Valley como especificação de comportamento.
+- **Motivo:** é o modelo de co-op de fazenda que o usuário conhece e quer. Ter uma referência concreta resolve muitas dúvidas de design.
+- **Consequências:** projeto grande (estimativa de 8–12 meses). Na dúvida sobre como algo deve se comportar, consultar como o Stardew faz.
+
+### D2 — Mundo compartilhado
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** num co-op é preciso definir o que é do grupo e o que é de cada jogador.
+- **Decisão:** fazenda, armazém, moinhos, animais e construções são compartilhados.
+- **Motivo:** é como no Stardew, e o jogo já guarda esse estado em managers únicos (ver `CODIGO.md`).
+- **Consequências:** o host é dono desse estado. Os clientes mandam ações e o host aplica com as funções originais do jogo.
+
+### D3 — Relacionamentos individuais
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** inicialmente foi proposto ter corações compartilhados, por ser mais simples. O usuário quer que cada um possa casar com quem quiser.
+- **Alternativas:** (a) corações compartilhados, com um único valor por NPC; (b) corações por jogador.
+- **Decisão:** (b). Corações, flags de eventos de coração, presente do dia e conversa do dia são por jogador.
+- **Motivo:** permite que cada jogador tenha a sua própria história de romance.
+- **Consequências:** "troca de contexto" no host: antes de uma ação de um jogador com um NPC, carrega a tabela dele no `LikeabilityManager` (`FromSaveData`), roda a lógica original e salva de volta (`ToSaveData`). O código confirmou que a amizade é uma tabela simples `Dictionary<uint, LikeabilityData>`.
+
+### D4 — Dinheiro compartilhado
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** o Stardew permite escolher entre carteira compartilhada e separada.
+- **Alternativas:** compartilhado, separado ou configurável.
+- **Decisão:** compartilhado, numa carteira única.
+- **Motivo:** escolha do usuário. Também é o mais simples, porque o jogo já tem um único `UserInfo.PlayerMoney`.
+- **Consequências:** basta sincronizar `GameController.AddMoney` / `SpendMoney` via host.
+
+### D5 — Casamento com NPC exclusivo
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário (sugerido pela IA)
+- **Contexto:** com relacionamentos individuais (D3), dois jogadores poderiam namorar o mesmo NPC.
+- **Decisão:** quando um jogador começa a namorar um NPC, esse NPC fica indisponível para romance com os outros.
+- **Motivo:** é como no Stardew e evita incoerências na rotina e nos eventos do NPC.
+- **Consequências:** o host mantém um registro de NPC → jogador parceiro. As ações de romance dos outros jogadores com aquele NPC são bloqueadas.
+
+### D6 — Até 4 jogadores
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário (sugerido pela IA)
+- **Decisão:** host + 3 convidados.
+- **Motivo:** igual ao Stardew. **O código do jogo confirmou** que existe `NetworkSetting.MaxMembers = 4` / `MaxGuestMembers = 3`, restos de um multiplayer que foi removido.
+
+### D7 — Conexão via LAN
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** o mod deve funcionar em qualquer instalação do jogo, sem depender da conta ou do lobby da Steam.
+- **Alternativas:** Steamworks P2P, IP direto/LAN, relay próprio.
+- **Decisão:** LAN / IP direto (biblioteca prevista: LiteNetLib). Para jogar pela internet, os jogadores usam uma LAN virtual (Radmin VPN, ZeroTier, Tailscale).
+- **Motivo:** funciona em qualquer cópia do jogo e não depende da Steam.
+- **Consequências:** o mod não precisa de NAT traversal nem de servidor.
+
+### D8 — Sem tela dividida
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Decisão:** cada jogador joga no próprio PC.
+- **Motivo:** tela dividida numa Unity com câmera e input únicos seria um projeto à parte.
+
+### D9 — Pausa do relógio configurável
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário (sugerido pela IA)
+- **Contexto:** no single-player o tempo para em menus e diálogos. No multiplayer, é preciso escolher entre pausar para todos ou não pausar.
+- **Alternativas:** (a) pausa para todos quando alguém abre menu: mais simples, mas trava o dia dos outros; (b) tempo corre em menus, como no Stardew: melhor experiência, mas o jogo pode ter lógica que assume tempo parado.
+- **Decisão:** regra "o relógio pausa quando N jogadores estão em menu ou evento". Começa com N = 1 (equivale a a), e o padrão passa a N = todos (equivale a b) depois de tratar os casos especiais.
+- **Motivo:** o código das duas opções é quase o mesmo, e N = 1 evita bugs no começo.
+- **Consequências:** patch em `DateManager.Pause()` / `Resume()` no host, que envia `Now.Ticks` aos clientes. Casos a tratar com N = todos: loja fechando com o jogador dentro, dia virando durante diálogo etc.
+
+### D10 — Correio compartilhado
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Decisão:** uma caixa de correio para o grupo (`LetterManager` único no host).
+- **Motivo:** escolha do usuário. É mais simples que correio individual.
+
+### D10a — Cartas pessoais no correio compartilhado
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** IA (delegado pelo usuário: "se ficar muito difícil pode ser tudo compartilhado, decida você")
+- **Contexto:** com relacionamentos individuais (D3), algumas cartas são de um NPC para um jogador específico.
+- **Alternativas:** (a) carta só para o destinatário; (b) tudo compartilhado; (c) compartilhado com etiqueta "Para: X".
+- **Decisão:** (b) agora: todos leem, e o item anexado vai para quem abrir. A etiqueta (c) fica como melhoria opcional.
+- **Motivo:** o mod sabe de qual jogador veio a carta, mas mostrar isso na UI pode exigir mexer em textos fixos. Não vale atrasar o projeto por um detalhe estético.
+
+### D11 — Casa única compartilhada
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** o Stardew dá uma cabana para cada farmhand. Criar casas novas exigiria mexer em cenário e mapa, que era o maior risco do projeto.
+- **Decisão:** uma casa só, com tudo dentro compartilhado.
+- **Motivo:** escolha do usuário. Elimina o maior risco técnico.
+
+### D12 — Dormir individual
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Decisão:** ao deitar, só o personagem daquele jogador fica desabilitado (estado "dormindo") até todos dormirem. Aí o dia vira. Aparece um contador "dormindo X/4".
+- **Consequências:** interceptar `PlayerCharacter.ActionSleep()` e só chamar `GameController.StartNextDay()` no host quando todos estiverem dormindo.
+
+### D12a — Cônjuges na casa única; eventos de casado só para o host no início
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** o código mostrou que o jogo suporta **um** cônjuge (`LikeabilityManager.PartnerCharaId`), um `MarriageInfo` e um `ChildInfo`. Também mostrou que as **rotinas de NPC são dados** (`NpcSchedule` com a condição `Married`) e que **já existe uma rotina de casado para cada NPC casável**.
+- **Alternativas:** (a) Plano B: o cônjuge do convidado mora na casa de origem; (b) todos na casa única, reescrevendo o sistema de família inteiro; (c) todos na casa única usando as rotinas originais, com os eventos de casado e filhos desligados para os convidados.
+- **Decisão:** (c), com (a) como reserva.
+- **Motivo:** aproveita as rotas que já existem, e as partes caras (eventos, filhos) ficam para depois.
+- **Consequências / pendências:**
+  - patch na checagem de `Married` / `PartnerCharaId` para "casado com qualquer jogador";
+  - para convidados, desligar no início os eventos de casado (`EventMarried`, `EventSpouseBirthDay`, `EventFiance`, `EventWeddingDay`), os filhos, a cerimônia e `FamilyHelpInfo`;
+  - **a testar:** se a checagem de casado é centralizada; dois cônjuges indo para o mesmo ponto da casa (ver `ScheduleBedChecker` / `ScheduleChairChecker`);
+  - o usuário pediu para tratar os detalhes disso **mais para frente no projeto**.
+
+### D13 — Itens e upgrades individuais
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Decisão:** mochila, ferramentas e upgrades de ferramenta são de cada jogador.
+- **Consequências:** troca de contexto também para `BagItemStorage`, `BagToolStorage` e `ToolManager.SaveData`. O armazém da casa (`HouseStorage`) continua compartilhado.
+
+### D14 — NPC fala com um jogador por vez
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Decisão:** enquanto um jogador conversa, dá presente ou está em evento com um NPC, esse NPC fica "ocupado" para os outros.
+- **Motivo:** escolha do usuário. Também garante que a troca de contexto da amizade (D3) nunca rode para dois jogadores no mesmo NPC ao mesmo tempo.
+- **Consequências:** o host mantém uma trava NPC → jogador e libera ao fim do diálogo ou evento.
+
+### D15 — Autodocumentação obrigatória
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** outras IAs podem mexer no projeto no futuro e precisam entender o raciocínio sem ter acesso à conversa original.
+- **Decisão:**
+  - toda decisão é registrada com contexto neste arquivo;
+  - cada pasta tem um `CONTEXTO.md` (pastas geradas por ferramenta são documentadas pela pasta-mãe);
+  - todo `.md` abre com o aviso de autodocumentação.
+  - Regras completas em `AGENTS.md`, importado pelo `CLAUDE.md`.
+- **Motivo:** continuidade entre sessões e entre IAs diferentes.
+
+### D16 — Mapear o código com Cpp2IL antes de instalar o BepInEx
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** IA
+- **Contexto:** era preciso conhecer as classes do jogo para validar o plano.
+- **Alternativas:** (a) instalar o BepInEx na pasta do jogo e rodar o jogo para gerar os interop assemblies; (b) rodar o Cpp2IL fora do jogo.
+- **Decisão:** (b).
+- **Motivo:** não altera a pasta do jogo e não precisa abrir o jogo. O Cpp2IL suporta metadata v31 (Unity 6), e o Il2CppDumper tem suporte incerto para essa versão.
+- **Consequências:** o dump traz só assinaturas. Comportamentos precisam ser confirmados em runtime com o BepInEx (próximo passo).
+
+### D17 — Estratégia de backup
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário (pediu a cópia do jogo e a garantia dos saves) + IA (locais e verificação)
+- **Contexto:** antes de instalar o BepInEx, o usuário pediu para copiar a pasta inteira do jogo e garantir o backup dos saves. Ele achava que os saves ficavam na pasta do jogo, mas **não ficam**: estão em `%APPDATA%\STORY OF SEASONS Grand Bazaar\<SteamID>\`. Isso foi confirmado no código (`SaveDataAccessorWindows`) e no disco.
+- **Decisão:**
+  - saves copiados para **dois discos**: `backups/saves/` no projeto (C:) e `L:\Backups\SOSGB\saves\`;
+  - jogo inteiro copiado para `L:\Backups\SOSGB\jogo_original_2026-10-24\`;
+  - tudo verificado por SHA-256.
+- **Motivo:** duas cópias dos saves em discos diferentes protegem contra a perda de um disco. A cópia do jogo permite voltar ao estado sem mod com `robocopy /MIR`.
+- **Consequências:** procedimento de restauração em `backups/CONTEXTO.md` e em `L:\Backups\SOSGB\LEIA-ME.md`. Fazer um snapshot novo dos saves antes de testes arriscados.
+
+### D18 — Repositório git público e o que não sobe
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário (repo e local) + IA (regras do `.gitignore`)
+- **Contexto:** o usuário criou o repositório **público** https://github.com/Nicolas-Kalebe/SOSGB-Multiplayer e pediu para mover o projeto para `Documentos/repositorios/`. Também pediu explicitamente: "só não vai subir os arquivos do jogo por engano".
+- **Decisão:**
+  - o projeto fica em `C:/Users/<usuário>/Documents/repositorios/SOSGB-Multiplayer`, com branch `main`;
+  - o `.gitignore` bloqueia `dump/` (exceto o `CONTEXTO.md`), qualquer arquivo de jogo (`GameAssembly.dll`, `global-metadata.dat`, `*_Data/`, `*.assets`…), `backups/` e `*.sav` (saves pessoais), os binários de `tools/` (baixar pelo link) e a saída do BepInEx;
+  - os `.md` versionados não contêm dados pessoais (nome de usuário do Windows, ID Steam, e-mails): o ID Steam aparece como `<SteamID>`.
+- **Motivo:** distribuir código ou arquivos do jogo é ilegal e pode derrubar o repositório. Os saves e os caminhos locais são dados pessoais.
+- **Consequências:**
+  - antes de **todo** commit, conferir `git status` / `git diff --cached --stat` e garantir que nada de `dump/`, `backups/` ou arquivo do jogo foi adicionado;
+  - nunca usar `git add -f` nesses caminhos;
+  - `dump/` e `backups/` continuam documentados localmente pelos seus `CONTEXTO.md`.

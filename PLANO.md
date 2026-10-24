@@ -1,0 +1,170 @@
+# Mod Multiplayer — STORY OF SEASONS: Grand Bazaar
+
+> 🤖 **AUTODOCUMENTAÇÃO OBRIGATÓRIA.** Este projeto se documenta sozinho: registre toda decisão com contexto em [`DECISOES.md`](DECISOES.md), mantenha um `CONTEXTO.md` em cada pasta e abra todo `.md` com este aviso. Regras completas em [`AGENTS.md`](AGENTS.md).
+
+> Objetivo: multiplayer co-op **igual ao do Stardew Valley**.
+> Última atualização: 2026-10-24
+
+---
+
+## 1. Decisões tomadas
+
+> Resumo de uma linha. **Contexto completo de cada decisão em [`DECISOES.md`](DECISOES.md).**
+
+| # | Decisão | Status |
+|---|---|---|
+| D1 | Modelo de referência: **multiplayer do Stardew Valley** | ✅ Decidido |
+| D2 | **Mundo compartilhado**: fazenda, armazém, moinhos, animais, construções | ✅ Decidido |
+| D3 | **Relacionamentos individuais**: cada jogador tem seus próprios corações, eventos e presentes, e casa com quem quiser | ✅ Decidido |
+| D4 | **Dinheiro compartilhado** (carteira única do grupo) | ✅ Decidido |
+| D5 | Casamento com NPC **exclusivo**: quando um jogador namora um NPC, ele fica bloqueado para os outros | ✅ Decidido |
+| D6 | Até **4 jogadores** (host + 3) | ✅ Decidido |
+| D7 | Conexão via **LAN** (IP direto). Para jogar pela internet, usar uma LAN virtual (Radmin VPN, ZeroTier, Tailscale) | ✅ Decidido |
+| D8 | **Sem tela dividida**: cada jogador joga no próprio PC | ✅ Decidido |
+| D9 | **Pausa configurável**: o relógio pausa quando **N** jogadores estão em menu ou evento. Começa com N = 1 (pausa para todos, mais seguro); o padrão passa a ser N = todos (estilo Stardew) depois que os casos especiais estiverem tratados | ✅ Decidido |
+| D10 | **Correio compartilhado**: uma caixa de correio só para o grupo | ✅ Decidido |
+| D10a | Cartas pessoais (disparadas pelo relacionamento de um jogador) entram na caixa compartilhada como qualquer outra carta: **todos leem**, e o item anexado vai para **quem abrir**. A etiqueta "Para: Jogador X" fica como **melhoria opcional**: só entra se mexer no texto da UI for barato | ✅ Decidido (por Claude, delegado pelo usuário) |
+| D11 | **Casa única compartilhada**: uma casa só para o grupo, com tudo dentro compartilhado (sem cabanas) | ✅ Decidido |
+| D12 | **Dormir individual**: ao deitar, só o seu personagem fica desabilitado (dormindo/esperando) até todos dormirem; aí o dia vira | ✅ Decidido |
+| D12a | **Todos os cônjuges moram na casa única**, usando a rotina de casado original de cada NPC (patch em `Married`/`PartnerCharaId` para "casado com qualquer jogador"). Para quem **não é host**, ficam **desligados no início**: eventos de casado, filhos, cerimônia de casamento e ajuda na fazenda (`FamilyHelpInfo`); são reativados depois. **Reserva (Plano B):** se o patch do "casado" ficar complicado, o cônjuge do convidado mora na casa de origem | ✅ Decidido |
+| D13 | **Itens e upgrades individuais**: mochila, ferramentas e upgrades de ferramenta são de cada jogador (armazém, casa e dinheiro continuam compartilhados) | ✅ Decidido |
+| D14 | **NPC fala com um jogador por vez**: enquanto um jogador conversa, dá presente ou está em evento com um NPC, o NPC fica "ocupado" para os outros | ✅ Decidido |
+| D15 | **Autodocumentação obrigatória**: decisões com contexto em `DECISOES.md`, um `CONTEXTO.md` por pasta, aviso em todo `.md` (regras em `AGENTS.md`) | ✅ Decidido |
+| D16 | Mapear o código com **Cpp2IL** (fora do jogo) antes de instalar o BepInEx | ✅ Decidido (IA) |
+| D17 | **Backup**: saves em 2 discos + jogo original inteiro em `L:\Backups\SOSGB`, verificados por SHA-256 (restauração em `backups/CONTEXTO.md`) | ✅ Decidido |
+| D18 | **Repo público** no GitHub; `.gitignore` bloqueia dump, arquivos do jogo, saves e binários de ferramentas | ✅ Decidido |
+
+---
+
+## 2. Dados técnicos do jogo
+
+Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
+
+| Item | Valor | Implicação |
+|---|---|---|
+| Engine | **Unity 6** (`6000.0.28f1`) | Ferramentas de modding maduras |
+| Backend | **IL2CPP** (`GameAssembly.dll`) | Usar BepInEx 6 IL2CPP + Cpp2IL/Il2CppDumper |
+| Metadata | `global-metadata.dat` v31, **sem criptografia** | Dump de classes e métodos funciona direto |
+| Código do jogo | `Assembly-CSharp.dll`, `BokuMono.*` | Lógica principal (BokuMono = nome interno da série) |
+| Libs embutidas | Newtonsoft.Json, UniTask, UniRx, DOTween, Cinemachine, CriWare | JSON pronto para serializar estado |
+| Rede | `com.rlabrecque.steamworks.net.dll` | Steamworks.NET disponível (só com a cópia original da Steam) |
+| Rede escolhida | LiteNetLib (IP direto / LAN) | Não depende da Steam (D7) |
+
+---
+
+## 3. Arquitetura
+
+**O host é o dono do mundo** (como no Stardew):
+
+- **Só o host salva.** O personagem de cada amigo fica guardado no save do host e o amigo pode reconectar depois.
+- Os clientes **mandam ações** (arar, regar, colher, guardar item, dar presente). O host executa a ação com as **funções originais do jogo** e espalha o resultado (deltas).
+- Ao conectar, o cliente recebe um **snapshot** do mundo.
+- **Relacionamentos individuais por troca de contexto.** Quando o jogador X age com um NPC, o host:
+  1. carrega a tabela de amizade do X na estrutura original do jogo;
+  2. roda a lógica original (pontos, reações, eventos);
+  3. salva o resultado de volta na tabela do X.
+
+**Stack prevista:** BepInEx 6 (IL2CPP) + HarmonyX (patches) + LiteNetLib (rede) + Newtonsoft.Json (serialização).
+
+---
+
+## 4. Funcionalidades (Stardew → Grand Bazaar)
+
+### Compartilhado
+- [ ] Fazenda: tiles, plantações, rega
+- [ ] Armazém / baús
+- [ ] Moinhos
+- [ ] Animais e celeiro
+- [ ] **Dinheiro (carteira única)**
+- [ ] Bazaar: barraca e caixa compartilhados
+- [ ] **Correio** (caixa única do grupo)
+- [ ] **Casa** (única, tudo dentro compartilhado)
+
+### Individual (por jogador)
+- [ ] Inventário / mochila
+- [ ] Ferramentas e upgrades
+- [ ] Pontos de coração com cada NPC
+- [ ] Flags de eventos de coração
+- [ ] Presente do dia / conversa do dia
+- [ ] Namoro, noivado, casamento
+- [ ] Trava de NPC (D14): NPC ocupado enquanto conversa com um jogador
+- [ ] Filhos (por casal)
+
+### Tempo e eventos
+- [ ] Relógio controlado pelo host e enviado aos clientes
+- [ ] Regra de pausa configurável (D9): pausa quando N jogadores estão em menu ou evento
+- [ ] v0.1: N = 1 (pausa para todos)
+- [ ] Tratar casos especiais de tempo correndo em menu (loja fechando com o jogador dentro, dia virando durante diálogo etc.)
+- [ ] Mudar o padrão para N = todos (estilo Stardew)
+- [ ] Dormir desabilita **só o seu personagem** (estado "dormindo", sem controle) até todos dormirem
+- [ ] Contador "dormindo 2/4" visível para todos
+- [ ] Dia vira quando **todos dormem**
+- [ ] Cutscenes pessoais: só quem disparou vê, o mundo segue para os outros
+- [ ] Festivais: todos entram juntos, início por confirmação de todos
+
+### Fora do escopo / bônus
+- [ ] Casamento entre jogadores (conteúdo novo, dificuldade extrema)
+- [ ] Etiqueta "Para: Jogador X" nas cartas pessoais (D10a)
+- ~~Tela dividida~~ (descartado: cada jogador no próprio PC)
+
+---
+
+## 5. Riscos (atualizado com o código — ver `CODIGO.md`)
+
+| Risco | Antes | Depois de ver o código |
+|---|---|---|
+| Como o jogo guarda o estado | ❓ | ✅ **Fácil**: objeto central `UserInfo`, e todo manager tem `ToSaveData()` / `FromSaveData()` |
+| Formato da amizade | ❓ | ✅ **Fácil**: tabela simples `Dictionary<NPC, LikeabilityData>` |
+| Dinheiro, armazém, correio, Bazaar | Média | ✅ **Fácil**: um manager cada, com métodos claros de adicionar e remover |
+| Fazenda | Alta | ✅ **Média**: dados simples com `Guid` e posição; o jogo já atualiza mapas fora da tela |
+| Dados por jogador (mochila, ferramentas, amizade) | Alta | 🟡 **Viável**: são singletons, mas `ToSaveData()`/`FromSaveData()` tornam a troca de contexto direta |
+| Relógio e pausa (D9) | Alta | 🟡 **Viável**: um `DateManager` global com `Pause()`/`Resume()`; patch no host |
+| Mapas e avatares | Média | 🟡 **Média**: o jogo assume 1 player e 1 mapa ativo por vez, então os outros jogadores precisam de avatares "fantasma" |
+| Eventos (cutscenes) | Alta | 🟠 **Alta**: `IsPlayingEvent` é global; precisa rodar só para quem disparou |
+| **Vários cônjuges e filhos (D12a)** | Muito alta | 🔴 **O maior trabalho**: o jogo guarda um único `PartnerCharaId`, um `MarriageInfo` e um `ChildInfo`, e eventos, rotinas e a casa dependem disso |
+| Formato de serialização | ❓ | 🟡 Provavelmente JSON + deflate + XOR; confirmar em runtime |
+
+**🎯 Descoberta importante:** sobrou no código a estrutura de um multiplayer que foi removido: `NetworkSetting` com `MaxMembers = 4`, `MaxGuestMembers = 3`, menu `StartHost/StartGuest`, sincronização de horário e lista do que o convidado pode fazer. O jogo foi pensado para **host + 3 convidados**, o mesmo formato do D6.
+
+**D12a → casa única com eventos de casado desligados para convidados (Plano B como reserva).** O código confirma que o jogo só suporta um cônjuge (`PartnerCharaId`).
+
+**Rotinas de NPC (descoberta):** as rotas **não são programadas em código**, são **dados**. Cada NPC tem uma lista de `NpcSchedule`, e cada entrada tem condições: `Married`, estação, dia da semana, clima, festival, `ChildGrowth`, `HomeUpgradeLevel`, prioridade. As rotas ficam em `NpcSchedulePack.NpcScheduleRoutes`, e o `ScheduleManager` escolhe a entrada que bate com as condições do dia.
+- **Reserva (Plano B):** não exige mexer em rota nenhuma. Para quem não é o host, a condição `Married` dá falso, então o NPC segue a rotina de solteiro naturalmente.
+- **Caminho escolhido:** os desenvolvedores **já criaram uma rotina de casado para cada NPC casável**, com a rota até a casa do jogador. Bastaria um patch na checagem de `Married` ("casado com *qualquer* jogador") para cada cônjuge usar a própria rota original. Existem `ScheduleBedChecker` / `ScheduleChairChecker`, que podem ajudar a evitar dois cônjuges na mesma cama ou cadeira. O que continua difícil (e fica desligado para convidados no início): eventos de casado, filhos, cerimônia e `FamilyHelpInfo`.
+- **A testar:** (1) se a checagem de casado é centralizada ou espalhada; (2) dois cônjuges indo para o mesmo ponto da casa (sobreposição visual); (3) diálogos de casado para convidados.
+
+---
+
+## 6. Roadmap
+
+| Versão | Conteúdo | Estimativa |
+|---|---|---|
+| v0.1 | Conexão via LAN, ver os amigos andando e trocando de mapa | ~1 mês |
+| v0.3 | Dinheiro compartilhado, armazém, inventário individual | +1–2 meses |
+| v0.5 | Fazenda e animais sincronizados, dia termina quando todos dormem | +2–3 meses |
+| v0.7 | Corações e eventos individuais; casamento com todos na casa única (eventos de casado e filhos só para o host) | +2 meses |
+| v0.9 | Festivais e Bazaar em grupo | +2 meses |
+| v1.0 | Reativar para convidados: eventos de casado, cerimônia, filhos, ajuda na fazenda; casamento entre jogadores como bônus | +2–3 meses |
+
+**Total estimado:** 8–12 meses. O save central e a tabela simples de amizade facilitam; os vários cônjuges continuam caros. Jogável em grupo a partir da v0.5.
+
+---
+
+## 7. Próximos passos
+
+- [x] Gerar as classes do jogo (Cpp2IL → `dump/`, sem tocar na pasta do jogo)
+- [x] Mapear classes: save, armazém, amizade, fazenda, relógio, dinheiro, player (→ `CODIGO.md`)
+- [x] Revisar o plano com base no código
+- [x] Backup dos saves (2 discos) e do jogo original, verificado por SHA-256 (D17)
+- [ ] Instalar **BepInEx 6 IL2CPP (bleeding edge)** na pasta do jogo (reversível: apagar a pasta `BepInEx` e o `winhttp.dll`)
+- [ ] Plugin "olá mundo": mostrar na tela o dinheiro (`UserInfo.PlayerMoney`), a hora (`DateManager.Now`) e o mapa atual
+- [ ] Hook em `SaveDataManager.Encode<T>` para confirmar o formato do save
+- [ ] Testar `LikeabilityManager.ToSaveData()` / `FromSaveData()` (base da troca de contexto)
+- [ ] Investigar `NetworkSetting` e a UI de rede que sobrou (dá para reativar o menu de host/convidado?)
+
+---
+
+## 8. Avisos
+
+- Modificar o jogo para uso pessoal é aceito pela comunidade. **Distribuir código decompilado do jogo, não.** Um mod publicado deve conter só o código do mod.
+- Fazer um snapshot novo dos saves antes de testes arriscados. **Os saves ficam em `%APPDATA%\STORY OF SEASONS Grand Bazaar`, não na pasta do jogo.** Restauração: `backups/CONTEXTO.md`.

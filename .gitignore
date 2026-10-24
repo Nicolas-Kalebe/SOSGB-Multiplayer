@@ -1,0 +1,44 @@
+# 🤖 AUTODOCUMENTAÇÃO: o motivo de cada regra está documentado (ver DECISOES.md#d18).
+
+# ⚠️ NUNCA versionar arquivos ou código do jogo (repositório PÚBLICO).
+# dump/ = classes do jogo extraídas pelo Cpp2IL. Só o CONTEXTO.md (que explica como gerar) entra.
+dump/**
+!dump/
+!dump/CONTEXTO.md
+
+# Arquivos do jogo que nunca devem entrar, mesmo que copiados por engano
+GameAssembly.dll
+UnityPlayer.dll
+global-metadata.dat
+*_Data/
+*.assets
+*.assets.resS
+*.resS
+*.bundle
+*.pdf
+
+# Saves do usuário (dados pessoais). Os backups ficam só no PC.
+backups/
+*.sav
+
+# Ferramentas de terceiros: baixar pelo link em tools/CONTEXTO.md
+tools/*
+!tools/CONTEXTO.md
+
+# Saída do BepInEx / interop gerado a partir do jogo
+BepInEx/
+interop/
+unity-libs/
+Il2CppAssemblies/
+
+# Build .NET
+bin/
+obj/
+*.user
+.vs/
+.idea/
+
+# SO
+Thumbs.db
+Desktop.ini
+.DS_Store
