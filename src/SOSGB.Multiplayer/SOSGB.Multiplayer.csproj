@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    🤖 AUTODOCUMENTAÇÃO: ver src/CONTEXTO.md e DECISOES.md#d19.
+    Plugin BepInEx 6 (IL2CPP). As referências apontam para a pasta do jogo
+    (BepInEx/core e BepInEx/interop), que NÃO são versionadas (D18).
+    Para mudar o caminho do jogo: dotnet build -p:GamePath="X:\caminho\do\jogo"
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>SOSGB.Multiplayer</AssemblyName>
+    <RootNamespace>SOSGB.Multiplayer</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Version>0.0.1</Version>
+
+    <GamePath Condition="'$(GamePath)' == ''">L:\Games\STORY OF SEASONS Grand Bazaar</GamePath>
+    <BepInExPath>$(GamePath)\BepInEx</BepInExPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Núcleo do BepInEx / Il2CppInterop / Harmony -->
+    <Reference Include="$(BepInExPath)\core\BepInEx.Core.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\core\BepInEx.Unity.IL2CPP.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\core\Il2CppInterop.Runtime.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\core\0Harmony.dll" Private="false" />
+
+    <!-- Assemblies do jogo gerados pelo BepInEx na primeira execução -->
+    <Reference Include="$(BepInExPath)\interop\Il2Cppmscorlib.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\BokuMono.Utility.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UnityEngine.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UnityEngine.TextRenderingModule.dll" Private="false" />
+  </ItemGroup>
+
+  <!-- Depois do build, copia a DLL para BepInEx/plugins do jogo -->
+  <Target Name="CopyToGame" AfterTargets="Build" Condition="Exists('$(BepInExPath)\plugins')">
+    <MakeDir Directories="$(BepInExPath)\plugins\SOSGB.Multiplayer" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExPath)\plugins\SOSGB.Multiplayer" />
+  </Target>
+
+</Project>

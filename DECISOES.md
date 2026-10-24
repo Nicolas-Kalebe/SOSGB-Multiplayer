@@ -158,3 +158,14 @@ Regras deste arquivo:
   - antes de **todo** commit, conferir `git status` / `git diff --cached --stat` e garantir que nada de `dump/`, `backups/` ou arquivo do jogo foi adicionado;
   - nunca usar `git add -f` nesses caminhos;
   - `dump/` e `backups/` continuam documentados localmente pelos seus `CONTEXTO.md`.
+
+### D19 — Stack do plugin e primeira etapa (validação por leitura)
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** IA (usuário aprovou seguir com o BepInEx)
+- **Contexto:** com o design fechado e o código mapeado só por assinaturas, era preciso provar em runtime que conseguimos acessar o estado do jogo.
+- **Decisão:**
+  - **BepInEx 6 IL2CPP bleeding edge `6.0.0-be.791+b782da4`**, instalado direto na pasta do jogo (o backup do original está em D17);
+  - plugin em C# `net6.0` em `src/SOSGB.Multiplayer`, com as referências apontando para `<jogo>/BepInEx/interop` via a propriedade `GamePath`;
+  - primeiro componente: `DebugOverlay`, que só lê dinheiro, relógio, mapa e posição do player, sem alterar nada.
+- **Alternativas:** MelonLoader (descartado: o BepInEx 6 tem suporte melhor a IL2CPP e Unity 6, e HarmonyX integrado); BepInEx 5 (descartado: não suporta IL2CPP).
+- **Motivo:** o bleeding edge é a única linha do BepInEx com suporte a IL2CPP metadata v31 / Unity 6. Começar só com leitura isola problemas de acesso antes de mexer em comportamento.
+- **Consequências:** compilar exige o jogo com o BepInEx já executado uma vez. Se o jogo atualizar, é preciso rodar de novo para regenerar o interop.

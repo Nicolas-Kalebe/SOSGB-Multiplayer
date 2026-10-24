@@ -54,6 +54,7 @@ Idioma da documentação: **português do Brasil** (termos técnicos e identific
 | `PLANO.md` | Objetivo, arquitetura, checklist, riscos, roadmap, próximos passos |
 | `DECISOES.md` | Registro completo das decisões, com contexto |
 | `CODIGO.md` | Mapa das classes do jogo relevantes para o mod |
+| `src/` | Código do mod (ver `src/CONTEXTO.md`) |
 | `tools/` | Ferramentas externas (ver `tools/CONTEXTO.md`) |
 | `dump/` | Classes do jogo extraídas, **não distribuir** (ver `dump/CONTEXTO.md`) |
 | `backups/` | Backups dos saves e procedimento de restauração (ver `backups/CONTEXTO.md`) |

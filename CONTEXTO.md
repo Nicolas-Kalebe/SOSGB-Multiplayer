@@ -11,8 +11,8 @@ Mod de multiplayer co-op para **STORY OF SEASONS: Grand Bazaar** (Marvelous, 202
 
 ## Estado atual (2026-10-24)
 
-- **Fase:** design fechado, código do jogo mapeado (só assinaturas). **Nenhuma linha do mod escrita ainda.**
-- **Próximo passo:** instalar o BepInEx 6 IL2CPP e fazer um plugin de teste (ver `PLANO.md` §7).
+- **Fase:** validação em runtime. BepInEx instalado, plugin v0.0.1 (`DebugOverlay`, só leitura) em `src/`.
+- **Próximo passo:** ver `PLANO.md` §7.
 
 ## Jogo
 
@@ -38,10 +38,10 @@ Mod de multiplayer co-op para **STORY OF SEASONS: Grand Bazaar** (Marvelous, 202
 | [`PLANO.md`](PLANO.md) | Plano: decisões (resumo), arquitetura, checklist, riscos, roadmap |
 | [`DECISOES.md`](DECISOES.md) | Decisões completas com contexto |
 | [`CODIGO.md`](CODIGO.md) | Mapa das classes do jogo |
+| [`src/`](src/CONTEXTO.md) | **Código do mod** (plugin BepInEx) |
 | [`tools/`](tools/CONTEXTO.md) | Ferramentas externas (Cpp2IL) |
 | [`dump/`](dump/CONTEXTO.md) | Classes do jogo extraídas, **não distribuir** |
 | [`backups/`](backups/CONTEXTO.md) | Backups dos saves + **como restaurar** (o jogo original fica em `L:\Backups\SOSGB`) |
 
 Pastas futuras previstas (cada uma vai ganhar o seu `CONTEXTO.md` ao ser criada):
-- `src/`: código do plugin BepInEx;
 - `docs/`: documentação extra, se necessário.

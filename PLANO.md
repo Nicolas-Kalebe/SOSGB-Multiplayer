@@ -33,6 +33,7 @@
 | D16 | Mapear o código com **Cpp2IL** (fora do jogo) antes de instalar o BepInEx | ✅ Decidido (IA) |
 | D17 | **Backup**: saves em 2 discos + jogo original inteiro em `L:\Backups\SOSGB`, verificados por SHA-256 (restauração em `backups/CONTEXTO.md`) | ✅ Decidido |
 | D18 | **Repo público** no GitHub; `.gitignore` bloqueia dump, arquivos do jogo, saves e binários de ferramentas | ✅ Decidido |
+| D19 | **Stack**: BepInEx 6 IL2CPP be.791 + plugin `net6.0` em `src/`; primeira etapa só lê o estado do jogo (`DebugOverlay`) | ✅ Decidido |
 
 ---
 
@@ -156,7 +157,8 @@ Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
 - [x] Mapear classes: save, armazém, amizade, fazenda, relógio, dinheiro, player (→ `CODIGO.md`)
 - [x] Revisar o plano com base no código
 - [x] Backup dos saves (2 discos) e do jogo original, verificado por SHA-256 (D17)
-- [ ] Instalar **BepInEx 6 IL2CPP (bleeding edge)** na pasta do jogo (reversível: apagar a pasta `BepInEx` e o `winhttp.dll`)
+- [x] Instalar **BepInEx 6 IL2CPP be.791** na pasta do jogo (reversível: ver `backups/CONTEXTO.md`)
+- [x] Criar `src/SOSGB.Multiplayer` (plugin `net6.0`)
 - [ ] Plugin "olá mundo": mostrar na tela o dinheiro (`UserInfo.PlayerMoney`), a hora (`DateManager.Now`) e o mapa atual
 - [ ] Hook em `SaveDataManager.Encode<T>` para confirmar o formato do save
 - [ ] Testar `LikeabilityManager.ToSaveData()` / `FromSaveData()` (base da troca de contexto)
