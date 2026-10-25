@@ -65,8 +65,9 @@ public class DevBridge : MonoBehaviour
 
     public static void Start(int port)
     {
-        _stateLogPath = Path.Combine(Paths.BepInExRootPath, "sosgb-state.jsonl");
-        _screenshotDir = Path.Combine(Paths.BepInExRootPath, "screenshots");
+        // Arquivos separados por instância quando há mais de uma no PC (tarefa 1.6).
+        _stateLogPath = Path.Combine(Paths.BepInExRootPath, $"sosgb-state{Plugin.InstanceTag}.jsonl");
+        _screenshotDir = Path.Combine(Paths.BepInExRootPath, "screenshots" + Plugin.InstanceTag);
         Directory.CreateDirectory(_screenshotDir);
         File.WriteAllText(_stateLogPath, ""); // um log por sessão de jogo
 
@@ -144,7 +145,7 @@ public class DevBridge : MonoBehaviour
 
     private void TryAutoLoad()
     {
-        var slot = Plugin.AutoLoadSlot.Value;
+        var slot = Plugin.EffectiveAutoLoadSlot;
         if (_autoLoadDone || slot < 0 || !SceneManager.IsInstance) return;
         if (SceneManager.Instance.CurrentSceneMode != SceneMode.Title) { _titleSince = -1f; return; }
 

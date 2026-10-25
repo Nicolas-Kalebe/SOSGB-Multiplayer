@@ -94,7 +94,9 @@ public class DebugOverlay : MonoBehaviour
     private void OnGUI()
     {
         if (!_visible) return;
-        GUI.Box(new Rect(10, 10, 380, 105), $"{Plugin.Name} {Plugin.Version}  [F8]");
-        GUI.Label(new Rect(20, 32, 360, 80), _text);
+        // Canto inferior esquerdo: o superior esquerdo é da barra de stamina do jogo (tarefa 1.7).
+        var y = Screen.height - 125;
+        GUI.Box(new Rect(10, y, 380, 105), $"{Plugin.Name} {Plugin.Version}{Plugin.InstanceTag}  [F8]");
+        GUI.Label(new Rect(20, y + 22, 360, 80), _text);
     }
 }

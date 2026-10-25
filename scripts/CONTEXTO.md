@@ -8,6 +8,7 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 |---|---|
 | `bridge.py` | Cliente da ponte: manda um comando e imprime a resposta JSON. `python scripts/bridge.py state` |
 | `dev-cycle.sh` | Ciclo completo: fecha o jogo → compila → abre → ativa a janela → espera o save carregar. `scripts/dev-cycle.sh [--no-build]` |
+| `second-instance.sh` | Abre uma **segunda instância** do jogo com a ponte em outra porta (padrão 47801). Para testar host + convidado no mesmo PC |
 | `kick-window.ps1` | Dá uma ativação real à janela do jogo e devolve o foco para a janela anterior. Necessário porque, aberto por script, o Launcher trava até um alt-tab ([D21](../DECISOES.md)) |
 
 ## Pré-requisitos
@@ -20,6 +21,14 @@ Enabled = true
 Port = 47800
 AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principal.
 ```
+
+## Várias instâncias
+
+Variáveis de ambiente que sobrescrevem o `.cfg` por instância:
+- `SOSGB_BRIDGE_PORT`: porta da ponte. Use `python scripts/bridge.py --port 47801 state`.
+- `SOSGB_AUTOLOAD_SLOT`: slot carregado automaticamente.
+
+O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recente. O `dev-cycle.sh` fecha **todas** as instâncias.
 
 ## Comandos da ponte
 

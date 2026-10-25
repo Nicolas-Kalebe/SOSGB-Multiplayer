@@ -169,7 +169,8 @@ Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
 - [x] Ponte de teste (D20): log de estado, comandos em 127.0.0.1:47800, screenshot (PNG próprio), auto-load de slot, `scripts/dev-cycle.sh`
 - [x] Confirmado em runtime pela IA: auto-load do slot 3, dinheiro (69.365 G), data/hora, `DateManager.Pause()`/`Resume()`, `GameController.AddMoney`
 - [x] Primeiro patch Harmony (D21): jogo não pausa sem foco
-- [ ] **Retomar aqui:** verificar se o relógio vira ⏸ em menus/diálogos; testar `LikeabilityManager.ToSaveData()`/`FromSaveData()` (base dos corações individuais); confirmar o formato do save
+- [x] **Fase 1 concluída** (ver `ROTEIRO.md`): relógio/menus, formato do save, troca de contexto (6 partes), snapshot do mundo, duas instâncias
+- [ ] **Retomar aqui:** Fase 2 do `ROTEIRO.md` (rede básica)
 - [ ] Plugin "olá mundo": mostrar na tela o dinheiro (`UserInfo.PlayerMoney`), a hora (`DateManager.Now`) e o mapa atual
 - [ ] Hook em `SaveDataManager.Encode<T>` para confirmar o formato do save
 - [ ] Testar `LikeabilityManager.ToSaveData()` / `FromSaveData()` (base da troca de contexto)

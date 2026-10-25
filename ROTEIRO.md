@@ -21,7 +21,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ---
 
-## Fase 1 — Validação técnica (antes de qualquer rede)
+## Fase 1 — Validação técnica (antes de qualquer rede) ✅
 
 > Objetivo: provar, sem rede, que as peças de que o multiplayer depende funcionam. Se alguma falhar, o plano muda **aqui**, com custo baixo.
 
@@ -32,8 +32,8 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 1.3 ✅ | **Troca de contexto da amizade**: `LikeabilityManager.ToSaveData()` → mudar pontos → `FromSaveData()` restaura. Base do D3 | M | Teste da IA: comandos `likeability get/set/swap` na ponte |
 | 1.4 ✅ | **Troca de contexto do inventário**: idem para mochila, ferramentas, `TalkManager`, `EventFlagManager` (D13) | M | Teste da IA |
 | 1.5 ✅ | **Snapshot do mundo**: `UserInfoMediator.ApplyToUserInfo` → serializar → aplicar em outra sessão. É o que o convidado vai receber ao entrar | M | Teste da IA: snapshot do slot A aplicado no B |
-| 1.6 | **Duas instâncias no mesmo PC**: o jogo abre duas vezes? Cada uma com a sua porta de ponte (config por instância) | P | Teste da IA |
-| 1.7 | Mover o overlay de debug para não cobrir a barra de stamina | P | Screenshot |
+| 1.6 ✅ | **Duas instâncias no mesmo PC**: o jogo abre duas vezes? Cada uma com a sua porta de ponte (config por instância) | P | Teste da IA |
+| 1.7 ✅ | Mover o overlay de debug para não cobrir a barra de stamina | P | Screenshot |
 
 **✔ Pronto quando:** 1.1–1.6 confirmados em runtime e documentados em `CODIGO.md` §13. Qualquer surpresa vira decisão nova.
 
@@ -152,11 +152,14 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ## Estado atual
 
-- **Fase:** 1 — Validação técnica
-- **Próxima tarefa:** 1.6 (duas instâncias no mesmo PC)
+- **Fase:** 2 — Rede básica (v0.1)
+- **Próxima tarefa:** 2.1 (integrar LiteNetLib: host/cliente, handshake)
 - **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
 - **Feito:** 1.2 — save = cabeçalho + JSON (`Obfuscation.Decode(..., General)`), 94 seções
 - **Feito:** 1.3 — troca de contexto da amizade funciona **via JSON** (`ToSaveData` é raso)
 - **Feito:** 1.4 — 6 partes por jogador (amizade, conversas, flags, mochila, ferramentas, regador), ~57 KB
 - **Feito:** 1.5 — snapshot do mundo pelo pipeline de save do próprio jogo (73 KB), sem tocar no disco
+- **Feito:** 1.6 — duas instâncias no mesmo PC (`scripts/second-instance.sh`)
+- **Feito:** 1.7 — overlay no canto inferior esquerdo
+- ✅ **Fase 1 concluída** (2026-10-24): nenhuma surpresa que mude o plano
 - **Última atualização:** 2026-10-24

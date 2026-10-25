@@ -161,6 +161,11 @@ Armadilhas das flags de evento:
 - O `SaveSystem.sav` (configurações gerais) é regravado pelo próprio jogo ao abrir, e isso não tem relação com o snapshot.
 - **Para a Fase 3:** o host captura e manda ~73 KB; o convidado carrega com a injeção no `SlotLoad`. Sem precisar conhecer o formato do save.
 
+### Duas instâncias no mesmo PC (tarefa 1.6) ✅
+- O jogo **não** bloqueia uma segunda instância (`boot.config` sem `single-instance`). As duas rodam juntas, cada uma na cena Game, com o relógio independente.
+- Elas compartilham a pasta e o `.cfg`. A porta da ponte e o slot do auto-load vêm de variáveis de ambiente: `SOSGB_BRIDGE_PORT`, `SOSGB_AUTOLOAD_SLOT` (ver `scripts/second-instance.sh`). O log de estado e os prints ganham o sufixo `-<porta>`.
+- ⚠️ As duas carregam o mesmo slot do disco. Antes de testes de rede, o convidado não pode salvar (Fase 3).
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

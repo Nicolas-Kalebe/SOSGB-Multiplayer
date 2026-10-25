@@ -23,6 +23,14 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<int> AutoLoadSlot;
     internal static ConfigEntry<float> StateLogInterval;
 
+    // Valores efetivos (config ou variável de ambiente; ver tarefa 1.6).
+    internal static int BridgePort;
+    internal static int EffectiveAutoLoadSlot;
+    internal static string InstanceTag = "";
+
+    private static int? EnvInt(string name) =>
+        int.TryParse(System.Environment.GetEnvironmentVariable(name), out var v) ? v : null;
+
     public override void Load()
     {
         Logger = Log;
@@ -40,7 +48,13 @@ public class Plugin : BasePlugin
         StateLogInterval = Config.Bind("DevBridge", "StateLogIntervalSeconds", 2f,
             "Intervalo de gravação do BepInEx/sosgb-state.jsonl.");
 
-        Logger.LogInfo($"{Name} {Version} carregado.");
+        // Tarefa 1.6: várias instâncias no mesmo PC compartilham a mesma pasta e o mesmo .cfg.
+        // Variáveis de ambiente permitem que cada instância tenha a sua porta e o seu slot.
+        BridgePort = EnvInt("SOSGB_BRIDGE_PORT") ?? DevBridgePort.Value;
+        EffectiveAutoLoadSlot = EnvInt("SOSGB_AUTOLOAD_SLOT") ?? AutoLoadSlot.Value;
+        InstanceTag = System.Environment.GetEnvironmentVariable("SOSGB_BRIDGE_PORT") != null ? $"-{BridgePort}" : "";
+
+        Logger.LogInfo($"{Name} {Version} carregado (instância{(InstanceTag == "" ? " padrão" : InstanceTag)}).");
 
         new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
 
@@ -49,7 +63,7 @@ public class Plugin : BasePlugin
 
         if (DevBridgeEnabled.Value)
         {
-            DevBridge.Start(DevBridgePort.Value);
+            DevBridge.Start(BridgePort);
             AddComponent<DevBridge>();
         }
     }

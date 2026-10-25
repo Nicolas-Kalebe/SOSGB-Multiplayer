@@ -3,7 +3,8 @@
 # receber uma ativação real do Windows, como um alt-tab. Mensagens WM_ACTIVATE não bastam.
 # ATENÇÃO: o processo tem DUAS janelas (jogo + console do BepInEx). Process.MainWindowHandle
 # pode apontar para o console, então procuramos a janela da classe "UnityWndClass" do processo.
-param([int]$Mode = 0)  # 0 = ativar de verdade (traz para frente e devolve o foco); 1 = só minimizar/restaurar
+param([int]$Mode = 0, [int]$ProcessId = 0)  # Mode 0 = ativar (traz para frente e devolve o foco); 1 = minimizar/restaurar
+# ProcessId 0 = a instância mais recente do jogo (útil com duas instâncias, tarefa 1.6)
 Add-Type @"
 using System; using System.Text; using System.Runtime.InteropServices;
 public class SosgbWin {
@@ -28,7 +29,8 @@ public class SosgbWin {
   }
 }
 "@
-$p = Get-Process SOSGrandBazaar -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($ProcessId -ne 0) { $p = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue }
+else { $p = Get-Process SOSGrandBazaar -ErrorAction SilentlyContinue | Sort-Object StartTime -Descending | Select-Object -First 1 }
 if (-not $p) { Write-Output "jogo não está aberto"; exit 1 }
 $h = [SosgbWin]::FindUnityWindow([uint32]$p.Id)
 if ($h -eq [IntPtr]::Zero) { Write-Output "janela UnityWndClass não encontrada"; exit 1 }
