@@ -244,3 +244,11 @@ Regras deste arquivo:
 - **Experimento (em runtime, de dentro do jogo):** "só mostrar" (`ShowWindow`) não destrava; **trazer para frente** (toque de ALT + `ShowWindow(RESTORE)` + `BringWindowToTop` + `SetForegroundWindow`) **destrava**. Funciona porque o processo do jogo é dono do console que está em primeiro plano, e o Windows deixa ele trocar o foco.
 - **Decisão:** componente `StartupGuard`. Enquanto o jogo estiver no Launcher, a cada 4 s, se a janela da Unity não estiver em primeiro plano, ela é trazida para frente. Minimizar/restaurar fica só como reserva. Configurável em `[Game] FixStartupFocus` (padrão `true`).
 - **Verificado:** abrindo por script, sem nenhuma ajuda externa, o jogo chega ao título e ao save com **1 ativação**, inclusive com duas instâncias. Os scripts de teste não usam mais o `kick-window.ps1`.
+
+### D26 — Avisos do multiplayer no sistema de avisos do próprio jogo
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (pedido do usuário: "aviso de que um player se conectou, ou desmaiou, ou entrou em um evento, aparecendo no próprio sistema de avisos do jogo, igual o de que um item ficou pronto")
+- **Contexto:** o jogo tem as "informações laterais" (`UISideInfomation*`), usadas para correio, item pronto e festival. Elas só aceitam textos traduzidos por ID (`GetInfomationTextInfo()` → id + tabela + argumentos).
+- **Alternativas:** (a) janela própria (IMGUI), que destoa do jogo; (b) injetar uma classe nova de `ISideInfoData` no IL2CPP, complexo e frágil; (c) reaproveitar um aviso nativo e trocar o texto.
+- **Decisão:** (c). `GameNotify.Show(texto)` pede `UIAccessor.RequestShowSideInfoPost(9731)`, uma contagem-marcador, e um postfix em `UISideInfomationModerate.SetData` troca o texto pelo nosso. Fica com a animação, o som e a posição nativos, com o ícone de carta. Fora da cena de jogo cai no `Notice` do overlay.
+- **Avisos atuais:** entrou/saiu do mundo, conectado ao mundo de X (depois da recarga), conexão perdida, foi dormir (X/Y), desmaiou de cansaço/sono, entrou em um evento. Cada jogador detecta os próprios acontecimentos lendo o estado do jogo (sem patch) e avisa os outros (`PlayerEvent`).
+- **Verificado:** screenshot com o aviso nativo; entrada e dormir testados com 2 instâncias.

@@ -9,6 +9,7 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 | `bridge.py` | Cliente da ponte: manda um comando e imprime a resposta JSON. `python scripts/bridge.py state` |
 | `dev-cycle.sh` | Ciclo completo: fecha o jogo → compila → abre → ativa a janela → espera o save carregar. `scripts/dev-cycle.sh [--no-build]` |
 | `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte |
+| `two-instances.sh` | **Atalho:** recompila e abre host (47800) + convidado (47801) conectados, esperando o mundo carregar |
 | `second-instance.sh` | Abre uma **segunda instância** do jogo com a ponte em outra porta (padrão 47801). Para testar host + convidado no mesmo PC |
 | `kick-window.ps1` | (Reserva, não é mais usado: o plugin se ativa sozinho, D25.) |
 | `kick-window.ps1` (antigo) | Dá uma ativação real à janela do jogo e devolve o foco para a janela anterior. Necessário porque, aberto por script, o Launcher trava até um alt-tab ([D21](../DECISOES.md)) |
@@ -31,6 +32,8 @@ Variáveis de ambiente que sobrescrevem o `.cfg` por instância:
 - `SOSGB_AUTOLOAD_SLOT`: slot carregado automaticamente.
 - `SOSGB_NET_LAG_MIN` / `SOSGB_NET_LAG_MAX` (ms) e `SOSGB_NET_LOSS` (%): **simulam rede ruim** (atraso e perda) para testar "como dois PCs". Exporte antes de `dev-cycle.sh` / `second-instance.sh` para valer nas duas instâncias.
 - `SOSGB_JOIN_ADDRESS`: IP para o `join` (ex.: o IP da LAN `192.168.x.x` em vez de `127.0.0.1`).
+- `SOSGB_PLAYER_NAME`: nome do jogador nesta execução.
+- `SOSGB_DEVBRIDGE=1`: liga a ponte de teste só nesta execução (os scripts já fazem isso). `SOSGB_FIX_STARTUP=0` desliga o `StartupGuard`.
 - `SOSGB_PLAYER_GUID`: identidade do jogador nesta instância (senão as duas instâncias teriam o mesmo GUID do `.cfg`). Ex.: `SOSGB_PLAYER_GUID=convidadoteste scripts/second-instance.sh 47801 2 join`
 - `SOSGB_NET_AUTOSTART`: `off` | `host` | `join`. Ex.: `NET=host scripts/dev-cycle.sh` e `scripts/second-instance.sh 47801 2 join`
 
@@ -64,6 +67,9 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `net host [porta]` / `net join <ip> [porta]` / `net status` / `net leave` | Sessão de rede (Fase 2) |
 | `warp <dx> <dz>` | Teleporta o jogador local (`SetPlayerClosestGroundPosition`) |
 | `field <FieldMasterId>` | Troca de mapa (`GameController.ChangeField`). 100010 = casa |
+| `notify <texto>` | Mostra um aviso no sistema de avisos do jogo (D26) |
+| `kick <1-3>` | Testa formas de ativar a janela (D25) |
+| `anim` | Camadas/parâmetros do Animator do player e dos avatares |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

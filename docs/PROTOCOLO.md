@@ -40,9 +40,10 @@ Mensagens ≥ 10 enviadas por um convidado chegam ao host, que as entrega localm
 
 | # | Nome | Corpo | Entrega | Fase |
 |---|---|---|---|---|
+| 13 | `PlayerEvent` | `byte id, byte código` (1 dormiu, 2 desmaiou de cansaço, 3 desmaiou de sono, 4 entrou em evento) → avisos (D26) | Reliable | D26 |
 | 12 | `SleepStatus` | `byte dormindo, byte total`: contador "dormindo X/Y" (host → todos) | Reliable | 3.4 |
 | 11 | `ClockState` | `long ticks, bool rodando`: relógio do host e pausa efetiva do grupo, 2×/s (host → todos) | Sequenced | 3.2/3.3 |
-| 10 | `PlayerState` | `byte id, uint fieldId, float x, y, z, float rotY, int animStateHash, float animNormTime` — 10×/s. A animação é replicada pelo `fullPathHash` do estado do Animator (`Animator.Play(hash)` no avatar) | Sequenced | 2.4 |
+| 10 | `PlayerState` | `byte id, uint fieldId, float x, y, z, float rotY, byte camadas, camadas × (int hash, float norm, float peso), byte nParams, nParams × (int hash, byte tipo, float valor)` — 10×/s. A animação é replicada pelo `fullPathHash` do estado do Animator (`Animator.Play(hash)` no avatar) | Sequenced | 2.4 |
 
 ### Ponto a ponto com o host (≥ 20, **não** são repassadas)
 
@@ -62,6 +63,8 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 7 | `PlayerEvent` (avisos, D26) |
+| 6 | `PlayerState` com as 12 camadas e os parâmetros do Animator (corrige o avatar sem animação) |
 | 5 | GUID no `Hello`; `ProfileUpload`/`ProfileData` (perfil individual do convidado) |
 | 4 | `SleepStatus`/`SleepReady` (dormir individual); após a virada o host reenvia `WorldData` a todos |
 | 3 | `ClockState` e `PauseReport` (relógio do host e pausa D9)|
