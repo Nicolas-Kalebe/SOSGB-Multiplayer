@@ -1,8 +1,9 @@
-# 🤖 AUTODOCUMENTAÇÃO: ver scripts/CONTEXTO.md.
+﻿# 🤖 AUTODOCUMENTAÇÃO: ver scripts/CONTEXTO.md.
 # Clica com o mouse DE VERDADE num ponto da janela do jogo (coordenadas da área do jogo, em pixels,
 # origem no canto superior esquerdo). Traz a janela para frente antes. Rouba o foco/mouse da tela.
 # Uso: powershell -File click.ps1 -ProcessId <pid> -X 1795 -Y 813
-param([int]$ProcessId, [int]$X, [int]$Y)
+param([int]$ProcessId, [int]$X, [int]$Y, [int]$HoldMs = 60)
+# -HoldMs: quanto tempo o botão fica apertado (o jogo pode precisar de mais de um quadro, ex.: usar ferramenta).
 Add-Type @"
 using System; using System.Text; using System.Runtime.InteropServices;
 public class SosgbMouse {
@@ -34,6 +35,6 @@ $p = New-Object SosgbMouse+POINT; $p.X = $X; $p.Y = $Y
 [SosgbMouse]::ClientToScreen($h, [ref]$p) | Out-Null
 [SosgbMouse]::SetCursorPos($p.X, $p.Y) | Out-Null
 Start-Sleep -Milliseconds 120
-[SosgbMouse]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 60
+[SosgbMouse]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds $HoldMs
 [SosgbMouse]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
 Write-Output "clique em ($X,$Y) -> tela ($($p.X),$($p.Y))"

@@ -132,6 +132,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.MoneySync>();
         AddComponent<Net.StorageSync>();
         AddComponent<Net.LetterSync>();
+        AddComponent<Net.FarmSync>();
         AddComponent<MultiplayerUI>();
         // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
         if (DevMode) AddComponent<DebugOverlay>();

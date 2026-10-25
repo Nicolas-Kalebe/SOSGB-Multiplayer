@@ -153,6 +153,18 @@ public static class FarmLab
         };
     }
 
+    public static object Residents()
+    {
+        var list = new List<string>();
+        foreach (var kv in FieldManager.Instance.fieldCacheDict)
+        {
+            var n = 0;
+            foreach (var l in kv.Value.LayerObjects) n += l.Value.Count;
+            list.Add($"{(uint)kv.Key} ({Net.Locations.Name((uint)kv.Key)}): {n} objetos, ativo={kv.Value.IsActiveField}");
+        }
+        return list;
+    }
+
     public static object Near(int n)
     {
         var p = GameController.Instance.GetPlayerTransform().position;

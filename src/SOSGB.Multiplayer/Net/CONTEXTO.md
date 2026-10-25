@@ -13,6 +13,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `ClockSync.cs` | 3.2/3.3: relógio do host, pausa do grupo (D9) via patch em `DateManager.IsUpdateEnabled`; quem dorme não pausa o grupo e o relógio segue para os acordados (D33) |
 | `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo |
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
+| `FarmSync.cs` | Fase 5/D40: fazenda ao vivo nos mapas residentes (mapa 1); diferenças a cada 0,5 s viram operações por objeto, aplicadas por todos no cache do mapa |
 | `FieldState.cs` | Fase 5 (alicerce, D40): estado dos objetos de um mapa (captura pelo serializador oficial, aplicar só as diferenças no mapa atual ou num mapa residente, instalar no save de mapas) |
 | `LetterSync.cs` | 4.6/D39: correio compartilhado; estado do `LetterManager` sincronizado (montado à mão a partir do JSON) |
 | `StorageSync.cs` | 4.2/D37: armazém da casa compartilhado; trava de uma pessoa por vez (host) e sincronização pelo conteúdo |

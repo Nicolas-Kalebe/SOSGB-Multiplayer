@@ -62,8 +62,13 @@ public static class FieldState
         {
             if (list == null) return;
             foreach (var d in list)
-                if (d != null && !string.IsNullOrEmpty(d.Guid))
-                    map[d.Guid] = new Entry { Type = type, Json = StringExtensions.ToJson(d), Parent = d.ParentGuid };
+            {
+                if (d == null || string.IsNullOrEmpty(d.Guid)) continue;
+                // Partes "escravas" de objetos grandes (árvore que ocupa vários quadrados) vêm junto com o mestre.
+                var layer = d.TryCast<FieldLayerObjectEntityData>();
+                if (layer != null && !string.IsNullOrEmpty(layer.MasterGuid)) continue;
+                map[d.Guid] = new Entry { Type = type, Json = StringExtensions.ToJson(d), Parent = d.ParentGuid };
+            }
         }
         Add(od.RidgeObjectSaveDatas, Kind.Ridge);
         Add(od.TreeObjectSaveDatas, Kind.Tree);

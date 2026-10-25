@@ -206,6 +206,17 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.GetPlayer().ActionSleep();
                 return Json(new { ok = true });
 
+            case "act":
+                // act — usa a ferramenta/item da mão (PlayerCharacter.Action, o mesmo do clique). Testes da Fase 5:
+                // os cliques sintéticos não chegam ao sistema de entrada do jogo.
+                GameController.Instance.GetPlayer().Action();
+                return Json(new { ok = true });
+
+            case "tool":
+                // tool [quadros] — usa a ferramenta da mão pelo caminho real do jogo (injeta a intenção, ver InputInjector)
+                Patches.InputInjector.PressTool(string.IsNullOrWhiteSpace(arg) ? 3 : int.Parse(arg));
+                return Json(new { ok = true });
+
             case "wakeup":
                 // wakeup [wake|flag|both] — levanta da cama enquanto espera os outros (D34)
                 return Json(new { ok = true, result = Net.DaySync.WakeUp(string.IsNullOrWhiteSpace(arg) ? "both" : arg.Trim()) });
@@ -268,6 +279,7 @@ public class DevBridge : MonoBehaviour
                 // farm | farm dump <tipo> [n] — objetos do mapa atual por tipo / dados de alguns (investigação da Fase 5)
                 if (arg == "cap") return Json(new { ok = true, cap = FarmLab.Cap() });
                 if (arg == "apply") return Json(new { ok = true, apply = FarmLab.ApplyCaptured() });
+                if (arg == "residents") return Json(new { ok = true, residents = FarmLab.Residents() });
                 if (arg == "resident") return Json(new { ok = true, resident = FarmLab.ApplyResident() });
                 if (arg == "install") return Json(new { ok = true, install = FarmLab.InstallCaptured() });
                 if (arg.StartsWith("bench")) return Json(new { ok = true, bench = FarmLab.Bench() });
@@ -345,7 +357,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)
