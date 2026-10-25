@@ -67,7 +67,10 @@ public class DaySync : MonoBehaviour
         Plugin.Logger.LogInfo("[DaySync] jogador local dormindo; esperando os outros");
         DevBridge.PushEvent("dormindo:local");
         if (NetSession.Current == NetSession.Mode.Client)
+        {
+            PlayerProfiles.Upload(); // o host grava o perfil junto com o save do dia (D23)
             NetSession.SendGame(MsgType.SleepReady, w => w.Put(true), DeliveryMethod.ReliableOrdered);
+        }
         else
             Evaluate();
     }
@@ -119,6 +122,7 @@ public class DaySync : MonoBehaviour
         SleepingCount = 0;
         Plugin.Logger.LogInfo("[DaySync] dia novo; enviando o mundo aos convidados");
         DevBridge.PushEvent("dia-novo");
+        PlayerProfiles.SaveStore();
         WorldSync.BroadcastWorld();
     }
 

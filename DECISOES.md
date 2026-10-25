@@ -223,3 +223,17 @@ Regras deste arquivo:
   - **proteção contra queda:** o host guarda periodicamente um snapshot do mundo **em memória** (`WorldSnapshot`, tarefa 1.5) só para recuperação, sem ser o save oficial;
   - **depois (Fase 8, opcional):** "salvar agora" do host com barreira (opção c).
 - **Consequências:** pode-se perder até um dia de jogo se o host travar sem o snapshot de recuperação. Entra na Fase 3 (tarefas 3.5/3.6).
+
+### D24 — Perfil individual do convidado: o que entra, de onde vem e onde fica
+- **Status:** ✅ Decidido (provisório nos pontos marcados) · **Data:** 2026-10-25 · **Decidido por:** IA (o usuário pediu para seguir sozinho; os pontos provisórios serão confirmados com ele)
+- **Contexto:** o mundo que o convidado recebe é o save do host, com mochila, corações etc. **do host**. Para os dados individuais (D3/D13), o convidado precisa de um "perfil" próprio, guardado pelo host (D2/D23).
+- **Decisão:**
+  - **partes do perfil:** amizade (`likeability`), conversas (`talk`), mochila (`bag`), ferramentas (`tools`) e estado das ferramentas (`toolstate`);
+  - **flags de evento ficam no MUNDO (compartilhadas) por enquanto (provisório):** elas misturam progresso do mundo (ex.: Bazaar) e eventos de coração pessoais, e ainda não sabemos separar por ID. Trocar tudo por jogador poderia reverter o progresso do mundo. Revisar na Fase 6 (eventos de coração);
+  - **primeira entrada (provisório):** o perfil inicial do convidado é o do **próprio save** que ele tinha carregado antes de entrar. Alternativa a confirmar com o usuário: começar "do zero", como os farmhands do Stardew;
+  - **identidade:** `[Net] PlayerGuid`, gerado automaticamente;
+  - **armazenamento:** o host guarda os perfis em `%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\profiles_<fazenda>_<host>.json`, gravado **na virada do dia**, junto com o save oficial (D23). O convidado envia o perfil ao dormir, a cada 60 s e ao sair;
+  - **virada do dia:** o convidado reaplica o próprio perfil e roda o `OnChangeDate` dos sistemas pessoais (`LikeabilityManager`, `TalkManager(ano)`, `BagItemStorage`).
+- **Consequências:**
+  - Se o host travar no meio do dia, os convidados perdem o progresso individual desde a última virada. É o mesmo comportamento do mundo (D23).
+  - O `OnChangeDate` pessoal roda no convidado, não no host. Validar na Fase 4/6 que os contadores diários (presente/conversa) zeram certo.

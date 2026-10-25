@@ -17,6 +17,7 @@ public static class WorldSync
 {
     private const int GuestLoadSlot = 2; // qualquer slot: os bytes vêm da rede, o arquivo não é lido
     private static readonly Queue<byte> Pending = new();
+    private static readonly HashSet<byte> Joining = new(); // receberam o mundo pela 1ª vez (mandar o perfil junto)
     private static bool _subscribed;
 
     /// <summary>No convidado: o mundo do host chegou e vai ser carregado.</summary>
@@ -40,6 +41,7 @@ public static class WorldSync
         {
             case MsgType.WorldRequest when NetSession.Current == NetSession.Mode.Host:
                 Pending.Enqueue(from);
+                Joining.Add(from);
                 if (!WorldSnapshot.Capturing) CaptureNext();
                 break;
 
@@ -77,6 +79,7 @@ public static class WorldSync
                 if (!ok || data == null) { Plugin.Logger.LogError($"[WorldSync] falha ao capturar o mundo para #{id}"); continue; }
                 NetSession.SendTo(id, MsgType.WorldData, w => { w.Put(data.Length); w.Put(data); }, DeliveryMethod.ReliableOrdered);
                 Plugin.Logger.LogInfo($"[WorldSync] mundo enviado para #{id} ({data.Length} bytes)");
+                if (Joining.Remove(id)) PlayerProfiles.SendStoredProfile(id);
                 DevBridge.PushEvent($"world-enviado:{id}:{data.Length}");
             }
         });

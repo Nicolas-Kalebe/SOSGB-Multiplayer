@@ -38,6 +38,12 @@ public static class NetSession
     /// <summary>No convidado: disparado quando o host aceita a entrada (Welcome).</summary>
     public static event Action OnJoined;
 
+    /// <summary>No host: convidado aceito (id, guid).</summary>
+    public static event Action<byte, string> OnHelloAccepted;
+
+    /// <summary>Disparado quando este processo passa a hospedar.</summary>
+    public static event Action OnHosting;
+
     private static NetManager _net;
     private static EventBasedNetListener _listener;
     private static NetPeer _server; // no convidado: conexão com o host
@@ -57,6 +63,7 @@ public static class NetSession
         LocalId = Protocol.HostPlayerId;
         Players[LocalId] = new Player { Id = LocalId, Name = LocalName };
         Plugin.Logger.LogInfo($"[Net] hospedando na porta {port}");
+        OnHosting?.Invoke();
     }
 
     public static void Join(string address, int port)
@@ -71,6 +78,16 @@ public static class NetSession
 
     public static void Stop()
     {
+        if (Current == Mode.Client && _server != null)
+        {
+            // Sair de forma limpa: manda o perfil e dá tempo do pacote confiável sair antes de
+            // desconectar (o LiteNetLib envia numa thread própria; parar na hora descarta a fila).
+            PlayerProfiles.Upload();
+            var until = DateTime.UtcNow.AddMilliseconds(500);
+            while (DateTime.UtcNow < until && _server.GetPacketsCountInReliableQueue(0, true) > 0)
+                System.Threading.Thread.Sleep(20);
+            System.Threading.Thread.Sleep(100);
+        }
         _net?.Stop();
         _net = null;
         _server = null;
@@ -158,6 +175,7 @@ public static class NetSession
             Writer.Put(Protocol.Version);
             Writer.Put(Plugin.Version);
             Writer.Put(LocalName);
+            Writer.Put(Plugin.PlayerGuid.Value);
             peer.Send(Writer, DeliveryMethod.ReliableOrdered);
         }
         // No host, o jogador só é registrado depois do Hello válido.
@@ -242,6 +260,7 @@ public static class NetSession
         var proto = reader.GetInt();
         var modVersion = reader.GetString();
         var name = reader.GetString();
+        var guid = reader.AvailableBytes > 0 ? reader.GetString() : name;
 
         if (proto != Protocol.Version)
         {
@@ -251,6 +270,7 @@ public static class NetSession
         var id = (byte)Enumerable.Range(1, Protocol.MaxPlayers - 1).First(i => !Players.ContainsKey((byte)i));
         Players[id] = new Player { Id = id, Name = name, Peer = peer };
         Plugin.Logger.LogInfo($"[Net] {name} entrou como #{id} (mod {modVersion})");
+        OnHelloAccepted?.Invoke(id, guid);
 
         Writer.Reset();
         Writer.Put((byte)MsgType.Welcome);

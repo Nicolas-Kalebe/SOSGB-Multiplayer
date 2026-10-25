@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 4;
+    public const int Version = 5;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -25,7 +25,7 @@ public static class Protocol
 
 public enum MsgType : byte
 {
-    /// <summary>Convidado → host, logo após conectar: [int protocolo][string modVersion][string nome]</summary>
+    /// <summary>Convidado → host, logo após conectar: [int protocolo][string modVersion][string nome][string guid]</summary>
     Hello = 1,
 
     /// <summary>Host → convidado: [byte seuId][byte qtdJogadores]{[byte id][string nome]}…</summary>
@@ -62,4 +62,10 @@ public enum MsgType : byte
 
     /// <summary>Convidado → host: [bool dormindo] — o convidado deitou (3.4, D12)</summary>
     SleepReady = 23,
+
+    /// <summary>Convidado → host: [string json] — perfil individual do convidado (3.6, D24)</summary>
+    ProfileUpload = 24,
+
+    /// <summary>Host → convidado: [string json ou vazio] — perfil guardado do convidado, mandado ao entrar (3.6)</summary>
+    ProfileData = 25,
 }

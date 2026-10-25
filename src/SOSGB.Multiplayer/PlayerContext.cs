@@ -77,6 +77,29 @@ public static class PlayerContext
                 e.GetProperty("FlagHistoryTime").GetInt64());
     }
 
+    /// <summary>Partes do perfil individual de um convidado (D24: flags de evento ficam no mundo por enquanto).</summary>
+    public static readonly string[] ProfileParts = { "likeability", "talk", "bag", "tools", "toolstate" };
+
+    public static Dictionary<string, string> CaptureParts(IEnumerable<string> names)
+    {
+        var set = new HashSet<string>(names);
+        var data = new Dictionary<string, string>();
+        foreach (var p in Parts) if (set.Contains(p.Name)) data[p.Name] = p.Capture();
+        return data;
+    }
+
+    public static Dictionary<string, object> ApplyParts(Dictionary<string, string> data)
+    {
+        var report = new Dictionary<string, object>();
+        foreach (var p in Parts)
+        {
+            if (!data.TryGetValue(p.Name, out var json)) continue;
+            try { p.Apply(json); report[p.Name] = "ok"; }
+            catch (Exception e) { report[p.Name] = "ERRO: " + e.Message.Split('\n')[0]; }
+        }
+        return report;
+    }
+
     /// <summary>nome do contexto → (parte → JSON)</summary>
     private static readonly Dictionary<string, Dictionary<string, string>> Contexts = new();
 

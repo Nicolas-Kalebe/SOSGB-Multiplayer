@@ -22,7 +22,7 @@ Todo pacote: `[byte MsgType][corpo]`.
 
 | # | Nome | Direção | Corpo | Entrega |
 |---|---|---|---|---|
-| 1 | `Hello` | convidado → host | `int protocolo, string versãoDoMod, string nome` | Reliable |
+| 1 | `Hello` | convidado → host | `int protocolo, string versãoDoMod, string nome, string guid` | Reliable |
 | 2 | `Welcome` | host → convidado | `byte seuId, byte n, n × (byte id, string nome)` | Reliable |
 | 3 | `Reject` | host → convidado | `string motivo` (o host desconecta em seguida) | Reliable |
 | 4 | `PlayerJoined` | host → outros | `byte id, string nome` | Reliable |
@@ -50,6 +50,8 @@ Mensagens ≥ 10 enviadas por um convidado chegam ao host, que as entrega localm
 |---|---|---|---|---|---|
 | 20 | `WorldRequest` | convidado → host | (vazio). Enviada automaticamente após o `Welcome` | Reliable | 3.1 |
 | 23 | `SleepReady` | convidado → host | `bool dormindo`: o convidado deitou (a virada dele foi segurada) | Reliable | 3.4 |
+| 24 | `ProfileUpload` | convidado → host | `string json`: perfil individual (ao dormir, a cada 60 s, ao sair) | Reliable | 3.6 |
+| 25 | `ProfileData` | host → convidado | `string json` (vazio = host não conhece): perfil guardado, logo após o `WorldData` da entrada | Reliable | 3.6 |
 | 22 | `PauseReport` | convidado → host | `bool pausado`: o convidado entrou ou saiu de menu/evento (na mudança e a cada 1 s) | Reliable | 3.3 |
 | 21 | `WorldData` | host → convidado | `int tamanho, byte[] .sav`: snapshot do mundo (~73 KB, fragmentado pelo LiteNetLib) | Reliable | 3.1 |
 
@@ -60,6 +62,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 5 | GUID no `Hello`; `ProfileUpload`/`ProfileData` (perfil individual do convidado) |
 | 4 | `SleepStatus`/`SleepReady` (dormir individual); após a virada o host reenvia `WorldData` a todos |
 | 3 | `ClockState` e `PauseReport` (relógio do host e pausa D9)|
 | 2 | `WorldRequest`/`WorldData` (convidado recebe o mundo do host) e regra de repasse 10–19 × 20+ |

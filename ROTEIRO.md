@@ -64,7 +64,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 3.4 ✅ | **Dormir individual (D12)**: deitar desabilita só o seu personagem; contador "dormindo X/4"; dia vira quando todos dormem | M | Teste da IA: `sleep` em cada instância |
 | 3.5 ✅ | **Virada do dia** sincronizada (`OnChangeDate` só no host, resultado para todos) | M | Teste da IA |
 | 3.7 | **Save só na virada do dia (D23)**: bloquear "Salvar" do menu no multiplayer (com aviso), host salva após o dia virar; snapshot periódico em memória para recuperar de queda | M | Teste da IA: `save` pelo menu é recusado; dia vira → save gravado |
-| 3.6 | Guardar os dados do convidado (personagem, mochila etc.) **dentro do save do host**, com reconexão | M | Teste da IA: sair e voltar |
+| 3.6 ✅ | Guardar os dados do convidado (personagem, mochila etc.) **dentro do save do host**, com reconexão | M | Teste da IA: sair e voltar |
 
 **✔ Pronto quando:** um dia inteiro passa sincronizado, todos dormem, o dia vira e o progresso persiste no save do host.
 
@@ -155,7 +155,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 ## Estado atual
 
 - **Fase:** 3 — Mundo e tempo controlados pelo host
-- **Próxima tarefa:** 3.6 (dados do convidado dentro do save do host + reconexão)
+- **Próxima tarefa:** 3.7 (save só na virada do dia, D23)
 - **Pendente com o usuário:** deitar na cama de verdade (menu da cama → animação) para confirmar que o caminho real passa pelo `GameController.StartNextDay` igual ao comando `nextday`
 - **Pendente com o usuário:** teste real em 2 PCs (quando houver um amigo)
 - **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
@@ -176,4 +176,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Feito:** 3.1 — o convidado recebe o mundo do host (`WorldRequest`/`WorldData`, 73 KB) e recarrega. Testado: host com 74.365 G, convidado (disco com 69.365) passa a ter 74.365; conexão e avatares sobrevivem à recarga; convidado nunca grava no disco
 - **Feito:** 3.2/3.3 — `ClockSync`: relógio do host 2×/s com correção se divergir > 30 s; pausa do grupo via patch em `DateManager.IsUpdateEnabled` com regra N (`[Game] PauseWhenPlayersInMenu`, padrão 1). Testado: convidado pausa → host para junto; adiantar o convidado 3 h é corrigido na hora
 - **Feito:** 3.4/3.5 — `DaySync`: patch em `GameController.StartNextDay` segura a virada de quem deita ("dormindo X/Y" no overlay); quando todos dormem, o host vira o dia (o save automático do jogo = save oficial do D23) e reenvia o mundo a todos. Testado: convidado deita → 1/2 e o dia não vira; host deita → os dois acordam no dia seguinte às 06:00
+- **Feito:** 3.6 — `PlayerProfiles` (D24): o convidado mantém a própria mochila e amizade depois da virada do dia (13 itens / 945 × host 18 / 745); o host grava os perfis em arquivo; reabrir os jogos restaura do arquivo; sair e voltar mantém a última versão
 - **Última atualização:** 2026-10-24

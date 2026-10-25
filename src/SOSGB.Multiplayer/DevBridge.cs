@@ -252,7 +252,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status() });
 
             case "warp":
                 // warp <dx> <dz> — teleporta o jogador local (teste de sincronização, 2.4).

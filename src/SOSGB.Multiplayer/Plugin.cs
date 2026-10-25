@@ -19,6 +19,7 @@ public class Plugin : BasePlugin
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<string> PlayerName;
+    internal static ConfigEntry<string> PlayerGuid;
     internal static ConfigEntry<int> PauseWhenPlayersInMenu;
     internal static ConfigEntry<int> NetPort;
     internal static ConfigEntry<string> NetAutoStart;
@@ -53,6 +54,11 @@ public class Plugin : BasePlugin
         // Rede (Fase 2). Nome e porta; o menu no jogo vem na Fase 8.
         PlayerName = Config.Bind("Net", "PlayerName", "", "Seu nome no multiplayer (vazio = nome de usuário do Windows).");
         NetPort = Config.Bind("Net", "Port", Net.Protocol.DefaultPort, "Porta UDP do host.");
+        // 3.6: identidade estável do jogador (o host guarda o perfil por ela). Gerada na primeira vez.
+        PlayerGuid = Config.Bind("Net", "PlayerGuid", "", "Identificador deste jogador (gerado automaticamente; não edite).");
+        var envGuid = System.Environment.GetEnvironmentVariable("SOSGB_PLAYER_GUID");
+        if (!string.IsNullOrEmpty(envGuid)) PlayerGuid.Value = envGuid; // várias instâncias no mesmo PC
+        else if (string.IsNullOrEmpty(PlayerGuid.Value)) PlayerGuid.Value = System.Guid.NewGuid().ToString("N");
         // Tarefa 2.6: até existir menu no jogo (Fase 8), hospedar/entrar é configurado aqui.
         NetAutoStart = Config.Bind("Net", "AutoStart", "off",
             new ConfigDescription("Ao carregar um save: 'off' (nada), 'host' (hospedar) ou 'join' (entrar em JoinAddress).",
@@ -88,6 +94,7 @@ public class Plugin : BasePlugin
         Net.WorldSync.Init();
         AddComponent<Net.ClockSync>();
         AddComponent<Net.DaySync>();
+        AddComponent<Net.PlayerProfiles>();
         AddComponent<DebugOverlay>();
 
         if (DevBridgeEnabled.Value)

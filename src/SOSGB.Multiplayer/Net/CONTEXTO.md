@@ -12,6 +12,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `WorldSync.cs` | 3.1: convidado pede o mundo, host captura (`WorldSnapshot`) e envia, convidado recarrega com ele |
 | `ClockSync.cs` | 3.2/3.3: relógio do host, pausa do grupo (D9) via patch em `DateManager.IsUpdateEnabled` |
 | `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo |
+| `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
 | `NetRunner.cs` | `MonoBehaviour` que chama `NetSession.Poll()` a cada frame (tudo na thread principal) |
 
 ## Regras
