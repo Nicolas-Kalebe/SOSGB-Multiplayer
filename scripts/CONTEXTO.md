@@ -72,6 +72,8 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `kick <1-3>` | Testa formas de ativar a janela (D25) |
 | `anim` | Camadas/parâmetros do Animator do player e dos avatares |
 | `fieldname <id>` | Nome traduzido de um mapa |
+| `avatarinfo` | Peças de aparência e hierarquia do modelo local |
+| `applab run` / `applab apply` / `applab report` | Experimento de aparência / aplica uma aparência variante no jogador local (testes da D28) |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

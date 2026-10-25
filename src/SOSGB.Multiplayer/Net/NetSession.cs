@@ -28,6 +28,7 @@ public static class NetSession
 
     public static Mode Current { get; private set; } = Mode.Offline;
     public static byte LocalId { get; private set; }
+    public const byte UnknownId = 255;
     public static readonly Dictionary<byte, Player> Players = new();
     public static string LastError { get; private set; }
 
@@ -83,6 +84,9 @@ public static class NetSession
         _net.Start();
         _server = _net.Connect(address, port, Protocol.ConnectionKey);
         Current = Mode.Client;
+        // Até o Welcome, o ID é desconhecido. Antes era 0 (= host) e o convidado descartava as mensagens
+        // do host achando que eram dele mesmo (ex.: a aparência do host, anunciada logo na entrada).
+        LocalId = UnknownId;
         Plugin.Logger.LogInfo($"[Net] conectando em {address}:{port}");
     }
 
@@ -286,7 +290,6 @@ public static class NetSession
         Players[id] = new Player { Id = id, Name = name, Peer = peer };
         Plugin.Logger.LogInfo($"[Net] {name} entrou como #{id} (mod {modVersion})");
         OnHelloAccepted?.Invoke(id, guid);
-        OnPlayerJoinedNamed?.Invoke(id, name);
 
         Writer.Reset();
         Writer.Put((byte)MsgType.Welcome);
@@ -300,6 +303,9 @@ public static class NetSession
         Writer.Put(id);
         Writer.Put(name);
         SendToAllExcept(peer, DeliveryMethod.ReliableOrdered);
+
+        // Depois do Welcome: assim o convidado já sabe o próprio ID quando chegam os anúncios (ex.: aparência).
+        OnPlayerJoinedNamed?.Invoke(id, name);
     }
 
     private static void Reject(NetPeer peer, string reason)
@@ -341,6 +347,7 @@ public static class NetSession
     public static void SendGame(MsgType type, Action<NetDataWriter> write, DeliveryMethod method)
     {
         if (Current == Mode.Offline) return;
+        if (Current == Mode.Client && LocalId == UnknownId) return; // ainda sem Welcome: não sabemos nosso ID
         Writer.Reset();
         Writer.Put((byte)type);
         write(Writer);

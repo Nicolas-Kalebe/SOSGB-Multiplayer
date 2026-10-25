@@ -15,6 +15,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
 | `NotifySync.cs` | D26: detecta os próprios acontecimentos (dormiu, desmaiou, evento) e mostra os avisos de todos |
 | `Locations.cs` | Nome traduzido de um mapa (tabela `FieldNameText` + `FieldMaster.ConvertToFieldId` para IDs sazonais) |
+| `AppearanceSync.cs` | D28: anuncia a aparência local, monta avatares com a aparência dos outros (troca temporária) e aplica a própria no convidado |
 | `NetRunner.cs` | `MonoBehaviour` que chama `NetSession.Poll()` a cada frame (tudo na thread principal) |
 
 ## Saves e recuperação (D23)

@@ -40,6 +40,7 @@ Mensagens ≥ 10 enviadas por um convidado chegam ao host, que as entrega localm
 
 | # | Nome | Corpo | Entrega | Fase |
 |---|---|---|---|---|
+| 14 | `PlayerAppearance` | `byte id, string aparência` ("categoria:masterId,…"); ao entrar, quando alguém entra e quando muda (D28) | Reliable | D28 |
 | 13 | `PlayerEvent` | `byte id, byte código` (1 dormiu, 2 desmaiou de cansaço, 3 desmaiou de sono, 4 entrou em evento) → avisos (D26) | Reliable | D26 |
 | 12 | `SleepStatus` | `byte dormindo, byte total`: contador "dormindo X/Y" (host → todos) | Reliable | 3.4 |
 | 11 | `ClockState` | `long ticks, bool rodando`: relógio do host e pausa efetiva do grupo, 2×/s (host → todos) | Sequenced | 3.2/3.3 |
@@ -63,6 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 8 | `PlayerAppearance` (D28); convidado sem ID até o `Welcome` (255 = desconhecido); host valida o ID do remetente |
 | 7 | `PlayerEvent` (avisos, D26) |
 | 6 | `PlayerState` com as 12 camadas e os parâmetros do Animator (corrige o avatar sem animação) |
 | 5 | GUID no `Hello`; `ProfileUpload`/`ProfileData` (perfil individual do convidado) |

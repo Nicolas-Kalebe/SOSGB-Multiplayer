@@ -32,6 +32,9 @@ public class PlayerSync : MonoBehaviour
         public Vector3 Target;
         public float TargetRotY;
         public int AnimHash;
+        public RuntimeAnimatorController Controller; // controller capturado na montagem (gênero certo)
+        public string BuiltAppearance;               // aparência com que o avatar atual foi montado
+        public bool Building;
         public int[] Hashes = Array.Empty<int>();
         public float[] Weights = Array.Empty<float>();
         public bool HasState;
@@ -89,6 +92,9 @@ public class PlayerSync : MonoBehaviour
             if (rm.Avatar != null) UnityEngine.Object.Destroy(rm.Avatar);
             rm.Avatar = null;
             rm.Animator = null;
+            rm.Controller = null;
+            rm.BuiltAppearance = null;
+            rm.Building = false;
             rm.Hashes = Array.Empty<int>();
         }
         Plugin.Logger.LogInfo("[PlayerSync] mundo recarregado: avatares serão recriados");
@@ -167,7 +173,9 @@ public class PlayerSync : MonoBehaviour
     {
         if (type != MsgType.PlayerState) return;
         var id = r.GetByte();
-        if (id == NetSession.LocalId) return;
+        if (id == NetSession.LocalId || id == NetSession.UnknownId) return;
+        if (NetSession.Current == NetSession.Mode.Host && id != from) return; // id tem que ser do remetente
+        if (!NetSession.Players.ContainsKey(id)) return;                        // jogador que não está na sessão
         if (!Remotes.TryGetValue(id, out var rm)) Remotes[id] = rm = new Remote();
         rm.Field = r.GetUInt();
         rm.Target = new Vector3(r.GetFloat(), r.GetFloat(), r.GetFloat());
@@ -211,6 +219,7 @@ public class PlayerSync : MonoBehaviour
             if (!rm.HasState) continue;
             if (rm.Avatar == null) CreateAvatar(kv.Key, rm);
             if (rm.Avatar == null) continue;
+            EnsureAppearance(kv.Key, rm);
             SyncController(rm);
 
             var visible = rm.Field == localField; // 2.5: só no mesmo mapa
@@ -236,12 +245,18 @@ public class PlayerSync : MonoBehaviour
     private void SyncController(Remote rm)
     {
         if (rm.Animator == null || Time.unscaledTime < _nextControllerCheck) return;
-        var local = GameController.Instance.GetPlayer();
-        var la = local != null && local.Model != null ? local.Model.GetComponentInChildren<Animator>() : null;
-        if (la == null || la.runtimeAnimatorController == null) return;
+        if (AppearanceSync.Swapping) return; // o jogador local está com aparência temporária
+        RuntimeAnimatorController want = rm.Controller;
+        if (want == null)
+        {
+            var local = GameController.Instance.GetPlayer();
+            var la = local != null && local.Model != null ? local.Model.GetComponentInChildren<Animator>() : null;
+            if (la == null || la.runtimeAnimatorController == null) return;
+            want = la.runtimeAnimatorController;
+        }
         var cur = rm.Animator.runtimeAnimatorController;
-        if (cur != null && cur.Pointer == la.runtimeAnimatorController.Pointer) return;
-        rm.Animator.runtimeAnimatorController = la.runtimeAnimatorController;
+        if (cur != null && cur.Pointer == want.Pointer) return;
+        rm.Animator.runtimeAnimatorController = want;
         rm.Hashes = Array.Empty<int>(); // força replay dos estados no controller novo
         Plugin.Logger.LogInfo("[PlayerSync] controller de animação do avatar atualizado (override real)");
     }
@@ -252,13 +267,9 @@ public class PlayerSync : MonoBehaviour
         var local = GameController.Instance.GetPlayer();
         if (local == null || local.Model == null) return;
 
+        // Avatar provisório: cópia do modelo local, até a aparência do jogador chegar e ser montada (D28).
         var clone = UnityEngine.Object.Instantiate(local.Model);
-        clone.name = $"SOSGB_RemotePlayer_{id}";
-        // Remove scripts do jogo do clone: ele é só visual (posição vem da rede).
-        foreach (var mb in clone.GetComponentsInChildren<MonoBehaviour>(true))
-            UnityEngine.Object.Destroy(mb);
-        foreach (var col in clone.GetComponentsInChildren<Collider>(true))
-            UnityEngine.Object.Destroy(col);
+        PrepareClone(clone, id);
         rm.Avatar = clone;
         rm.Animator = clone.GetComponentInChildren<Animator>();
         var localAnim = local.Model.GetComponentInChildren<Animator>();
@@ -271,6 +282,54 @@ public class PlayerSync : MonoBehaviour
         clone.transform.position = rm.Target;
         Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} criado");
         DevBridge.PushEvent($"avatar:{id}:criado");
+    }
+
+    /// <summary>Clone só visual: sem scripts nem colisores do jogo (posição/animação vêm da rede).</summary>
+    private static void PrepareClone(GameObject clone, byte id)
+    {
+        clone.name = $"SOSGB_RemotePlayer_{id}";
+        foreach (var mb in clone.GetComponentsInChildren<MonoBehaviour>(true)) UnityEngine.Object.Destroy(mb);
+        foreach (var col in clone.GetComponentsInChildren<Collider>(true)) UnityEngine.Object.Destroy(col);
+    }
+
+    /// <summary>A aparência do jogador mudou/chegou: o avatar será remontado.</summary>
+    public static void InvalidateAvatar(byte id)
+    {
+        if (Remotes.TryGetValue(id, out var rm)) rm.BuiltAppearance = null;
+    }
+
+    /// <summary>Se a aparência do jogador é conhecida e o avatar não foi montado com ela, pede a montagem.</summary>
+    private static void EnsureAppearance(byte id, Remote rm)
+    {
+        if (rm.Building || rm.Avatar == null) return;
+        var app = AppearanceSync.KnownAppearance(id);
+        if (app == null || app == rm.BuiltAppearance) return;
+        rm.Building = true;
+        AppearanceSync.Build(app, (model, controller) =>
+        {
+            rm.Building = false;
+            if (!Remotes.ContainsKey(id)) { UnityEngine.Object.Destroy(model); return; }
+            PrepareClone(model, id);
+            if (rm.Avatar != null)
+            {
+                model.transform.position = rm.Avatar.transform.position;
+                model.transform.rotation = rm.Avatar.transform.rotation;
+                model.SetActive(rm.Avatar.activeSelf);
+                UnityEngine.Object.Destroy(rm.Avatar);
+            }
+            rm.Avatar = model;
+            rm.Animator = model.GetComponentInChildren<Animator>();
+            // Mesmo gênero (MotionType) do jogador local: usa o controller dele (SyncController mantém em dia).
+            // Gênero diferente: cópia própria do controller capturado na montagem; a referência original não é
+            // estável (o jogo cria outro controller ao devolver a aparência local).
+            var sameMotion = AppearanceSync.MotionTypeId(app) == AppearanceSync.MotionTypeId(AppearanceSync.Stable ?? AppearanceSync.Local());
+            rm.Controller = !sameMotion && controller != null ? UnityEngine.Object.Instantiate(controller) : null;
+            if (rm.Animator != null && rm.Controller != null) rm.Animator.runtimeAnimatorController = rm.Controller;
+            rm.Hashes = Array.Empty<int>();
+            rm.BuiltAppearance = app;
+            Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} montado com a aparência dele");
+            DevBridge.PushEvent($"avatar:{id}:aparencia");
+        });
     }
 
     private static void DestroyRemote(byte id)

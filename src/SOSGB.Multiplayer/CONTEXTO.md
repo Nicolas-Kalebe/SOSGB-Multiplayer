@@ -18,6 +18,7 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 | `PlayerContext.cs` | Troca de contexto por jogador (D3/D13): snapshots em JSON dos managers do jogo |
 | `WorldSnapshot.cs` | Snapshot do mundo via pipeline de save do jogo (patches em `SaveDataAccessorWindows`) |
 | `MultiplayerUI.cs` | D27: painel do título (modo/nome/IP), lista de jogadores no jogo, menu F9. Controles próprios (o IMGUI do jogo foi podado) |
+| `AppearanceLab.cs` | (Só testes) experimento que validou a montagem de aparência por troca temporária; comandos `applab run/apply` |
 | `GameNotify.cs` | D26: avisos no sistema de avisos do jogo (aviso de correio com texto trocado) |
 | `Notice.cs` | Aviso curto na tela (via overlay) |
 | `StartupGuard.cs` | D25: ativa a janela do jogo se ela ficar presa no Launcher (sem clique/alt-tab) |

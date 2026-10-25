@@ -193,7 +193,7 @@ Armadilhas das flags de evento:
 - O modelo é montado a partir de peças (prefabs `avt_M_c_720` = roupa 720 masculina, `avt_P_h_012` = cabelo 012) sobre o esqueleto `Chr_root`, com MagicaCloth para saias e cabelos.
 - **Quem monta é o `AvatarMakeManager`** (`SetAvatarParts(info)`, `SetClothesParts`, `CreateAvatar(AvatarInfo[])`, `CreatePlayerModel`...). Ele atua sobre um **único** modelo (`meshRoot`/`makeModel`/`baseModel`) e tem caches de recursos (`AvatarResourceManager`). Montar um segundo personagem por ele pode descarregar as peças do jogador local.
 - NPCs "genéricos" (`NpcData.NpcType.Mob/NpcTourist`) recebem `List<AvatarInfo>`: possível caminho alternativo, ainda não investigado.
-- **Hoje** o avatar remoto é um clone do modelo do jogador **local** (todos aparecem com a cara de quem está olhando). Paliativo: o nome aparece acima de cada avatar.
+- ✅ **Resolvido (D28):** trocar as `AvatarInfos` do jogador local (`AvatarMakeManager.PlayerAvatarInfos` + `GameController.PlayerAvatarInfos` + `UserInfo.AvatarInfos`), avançar `ChangePlayerAvatar(ChangeType.Default)`, chamar `PlayerCharacter.SwitchGenderMotion(motionCategory)`, copiar o `Model` e devolver tudo. A cópia continua válida. Peças criadas com `AvatarInfo.CreateParts(MasterDataManager.AvatarMakeMaster.GetData(id))` / `CreateNoParts(categoria)`.
 
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 

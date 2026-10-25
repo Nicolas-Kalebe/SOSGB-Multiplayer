@@ -264,3 +264,17 @@ Regras deste arquivo:
 - **Achado importante — o IMGUI deste jogo foi "podado" no build:** `GUILayout.*`, `GUI.TextField`, `GUI.DrawTexture` e `GUIStyle.background` não funcionam ("Method unstripping failed" ou sem efeito). `GUI.Button` existe, mas não reage. Funcionam `GUI.Box` (estilo padrão), `GUI.Label`, `GUI.color` e `Event.current`. Por isso o layout é manual, os botões e o campo de texto leem o clique e as teclas de `Event.current`, e o fundo é `GUI.Box` tingido.
 - **Verificado:** clique real no botão "Entrar" e digitação real no campo de IP (gravados no `.cfg`); F9 abre o menu no jogo; lista mostra "Juia — Casa (aqui)".
 - **Limitações conhecidas:** cliques no painel também chegam ao jogo (no título, avança o "aperte qualquer botão"); digitar no campo não bloqueia o jogo de receber as teclas. Aceitável por enquanto.
+
+### D28 — Aparência própria de cada jogador (montada pelo próprio jogo, por "troca temporária")
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (pedido do usuário: consertar os bugs visuais e "criar o personagem entrando no mundo"; antes, todos apareciam com a cara de quem estava olhando)
+- **Contexto:** a aparência é uma lista compacta de `AvatarInfo` (rosto, pele, olhos, cabelo, cor, barba, roupa, `MotionType`=gênero…). Só o `AvatarMakeManager` sabe montar o modelo, e ele trabalha sobre o modelo do **jogador local**.
+- **Experimento (AppearanceLab, em runtime):** trocar temporariamente as `AvatarInfos` do jogador local → `ChangePlayerAvatar` → copiar o modelo → devolver as `AvatarInfos` originais → `ChangePlayerAvatar`. **A cópia continua válida e desenhada depois da devolução**, e o jogador local volta ao normal.
+- **Decisão:**
+  - cada jogador anuncia a própria aparência (`PlayerAppearance`, "categoria:masterId,…") ao entrar e quando alguém entra; reanuncia se mudar (ex.: alfaiate);
+  - quem recebe monta o avatar pelo truque acima (`AppearanceSync`, uma montagem por vez, avançando a corrotina do jogo até o fim, mais `SwitchGenderMotion` pelo `MotionType`);
+  - até a aparência chegar, o avatar é provisório (cópia do modelo local);
+  - **o convidado herda a aparência do host ao carregar o mundo** (ela está no save). Por isso a aparência virou uma parte do perfil individual (D24: `appearance`), reaplicada no personagem local depois de cada carga de mundo. Na 1ª entrada vem do save do próprio convidado;
+  - controller de animação: mesmo `MotionType` do jogador local → o controller dele; diferente → cópia própria (`Instantiate`) do controller capturado na montagem.
+- **Efeito colateral aceito:** durante a montagem (poucos segundos, quando alguém entra), **o personagem local troca de aparência e volta**. Nunca acontece durante a virada do dia.
+- **Corrigido junto:** antes do `Welcome` o convidado achava que o próprio ID era 0 (o do host) e descartava mensagens do host. Agora o ID começa "desconhecido" (255), o convidado não envia nada até o `Welcome`, o host valida o ID do remetente, e o "entrou no mundo" só sai depois do `Welcome` (sumiu o avatar fantasma "Jogador 255").
+- **Verificado:** screenshots dos dois lados com aparências diferentes (variante de cabelo/roupa aplicada no convidado). **Ainda não testado:** gênero diferente.

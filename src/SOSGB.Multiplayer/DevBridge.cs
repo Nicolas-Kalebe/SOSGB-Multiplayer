@@ -29,7 +29,7 @@ public class DevBridge : MonoBehaviour
 {
     public DevBridge(IntPtr ptr) : base(ptr) { }
 
-    private static DevBridge Instance;
+    internal static DevBridge Instance;
 
     private void Awake()
     {
@@ -263,11 +263,29 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)
                 return Json(new { ok = true, info = AvatarInfoDump() });
+
+            case "applab":
+                // applab run | applab report — experimento de aparência (AppearanceLab)
+                if (arg.StartsWith("run"))
+                {
+                    var local = AvatarMakeManager.Instance.PlayerAvatarInfos;
+                    var variant = AppearanceLab.Variant(local);
+                    AppearanceLab.Run(Instance, variant);
+                    return Json(new { ok = true, started = true, local = AppearanceLab.Serialize(local), variant });
+                }
+                if (arg.StartsWith("apply"))
+                {
+                    // applab apply — aplica uma aparência variante no jogador local (testes da D28)
+                    var v = AppearanceLab.Variant(AvatarMakeManager.Instance.PlayerAvatarInfos);
+                    Net.AppearanceSync.ApplyToLocal(v);
+                    return Json(new { ok = true, applying = v });
+                }
+                return Json(new { ok = true, report = AppearanceLab.LastReport });
 
             case "fieldname":
                 // fieldname <id> — nome traduzido de um mapa (lista de jogadores)

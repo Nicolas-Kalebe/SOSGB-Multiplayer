@@ -56,6 +56,13 @@ public static class PlayerContext
             Capture = () => StringExtensions.ToJson(new EventFlagSaveData(EventFlagManager.Instance.ToSaveData())),
             Apply = ApplyEventFlags,
         },
+        // Aparência (D28): o mundo do host traz a aparência DO HOST; o convidado reaplica a dele.
+        new Part
+        {
+            Name = "appearance",
+            Capture = () => Net.AppearanceSync.Swapping && Net.AppearanceSync.Stable != null ? Net.AppearanceSync.Stable : Net.AppearanceSync.Local(),
+            Apply = json => Net.AppearanceSync.ApplyToLocal(json),
+        },
         Make("bag",
             () => InventoryManager.Instance.BagItemStorage.ToSaveData(),
             d => InventoryManager.Instance.BagItemStorage.FromSaveData(d)),
@@ -78,7 +85,7 @@ public static class PlayerContext
     }
 
     /// <summary>Partes do perfil individual de um convidado (D24: flags de evento ficam no mundo por enquanto).</summary>
-    public static readonly string[] ProfileParts = { "likeability", "talk", "bag", "tools", "toolstate" };
+    public static readonly string[] ProfileParts = { "likeability", "talk", "bag", "tools", "toolstate", "appearance" };
 
     public static Dictionary<string, string> CaptureParts(IEnumerable<string> names)
     {
