@@ -44,13 +44,23 @@ public static class NetSession
     /// <summary>Disparado quando este processo passa a hospedar.</summary>
     public static event Action OnHosting;
 
+    /// <summary>Em todos: outro jogador entrou (id, nome).</summary>
+    public static event Action<byte, string> OnPlayerJoinedNamed;
+
+    /// <summary>Em todos: outro jogador saiu (id, nome).</summary>
+    public static event Action<byte, string> OnPlayerLeftNamed;
+
+    /// <summary>No convidado: perdeu a conexão com o host (motivo).</summary>
+    public static event Action<string> OnDisconnectedFromHost;
+
     private static NetManager _net;
     private static EventBasedNetListener _listener;
     private static NetPeer _server; // no convidado: conexão com o host
     private static readonly NetDataWriter Writer = new();
 
     public static string LocalName =>
-        string.IsNullOrWhiteSpace(Plugin.PlayerName.Value) ? Environment.UserName : Plugin.PlayerName.Value;
+        Environment.GetEnvironmentVariable("SOSGB_PLAYER_NAME") is { Length: > 0 } envName ? envName // testes com várias instâncias
+        : string.IsNullOrWhiteSpace(Plugin.PlayerName.Value) ? Environment.UserName : Plugin.PlayerName.Value;
 
     // ---------- ciclo de vida ----------
 
@@ -194,6 +204,7 @@ public static class NetSession
             Writer.Put(p.Id);
             SendToAllExcept(null, DeliveryMethod.ReliableOrdered);
             OnPlayerLeft?.Invoke(p.Id);
+            OnPlayerLeftNamed?.Invoke(p.Id, p.Name);
         }
         else
         {
@@ -201,6 +212,7 @@ public static class NetSession
             LastError ??= info.Reason.ToString();
             Players.Clear();
             Current = Mode.Offline;
+            if (info.Reason != DisconnectReason.DisconnectPeerCalled) OnDisconnectedFromHost?.Invoke(info.Reason.ToString());
         }
     }
 
@@ -242,11 +254,14 @@ public static class NetSession
             case MsgType.PlayerJoined when Current == Mode.Client:
                 var jid = reader.GetByte();
                 Players[jid] = new Player { Id = jid, Name = reader.GetString() };
+                if (jid != LocalId) OnPlayerJoinedNamed?.Invoke(jid, Players[jid].Name);
                 break;
             case MsgType.PlayerLeft when Current == Mode.Client:
                 var lid = reader.GetByte();
+                var lname = Players.TryGetValue(lid, out var lp) ? lp.Name : $"Jogador {lid}";
                 Players.Remove(lid);
                 OnPlayerLeft?.Invoke(lid);
+                OnPlayerLeftNamed?.Invoke(lid, lname);
                 break;
             default:
                 if ((byte)type >= (byte)MsgType.PlayerState)
@@ -271,6 +286,7 @@ public static class NetSession
         Players[id] = new Player { Id = id, Name = name, Peer = peer };
         Plugin.Logger.LogInfo($"[Net] {name} entrou como #{id} (mod {modVersion})");
         OnHelloAccepted?.Invoke(id, guid);
+        OnPlayerJoinedNamed?.Invoke(id, name);
 
         Writer.Reset();
         Writer.Put((byte)MsgType.Welcome);

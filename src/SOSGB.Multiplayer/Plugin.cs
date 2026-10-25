@@ -119,6 +119,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.ClockSync>();
         AddComponent<Net.DaySync>();
         AddComponent<Net.PlayerProfiles>();
+        AddComponent<Net.NotifySync>();
         AddComponent<DebugOverlay>();
 
         if (DevMode)

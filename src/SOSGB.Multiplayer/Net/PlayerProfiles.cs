@@ -227,6 +227,9 @@ public class PlayerProfiles : MonoBehaviour
         DevBridge.PushEvent($"perfis-gravados:{Stored.Count}");
     }
 
+    /// <summary>No convidado: o mundo do host já foi carregado e o perfil aplicado.</summary>
+    public static bool WorldApplied => _firstWorldDone && !_worldLoading;
+
     public static object Status() => new
     {
         stored = Stored.Keys.ToArray(),

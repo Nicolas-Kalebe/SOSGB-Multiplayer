@@ -265,6 +265,11 @@ public class DevBridge : MonoBehaviour
                 }
                 return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status() });
 
+            case "notify":
+                // notify <texto> — mostra um aviso no sistema de avisos do jogo (D26)
+                GameNotify.Show(arg);
+                return Json(new { ok = true });
+
             case "kick":
                 // kick <1|2|3> — testa as formas de ativar a janela do jogo (D25)
                 return Json(new { ok = true, result = StartupGuard.Activate(int.Parse(arg)) });

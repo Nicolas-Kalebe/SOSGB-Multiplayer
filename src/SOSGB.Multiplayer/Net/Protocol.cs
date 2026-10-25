@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 6;
+    public const int Version = 7;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -48,6 +48,9 @@ public enum MsgType : byte
 
     /// <summary>Host → todos: [byte dormindo][byte total] — contador "dormindo X/Y" (3.4, D12)</summary>
     SleepStatus = 12,
+
+    /// <summary>Qualquer → todos: [byte id][byte código] — dormiu/desmaiou/entrou em evento (avisos, D26)</summary>
+    PlayerEvent = 13,
 
     // ---- 20+: ponto a ponto com o host (NÃO são repassadas aos outros convidados) ----
 
