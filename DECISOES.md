@@ -278,3 +278,12 @@ Regras deste arquivo:
 - **Efeito colateral aceito:** durante a montagem (poucos segundos, quando alguém entra), **o personagem local troca de aparência e volta**. Nunca acontece durante a virada do dia.
 - **Corrigido junto:** antes do `Welcome` o convidado achava que o próprio ID era 0 (o do host) e descartava mensagens do host. Agora o ID começa "desconhecido" (255), o convidado não envia nada até o `Welcome`, o host valida o ID do remetente, e o "entrou no mundo" só sai depois do `Welcome` (sumiu o avatar fantasma "Jogador 255").
 - **Verificado:** screenshots dos dois lados com aparências diferentes (variante de cabelo/roupa aplicada no convidado). **Ainda não testado:** gênero diferente.
+
+### D29 — Aparência própria (D28) fica EXPERIMENTAL e desligada por padrão
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (trabalhando sozinha; o usuário pediu "algo bem feito e funcional")
+- **Contexto:** a D28 funcionou nos testes com peças **padrão** (cabelo 45000, roupa 49000) e com o mesmo gênero. Testes seguintes mostraram dois problemas graves:
+  1. **Peças que não estão carregadas na memória** (ex.: rosto 42005, cabelo 45020, cor 46003, roupa 49040): a corrotina `ChangePlayerAvatar` espera para sempre numa etapa interna e o **personagem local fica invisível**. `PreloadAvatarSource` e `DetailPageResourceLoad` terminam em 0,1 s e não resolvem. O teste que isolaria qual peça causa isso foi **interrompido por falta de memória** no PC (duas instâncias do jogo + sistema, em 15 GB).
+  2. **Gênero diferente:** trocar `MotionType` em jogo não reconstrói o corpo (modelo invisível). Aplicar a aparência/gênero no save recebido antes da cena trava o carregamento (personagem nulo), **mesmo com o mesmo gênero**.
+- **Decisão:** `[Visual] SyncAppearance = false` por padrão. Desligado: avatares com o modelo do jogador local + **nome em cima** (estável, testado). O código da D28 fica, para retomar.
+- **Ainda vale mesmo desligado:** se outro gênero for montado, usa o corpo do gênero local (fallback); a aparência própria **nunca** é aplicada no save antes da cena.
+- **Próximos passos para retomar:** (a) isolar qual peça trava (rodar uma instância por vez para não faltar memória); (b) descobrir como o jogo carrega as peças da tela de customização/alfaiate (provavelmente `AllResourceLoadAsync`/`InitializeBackyardLoader`); (c) montar com tempo limite **sem** aninhar a corrotina do jogo (hoje o tempo limite não dispara porque o `yield` aninhado nunca volta).

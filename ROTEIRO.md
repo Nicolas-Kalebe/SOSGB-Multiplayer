@@ -180,7 +180,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Feito:** 3.6 — `PlayerProfiles` (D24): o convidado mantém a própria mochila e amizade depois da virada do dia (13 itens / 945 × host 18 / 745); o host grava os perfis em arquivo; reabrir os jogos restaura do arquivo; sair e voltar mantém a última versão
 - **Feito:** 3.7 — no multiplayer o host só grava durante a virada do dia (save manual recusado com aviso; o jogo mostra "Não foi possível salvar"); o convidado nunca grava (com aviso); snapshot de recuperação a cada 15 min em arquivo à parte (`recovery_*.sav`, invisível para quem joga)
 - **Corrigido (bugs do 1º teste real com a amiga):** (1) o convidado não via o host → avatares recriados quando o mundo recarrega; (2) avatar sem animação ("voando") → sincroniza as 12 camadas + parâmetros do Animator e usa o override controller real. Verificado andando com o teclado (`scripts/press-keys.ps1`) e por screenshot
-- **Feito:** aparência própria de cada jogador (D28): cada um aparece com o próprio personagem, nos dois lados
+- **Aparência própria (D28) → EXPERIMENTAL e desligada (D29):** funciona com peças padrão, mas trava (personagem invisível) com peças não carregadas e não troca gênero. Por enquanto: modelo do jogador local + nome em cima
 - **Feito (antecipado da Fase 8):** avisos no sistema do jogo (D26); interface de hospedar/entrar + lista de jogadores com localização (D27)
 - **Corrigido (D25):** o jogo não precisa mais de clique/alt-tab para sair da tela inicial (`StartupGuard`)
 - ✅ **Fase 3 concluída** (2026-10-25), testada com 2 instâncias. Pendências com o usuário: deitar na cama de verdade; confirmar D24 (perfil inicial do convidado)

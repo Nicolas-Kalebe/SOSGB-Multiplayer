@@ -19,6 +19,7 @@ public class Plugin : BasePlugin
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<bool> FixStartupFocus;
+    internal static ConfigEntry<bool> SyncAppearance;
     internal static ConfigEntry<string> PlayerName;
     internal static ConfigEntry<string> PlayerGuid;
     internal static ConfigEntry<int> RecoverySnapshotMinutes;
@@ -63,6 +64,12 @@ public class Plugin : BasePlugin
             "Ativa a janela do jogo automaticamente se ele ficar preso na tela inicial (sem precisar clicar/alt-tab).");
         // Só para testes (scripts): SOSGB_FIX_STARTUP=0 desliga nesta execução, sem gravar no .cfg.
         EffectiveFixStartup = FixStartupFocus.Value && System.Environment.GetEnvironmentVariable("SOSGB_FIX_STARTUP") != "0";
+
+        // D28: aparência própria de cada jogador. EXPERIMENTAL e desligada por padrão: com peças de aparência
+        // que não estão carregadas na memória, a montagem do jogo fica esperando para sempre e o personagem
+        // LOCAL pode ficar invisível. Desligada = avatares com o modelo local + nome em cima (estável).
+        SyncAppearance = Config.Bind("Visual", "SyncAppearance", false,
+            "EXPERIMENTAL: mostra cada jogador com a própria aparência. Pode deixar o personagem invisível com algumas roupas/cabelos.");
 
         // D9: o relógio do grupo pausa quando N jogadores estão em menu/evento (0 = todos).
         PauseWhenPlayersInMenu = Config.Bind("Game", "PauseWhenPlayersInMenu", 1,

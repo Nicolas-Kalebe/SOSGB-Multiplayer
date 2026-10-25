@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -277,6 +278,28 @@ public class DevBridge : MonoBehaviour
                     var variant = AppearanceLab.Variant(local);
                     AppearanceLab.Run(Instance, variant);
                     return Json(new { ok = true, started = true, local = AppearanceLab.Serialize(local), variant });
+                }
+                if (arg.StartsWith("cat "))
+                {
+                    // applab cat <categoria> — peças disponíveis numa categoria (ids, partes, motion)
+                    var catN = int.Parse(arg.Substring(4));
+                    var found = new List<string>();
+                    foreach (var m in MasterDataManager.Instance.AvatarMakeMasterData)
+                        if (m.Category == catN) found.Add($"{m.Id}:{m.PartsId}:{m.MotionCategory}:dlc{m.DlcId}");
+                    return Json(new { ok = true, count = found.Count, items = found.Take(40) });
+                }
+                if (arg.StartsWith("set "))
+                {
+                    // applab set <cat>:<id>,... — aplica no jogador local a aparência atual com essas peças trocadas
+                    var curParts = AppearanceLab.Serialize(AvatarMakeManager.Instance.PlayerAvatarInfos).Split(',').ToList();
+                    foreach (var kv in arg.Substring(4).Split(','))
+                    {
+                        var c = kv.Split(':')[0];
+                        var idx = curParts.FindIndex(x => x.StartsWith(c + ":"));
+                        if (idx >= 0) curParts[idx] = kv; else curParts.Add(kv);
+                    }
+                    Net.AppearanceSync.ApplyToLocal(string.Join(",", curParts));
+                    return Json(new { ok = true, applying = string.Join(",", curParts) });
                 }
                 if (arg.StartsWith("apply"))
                 {

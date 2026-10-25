@@ -53,11 +53,11 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 - Os corações, a mochila e as ferramentas do convidado são dele e ficam guardados no PC do host (`%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\`).
 - Se alguém abrir um menu, o tempo para para todos ([D9](../DECISOES.md)).
 
-## Limitações conhecidas (v0.1)
+## Limitações conhecidas
 
 - Plantar, colher, comprar e mudar o dinheiro **não sincroniza**. O que o convidado fizer no mundo volta ao estado do host na virada do dia.
 - Os NPCs andam de forma independente em cada jogo.
-- O avatar do outro jogador tem a **aparência do seu personagem** (aparência própria ainda não implementada).
+- O avatar do outro jogador tem a **aparência do seu personagem**, com o **nome em cima**. A aparência própria existe em modo experimental (`[Visual] SyncAppearance = true`), mas pode deixar o personagem invisível com algumas roupas ou cabelos e não funciona entre gêneros diferentes.
 - Eventos de casado e filhos não funcionam para convidados ([D12a](../DECISOES.md)).
 
 ## Desinstalar / jogar sem o mod

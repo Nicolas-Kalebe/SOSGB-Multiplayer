@@ -301,7 +301,7 @@ public class PlayerSync : MonoBehaviour
     /// <summary>Se a aparência do jogador é conhecida e o avatar não foi montado com ela, pede a montagem.</summary>
     private static void EnsureAppearance(byte id, Remote rm)
     {
-        if (rm.Building || rm.Avatar == null) return;
+        if (!Plugin.SyncAppearance.Value || rm.Building || rm.Avatar == null) return;
         var app = AppearanceSync.KnownAppearance(id);
         if (app == null || app == rm.BuiltAppearance) return;
         rm.Building = true;

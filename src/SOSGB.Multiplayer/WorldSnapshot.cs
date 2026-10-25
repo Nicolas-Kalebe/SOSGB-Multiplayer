@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using BepInEx;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 using BokuMono;
 using BokuMono.SaveData;
 using HarmonyLib;
@@ -53,6 +54,13 @@ public static class WorldSnapshot
 
     public static bool Capturing => _captureArmed;
 
+    /// <summary>Depois de o save (snapshot) ser lido e ANTES da cena Game carregar: dá para ajustar o UserInfo
+    /// (ex.: o convidado coloca a própria aparência/gênero, e o jogo monta o personagem já certo — D28).</summary>
+    public static event Action BeforeSceneLoad;
+
+    /// <summary>Tarefa assíncrona opcional antes de carregar a cena (ex.: pré-carregar peças de aparência).</summary>
+    public static Func<System.Collections.IEnumerator> BeforeSceneLoadRoutine;
+
     /// <summary>
     /// D23 — recuperação contra queda: o host captura o mundo periodicamente e grava num arquivo À PARTE
     /// (nunca no slot oficial): %APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\recovery_*.sav.
@@ -82,9 +90,21 @@ public static class WorldSnapshot
             if (r == SaveLoadResult.Succeess)
             {
                 ExternalData.Instance.UserInfo.Slot = slot; // ver DevBridge.LoadSlot (save automático no slot certo)
-                SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
+                try { BeforeSceneLoad?.Invoke(); }
+                catch (Exception e) { Plugin.Logger.LogWarning($"[WorldSnapshot] BeforeSceneLoad: {e.Message}"); }
+                var routine = BeforeSceneLoadRoutine?.Invoke();
+                if (routine != null && Net.AppearanceSync.Instance != null)
+                    Net.AppearanceSync.Instance.StartCoroutine(ThenLoadScene(routine).WrapToIl2Cpp());
+                else
+                    SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
             }
         }));
+    }
+
+    private static System.Collections.IEnumerator ThenLoadScene(System.Collections.IEnumerator before)
+    {
+        yield return before.WrapToIl2Cpp();
+        SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
     }
 
     [HarmonyPatch(typeof(SaveDataAccessorWindows), nameof(SaveDataAccessorWindows.SlotSave))]

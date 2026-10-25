@@ -64,6 +64,13 @@ public class PlayerProfiles : MonoBehaviour
             // inicial, caso o host ainda não o conheça (D24).
             _firstWorldDone = false;
             _pending = Capture();
+            var forced = Environment.GetEnvironmentVariable("SOSGB_TEST_APPEARANCE"); // só testes
+            if (!string.IsNullOrEmpty(forced))
+            {
+                var parts = JsonSerializer.Deserialize<Dictionary<string, string>>(_pending);
+                parts["appearance"] = forced;
+                _pending = JsonSerializer.Serialize(parts);
+            }
             _pendingIsNewDay = false;
         };
         WorldSync.OnWorldReceived += () =>
@@ -78,6 +85,9 @@ public class PlayerProfiles : MonoBehaviour
             if (_firstWorldDone) { _pending = _lastUploaded ?? Capture(); _pendingIsNewDay = true; }
         };
         NetSession.OnHosting += LoadStore;
+        // NÃO aplicar a aparência no save recebido antes da cena (AppearanceSync.ApplyToUserInfo): testado e
+        // trava o carregamento (personagem nulo, relógio parado), mesmo com o mesmo gênero e pré-carregando
+        // as peças. A aparência própria é aplicada DEPOIS da carga (parte "appearance" do perfil). Ver D28.
     }
 
     private float _nextRecovery = -1;
@@ -159,6 +169,15 @@ public class PlayerProfiles : MonoBehaviour
         DevBridge.PushEvent(_pendingIsNewDay ? "perfil-aplicado:dia-novo" : "perfil-aplicado:entrada");
         _pending = null;
         Upload(); // o host passa a ter a versão atual
+    }
+
+    /// <summary>Aparência dentro do perfil que será aplicado (null se não houver).</summary>
+    private static string PendingAppearance()
+    {
+        var src = _pending ?? _lastUploaded;
+        if (string.IsNullOrEmpty(src)) return null;
+        var parts = JsonSerializer.Deserialize<Dictionary<string, string>>(src);
+        return parts.TryGetValue("appearance", out var a) ? a : null;
     }
 
     private static string Capture() => JsonSerializer.Serialize(PlayerContext.CaptureParts(PlayerContext.ProfileParts));

@@ -43,6 +43,9 @@ public class AppearanceSync : MonoBehaviour
         public Action<GameObject, RuntimeAnimatorController> Done;
     }
 
+    /// <summary>A última montagem passou do tempo limite (peças que não carregaram).</summary>
+    public static bool TimedOut;
+
     /// <summary>Verdadeiro durante uma troca temporária: o modelo local não está com a aparência do jogador.</summary>
     public static bool Swapping => _busy;
 
@@ -60,6 +63,7 @@ public class AppearanceSync : MonoBehaviour
 
     private void Update()
     {
+        if (!Plugin.SyncAppearance.Value) { Jobs.Clear(); return; } // experimental, desligado por padrão
         if (_busy || Jobs.Count == 0) return;
         if (!Ready()) return;
         StartCoroutine(Run(Jobs.Dequeue()).WrapToIl2Cpp());
@@ -109,6 +113,39 @@ public class AppearanceSync : MonoBehaviour
             _announcePending = false;
             Announce();
         }
+    }
+
+    /// <summary>
+    /// Coloca a aparência direto no UserInfo do save recebido, para o jogo montar o personagem já com ela quando
+    /// a cena carregar (sem troca visível depois). O GÊNERO do corpo é mantido o do save (o do host): trocar o
+    /// gênero ali trava o carregamento (testado: personagem nulo, relógio parado). Limitação conhecida (D28).
+    /// </summary>
+    public static void ApplyToUserInfo(string appearance)
+    {
+        if (string.IsNullOrEmpty(appearance)) return;
+        var ui = ExternalData.Instance.UserInfo;
+        var saveMotion = MotionTypeId(string.Join(",", ui.AvatarInfos.Select(i => $"{(int)i.Category}:{i.MasterId}")));
+        var adjusted = WithMotionType(appearance, saveMotion);
+        ui.AvatarInfos = Parse(adjusted);
+        Plugin.Logger.LogInfo($"[Appearance] aparência própria aplicada no save recebido{(adjusted != appearance ? " (gênero do mundo do host mantido)" : "")}");
+    }
+
+    /// <summary>Pré-carrega as peças da aparência atual do UserInfo (necessário antes de montar a cena com ela).</summary>
+    public static IEnumerator PreloadUserInfoAppearance()
+    {
+        var pre = AvatarMakeManager.Instance.PreloadAvatarSource(ExternalData.Instance.UserInfo.AvatarInfos);
+        var aw = pre.GetAwaiter();
+        var waited = 0f;
+        while (!aw.IsCompleted && waited < 15f) { waited += Time.unscaledDeltaTime; yield return null; }
+        Plugin.Logger.LogInfo($"[Appearance] peças da aparência pré-carregadas ({waited:0.0}s)");
+    }
+
+    /// <summary>Troca a peça MotionType de uma aparência pela de outra (fallback de gênero).</summary>
+    public static string WithMotionType(string appearance, string motionPart)
+    {
+        if (motionPart == null) return appearance;
+        var key = ((int)AvatarPartsCategory.MotionType) + ":";
+        return string.Join(",", appearance.Split(',').Select(p => p.StartsWith(key) ? motionPart : p));
     }
 
     /// <summary>ID da peça MotionType (gênero das animações) dentro de uma aparência serializada.</summary>
@@ -181,10 +218,23 @@ public class AppearanceSync : MonoBehaviour
         amm.PlayerAvatarInfos = infos;
         gc.PlayerAvatarInfos = infos;
         ExternalData.Instance.UserInfo.AvatarInfos = infos;
+        // Peças de outra roupa/cabelo podem não estar carregadas (só as do save e as padrão estão).
+        // O carregador da tela de customização (DetailPageResourceLoad) carrega peças por masterId.
+        var ids = new Il2CppSystem.Collections.Generic.List<uint>();
+        foreach (var i in infos) if (i.MasterId != 0) ids.Add(i.MasterId);
+        amm.DetailPageResourceLoad(ids);
+        var waited = 0f;
+        yield return null;
+        while (amm.IsLoadingDetailPage && waited < 15f) { waited += Time.unscaledDeltaTime; yield return null; }
+        Plugin.Logger.LogInfo($"[Appearance] peças carregadas ({waited:0.0}s)");
         // Avançamos a corrotina do jogo por aqui para saber exatamente quando terminou.
         var ie = amm.ChangePlayerAvatar(AvatarMakeManager.ChangeType.Default, null);
-        var guard = 0;
-        while (ie.MoveNext() && guard++ < 2000) yield return ie.Current;
+        var t0 = Time.realtimeSinceStartup;
+        while (ie.MoveNext())
+        {
+            if (Time.realtimeSinceStartup - t0 > 20f) { Plugin.Logger.LogWarning("[Appearance] montagem demorou demais; abortando"); TimedOut = true; break; }
+            yield return ie.Current;
+        }
         // Animações masculinas/femininas seguem o MotionType da aparência.
         var done = false;
         gc.GetPlayer().SwitchGenderMotion(MotionTypeOf(infos), (Action)(() => done = true));
@@ -201,12 +251,22 @@ public class AppearanceSync : MonoBehaviour
 
         if (job.Appearance == null)
         {
-            // Aplicar no jogador local (definitivo).
-            yield return SetLocal(Parse(job.Target)).WrapToIl2Cpp();
+            // Aplicar no jogador local (definitivo). Mesmo gênero obrigatório (ver fallback abaixo).
+            var target = MotionTypeId(job.Target) == MotionTypeId(original) ? job.Target : WithMotionType(job.Target, MotionTypeId(original));
+            if (target == original) { _busy = false; Announce(); yield break; }
+            yield return SetLocal(Parse(target)).WrapToIl2Cpp();
             Plugin.Logger.LogInfo("[Appearance] aparência própria aplicada no personagem local");
             _busy = false;
             Announce();
             yield break;
+        }
+
+        // Corpo de outro gênero não pode ser montado sem recarregar a cena (vira um modelo invisível).
+        // Fallback: a aparência da pessoa (cabelo, rosto, cores, roupa) sobre o corpo do gênero local.
+        if (MotionTypeId(job.Appearance) != MotionTypeId(original))
+        {
+            Plugin.Logger.LogInfo("[Appearance] gênero diferente do local: usando o corpo do gênero local (limitação conhecida)");
+            job.Appearance = WithMotionType(job.Appearance, MotionTypeId(original));
         }
 
         if (job.Appearance == original)
