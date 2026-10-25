@@ -120,7 +120,9 @@ public class Plugin : BasePlugin
         AddComponent<Net.DaySync>();
         AddComponent<Net.PlayerProfiles>();
         AddComponent<Net.NotifySync>();
-        AddComponent<DebugOverlay>();
+        AddComponent<MultiplayerUI>();
+        // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
+        if (DevMode) AddComponent<DebugOverlay>();
 
         if (DevMode)
         {

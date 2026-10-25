@@ -10,6 +10,7 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 | `dev-cycle.sh` | Ciclo completo: fecha o jogo → compila → abre → ativa a janela → espera o save carregar. `scripts/dev-cycle.sh [--no-build]` |
 | `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte |
 | `two-instances.sh` | **Atalho:** recompila e abre host (47800) + convidado (47801) conectados, esperando o mundo carregar |
+| `click.ps1` | Clique de mouse real numa coordenada da janela do jogo (`-ProcessId -X -Y`) |
 | `second-instance.sh` | Abre uma **segunda instância** do jogo com a ponte em outra porta (padrão 47801). Para testar host + convidado no mesmo PC |
 | `kick-window.ps1` | (Reserva, não é mais usado: o plugin se ativa sozinho, D25.) |
 | `kick-window.ps1` (antigo) | Dá uma ativação real à janela do jogo e devolve o foco para a janela anterior. Necessário porque, aberto por script, o Launcher trava até um alt-tab ([D21](../DECISOES.md)) |
@@ -70,6 +71,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `notify <texto>` | Mostra um aviso no sistema de avisos do jogo (D26) |
 | `kick <1-3>` | Testa formas de ativar a janela (D25) |
 | `anim` | Camadas/parâmetros do Animator do player e dos avatares |
+| `fieldname <id>` | Nome traduzido de um mapa |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

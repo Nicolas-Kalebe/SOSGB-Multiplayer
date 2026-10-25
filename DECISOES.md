@@ -252,3 +252,15 @@ Regras deste arquivo:
 - **Decisão:** (c). `GameNotify.Show(texto)` pede `UIAccessor.RequestShowSideInfoPost(9731)`, uma contagem-marcador, e um postfix em `UISideInfomationModerate.SetData` troca o texto pelo nosso. Fica com a animação, o som e a posição nativos, com o ícone de carta. Fora da cena de jogo cai no `Notice` do overlay.
 - **Avisos atuais:** entrou/saiu do mundo, conectado ao mundo de X (depois da recarga), conexão perdida, foi dormir (X/Y), desmaiou de cansaço/sono, entrou em um evento. Cada jogador detecta os próprios acontecimentos lendo o estado do jogo (sem patch) e avisa os outros (`PlayerEvent`).
 - **Verificado:** screenshot com o aviso nativo; entrada e dormir testados com 2 instâncias.
+
+### D27 — Interface do multiplayer em IMGUI com layout e controles próprios
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (pedido do usuário: "crie uma interface de host e entrada")
+- **Contexto:** até aqui, hospedar e entrar só pelo `.cfg`. O usuário quer uma interface. A UI nativa do jogo (`UIManager`/páginas) exigiria criar páginas novas no sistema de UI do jogo, com prefabs e localização: muito trabalho e risco.
+- **Decisão:** interface IMGUI própria (`MultiplayerUI`):
+  - **título:** painel no canto inferior direito com nome, modo (Sozinho/Hospedar/Entrar), IP do host e os IPs deste PC (identificando o Radmin VPN e escondendo adaptadores virtuais). Grava direto no `.cfg`;
+  - **no jogo:** lista compacta de jogadores com **onde cada um está** (nome traduzido do mapa, `Locations`), ping e "dormindo X/Y";
+  - **F9:** menu com hospedar agora, entrar agora e desconectar. **F10** esconde a lista;
+  - o overlay de diagnóstico (`DebugOverlay`) só aparece no modo de teste.
+- **Achado importante — o IMGUI deste jogo foi "podado" no build:** `GUILayout.*`, `GUI.TextField`, `GUI.DrawTexture` e `GUIStyle.background` não funcionam ("Method unstripping failed" ou sem efeito). `GUI.Button` existe, mas não reage. Funcionam `GUI.Box` (estilo padrão), `GUI.Label`, `GUI.color` e `Event.current`. Por isso o layout é manual, os botões e o campo de texto leem o clique e as teclas de `Event.current`, e o fundo é `GUI.Box` tingido.
+- **Verificado:** clique real no botão "Entrar" e digitação real no campo de IP (gravados no `.cfg`); F9 abre o menu no jogo; lista mostra "Juia — Casa (aqui)".
+- **Limitações conhecidas:** cliques no painel também chegam ao jogo (no título, avança o "aperte qualquer botão"); digitar no campo não bloqueia o jogo de receber as teclas. Aceitável por enquanto.

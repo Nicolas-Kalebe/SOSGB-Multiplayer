@@ -265,6 +265,10 @@ public class DevBridge : MonoBehaviour
                 }
                 return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status() });
 
+            case "fieldname":
+                // fieldname <id> — nome traduzido de um mapa (lista de jogadores)
+                return Json(new { ok = true, name = Net.Locations.Name(uint.Parse(arg)) });
+
             case "notify":
                 // notify <texto> — mostra um aviso no sistema de avisos do jogo (D26)
                 GameNotify.Show(arg);

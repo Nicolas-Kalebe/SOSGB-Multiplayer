@@ -35,6 +35,12 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 
 **Firewall (só quem hospeda):** na primeira vez que o jogo hospedar, o Windows pode perguntar se permite o acesso à rede. Marque **Permitir**, inclusive em **redes privadas e públicas**. Se ninguém conseguir entrar, confira em "Firewall do Windows → Permitir um aplicativo" se o `SOSGrandBazaar.exe` está liberado no perfil da rede em uso.
 
+## Interface (no jogo)
+
+- **Tela de título:** painel no canto inferior direito. Escolha *Sozinho*, *Hospedar* ou *Entrar*, digite seu nome e (para entrar) o IP do host. Quem hospeda vê ali os IPs para passar aos amigos (inclusive o do Radmin VPN).
+- **Dentro do jogo:** lista de jogadores com onde cada um está. **F9** abre o menu (hospedar/entrar agora, desconectar); **F10** esconde a lista.
+- Avisos aparecem no sistema de avisos do próprio jogo: quem entrou/saiu, quem foi dormir, desmaiou ou entrou num evento.
+
 ## Como jogar
 
 1. **O host** abre o jogo e carrega o save dele. A janelinha "SOSGB Multiplayer" aparece no canto inferior esquerdo (F8 esconde).

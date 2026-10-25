@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D27 | **Interface do multiplayer** (título: modo/nome/IP; jogo: lista com localização; F9 menu) em IMGUI com controles próprios | ✅ Decidido |
 | D26 | **Avisos no sistema do jogo** (entrou/saiu, dormiu, desmaiou, evento) reaproveitando o aviso de correio com texto trocado | ✅ Decidido |
 | D25 | **Inicialização sem clique**: o mod traz a própria janela para frente se ela ficar presa no Launcher (`StartupGuard`) | ✅ Decidido |
 | D24 | **Perfil do convidado**: amizade, conversas, mochila, ferramentas; flags no mundo (provisório); 1ª entrada usa o save do convidado (provisório); gravado pelo host na virada | ✅ Decidido (parte provisória) |

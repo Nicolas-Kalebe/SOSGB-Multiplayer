@@ -353,6 +353,9 @@ public class PlayerSync : MonoBehaviour
         };
     }
 
+    /// <summary>Mapa atual de um jogador remoto (0 = desconhecido). Usado pela lista de jogadores.</summary>
+    public static uint RemoteField(byte id) => Remotes.TryGetValue(id, out var rm) && rm.HasState ? rm.Field : 0;
+
     /// <summary>Para a ponte de teste: posição dos avatares remotos.</summary>
     public static object Status()
     {

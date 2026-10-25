@@ -365,6 +365,13 @@ public static class NetSession
                 p.Peer.Send(Writer, method);
     }
 
+    /// <summary>Ping (ms) até um jogador: no host, de cada convidado; no convidado, o do host.</summary>
+    public static int? PingOf(byte id)
+    {
+        if (Current == Mode.Client) return id == Protocol.HostPlayerId ? _server?.Ping : null;
+        return Players.TryGetValue(id, out var p) ? p.Peer?.Ping : null;
+    }
+
     public static object Status() => new
     {
         mode = Current.ToString(),

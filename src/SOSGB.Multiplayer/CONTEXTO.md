@@ -10,12 +10,14 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 |---|---|
 | `SOSGB.Multiplayer.csproj` | Referências ao BepInEx e ao interop do jogo (via `GamePath`). Copia a DLL para `BepInEx/plugins` após o build |
 | `Plugin.cs` | Ponto de entrada (`BasePlugin.Load`). Registra os componentes |
-| `DebugOverlay.cs` | Janela de diagnóstico (F8): dinheiro, relógio (com estado ▶/⏸), mapa atual e posição do player |
+| `DebugOverlay.cs` | (Só no modo de teste) |
+| `DebugOverlay.cs` (antigo) | Janela de diagnóstico (F8): dinheiro, relógio (com estado ▶/⏸), mapa atual e posição do player |
 | `GameState.cs` | Foto do estado do jogo (usada pelo overlay e pela ponte) |
 | `DevBridge.cs` | Ponte de teste para IA (D20): comandos em 127.0.0.1, log `sosgb-state.jsonl`, screenshots, auto-load |
 | `PngWriter.cs` | Codificador PNG próprio, porque o `EncodeToPNG` da Unity quebra no interop |
 | `PlayerContext.cs` | Troca de contexto por jogador (D3/D13): snapshots em JSON dos managers do jogo |
 | `WorldSnapshot.cs` | Snapshot do mundo via pipeline de save do jogo (patches em `SaveDataAccessorWindows`) |
+| `MultiplayerUI.cs` | D27: painel do título (modo/nome/IP), lista de jogadores no jogo, menu F9. Controles próprios (o IMGUI do jogo foi podado) |
 | `GameNotify.cs` | D26: avisos no sistema de avisos do jogo (aviso de correio com texto trocado) |
 | `Notice.cs` | Aviso curto na tela (via overlay) |
 | `StartupGuard.cs` | D25: ativa a janela do jogo se ela ficar presa no Launcher (sem clique/alt-tab) |
