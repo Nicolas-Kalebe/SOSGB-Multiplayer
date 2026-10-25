@@ -170,7 +170,7 @@ public class DevBridge : MonoBehaviour
         switch (cmd)
         {
             case "ping":
-                return Json(new { ok = true, pong = true, version = Plugin.Version });
+                return Json(new { ok = true, pong = true, version = Plugin.Version, pid = System.Diagnostics.Process.GetCurrentProcess().Id });
 
             case "help":
                 return Json(new

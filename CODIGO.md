@@ -182,6 +182,12 @@ Armadilhas das flags de evento:
 - **O save automático da virada do dia vai para o slot 0**, mesmo com `UserInfo.Slot = 2`: o slot 0 é o **slot de save automático** do jogo (o slot 0 e o slot 1 do usuário têm o mesmo dinheiro). `UserInfo.Slot` é gravado no save (`"Slot": 2`).
 - Para segurar a virada no multiplayer, um prefix em `StartNextDay` retorna `false` com `__result = default(UniTask)` (tarefa já concluída).
 
+### Animação do personagem (bugs do 1º teste real)
+- O `Animator` do player tem **12 camadas**: `Move Layer` (0), `MoveTool`, `MoveWind`, `MoveToolWind`, `MovePickup`, `Move Carry`, `Move Carry Piggyback`, `Base Layer` (7: ações/emoções), `Mask`, `Body`, `LeftArm`, `RightArm`.
+- A `Move Layer` é um **blend tree**: parado/andar/correr dependem de **parâmetros** (`Speed`, `Walk`, `Run`...), e o hash do estado não muda ao andar. O controller tem ~250 parâmetros, a maioria triggers.
+- O player usa um **AnimatorOverrideController** carregado depois do modelo, que troca os clips `dummy_fix_mot_*` pelos reais (`fix_mot_Mn_*`; `Mn` = masculino). Um clone com o controller base anima com os dummies e fica numa pose torta.
+- Ao recarregar o mundo (convidado recebendo `WorldData`), o player é recriado e os modelos/materiais antigos são liberados. Um clone feito antes **para de ser desenhado** (o objeto continua existindo).
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

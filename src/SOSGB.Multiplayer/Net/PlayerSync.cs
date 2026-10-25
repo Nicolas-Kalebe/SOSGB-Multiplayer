@@ -38,6 +38,7 @@ public class PlayerSync : MonoBehaviour
     }
 
     private static readonly Dictionary<byte, Remote> Remotes = new();
+    private static IntPtr _localPlayerPtr;
     private static bool _subscribed;
 
     private void Awake()
@@ -57,13 +58,40 @@ public class PlayerSync : MonoBehaviour
                 if (Remotes.Count > 0) foreach (var id in new List<byte>(Remotes.Keys)) DestroyRemote(id);
                 return;
             }
+            RebuildAvatarsIfWorldReloaded();
             SendLocalState();
             UpdateRemotes();
+            if (Time.unscaledTime >= _nextControllerCheck) _nextControllerCheck = Time.unscaledTime + 1f;
         }
         catch (Exception e)
         {
             Plugin.Logger.LogWarning($"[PlayerSync] {e.Message}");
         }
+    }
+
+    /// <summary>
+    /// Bug "o convidado não via o host": o avatar copiado antes da recarga do mundo (WorldData) continua
+    /// existindo, mas os modelos/materiais em que ele se apoiava são liberados pelo jogo na recarga,
+    /// e ele deixa de ser desenhado. Quando o personagem local muda (recarga), recriamos os avatares
+    /// a partir do modelo novo.
+    /// </summary>
+    private static void RebuildAvatarsIfWorldReloaded()
+    {
+        if (!GameController.IsInstance) return;
+        var p = GameController.Instance.GetPlayer();
+        if (p == null) return;
+        if (p.Pointer == _localPlayerPtr) return;
+        var first = _localPlayerPtr == IntPtr.Zero;
+        _localPlayerPtr = p.Pointer;
+        if (first) return;
+        foreach (var rm in Remotes.Values)
+        {
+            if (rm.Avatar != null) UnityEngine.Object.Destroy(rm.Avatar);
+            rm.Avatar = null;
+            rm.Animator = null;
+            rm.Hashes = Array.Empty<int>();
+        }
+        Plugin.Logger.LogInfo("[PlayerSync] mundo recarregado: avatares serão recriados");
     }
 
     // ---------- envio ----------
@@ -183,6 +211,7 @@ public class PlayerSync : MonoBehaviour
             if (!rm.HasState) continue;
             if (rm.Avatar == null) CreateAvatar(kv.Key, rm);
             if (rm.Avatar == null) continue;
+            SyncController(rm);
 
             var visible = rm.Field == localField; // 2.5: só no mesmo mapa
             if (rm.Avatar.activeSelf != visible) rm.Avatar.SetActive(visible);
@@ -195,6 +224,26 @@ public class PlayerSync : MonoBehaviour
             var rot = Quaternion.Euler(0, rm.TargetRotY, 0);
             tr.rotation = Quaternion.Slerp(tr.rotation, rot, Time.deltaTime * 12f);
         }
+    }
+
+    private float _nextControllerCheck;
+
+    /// <summary>
+    /// O player usa um AnimatorOverrideController carregado DEPOIS de o modelo existir (troca os clips
+    /// "dummy_*" do controller base pelas animações reais). Se o clone pegar o controller base, ele anima
+    /// com os dummies (pose torta, "afundado"). Mantemos o controller do clone igual ao do player local.
+    /// </summary>
+    private void SyncController(Remote rm)
+    {
+        if (rm.Animator == null || Time.unscaledTime < _nextControllerCheck) return;
+        var local = GameController.Instance.GetPlayer();
+        var la = local != null && local.Model != null ? local.Model.GetComponentInChildren<Animator>() : null;
+        if (la == null || la.runtimeAnimatorController == null) return;
+        var cur = rm.Animator.runtimeAnimatorController;
+        if (cur != null && cur.Pointer == la.runtimeAnimatorController.Pointer) return;
+        rm.Animator.runtimeAnimatorController = la.runtimeAnimatorController;
+        rm.Hashes = Array.Empty<int>(); // força replay dos estados no controller novo
+        Plugin.Logger.LogInfo("[PlayerSync] controller de animação do avatar atualizado (override real)");
     }
 
     private static void CreateAvatar(byte id, Remote rm)
