@@ -10,7 +10,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `NetSession.cs` | Sessão LiteNetLib: hospedar/entrar, aperto de mão, lista de jogadores, repasse de mensagens de jogo (host-autoritativo) |
 | `PlayerSync.cs` | Envia o estado do jogador local (10×/s: posição, 12 camadas e parâmetros do Animator) e mantém os avatares (clone visual do modelo com o override controller real; recriados quando o mundo recarrega; visíveis só no mesmo mapa) |
 | `WorldSync.cs` | 3.1: convidado pede o mundo, host captura (`WorldSnapshot`) e envia, convidado recarrega com ele |
-| `ClockSync.cs` | 3.2/3.3: relógio do host, pausa do grupo (D9) via patch em `DateManager.IsUpdateEnabled`; quem dorme não pausa o grupo e o relógio segue para os acordados (D33) |
+| `ClockSync.cs` | Relógio do grupo (D50): só o menu de pausa pausa; quem está em outra tela é adiantado ao sair; o tempo segue o mais adiantado (`ClockJump`); quem dorme não pausa (D33) |
 | `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo |
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
 | `RomanceSync.cs` | 6.4/D44: romance exclusivo (registro NPC → jogador no host; patches em `CheckMarryable`/`SetFiance`) |

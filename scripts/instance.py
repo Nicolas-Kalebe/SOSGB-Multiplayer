@@ -185,6 +185,7 @@ def main():
     ap.add_argument("--port", type=int, default=47800)
     ap.add_argument("--slot", type=int, default=2)
     ap.add_argument("--net", default="off")
+    ap.add_argument("--file", default="", help="save de teste (BepInEx/devsaves/<nome>.sav, gravado com 'world savefile')")
     ap.add_argument("--env", action="append", default=[], help="NOME=valor repassado ao jogo")
     ap.add_argument("--tries", type=int, default=3)
     ap.add_argument("--ping-timeout", type=float, default=120)
@@ -200,6 +201,8 @@ def main():
         kill(saved_pid(a.port))
         return 0
     extra = dict(e.split("=", 1) for e in a.env)
+    if a.file:
+        extra["SOSGB_AUTOLOAD_FILE"] = a.file
     # Variáveis SOSGB_* do ambiente de quem chamou também valem (ex.: SOSGB_PLAYER_NAME).
     return launch(a.port, a.slot, a.net, extra, a.tries, a.ping_timeout, a.launcher_timeout, a.game_timeout)
 

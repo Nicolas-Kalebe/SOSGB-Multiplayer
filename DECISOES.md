@@ -65,7 +65,7 @@ Regras deste arquivo:
 - **Motivo:** tela dividida numa Unity com câmera e input únicos seria um projeto à parte.
 
 ### D9 — Pausa do relógio configurável
-- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário (sugerido pela IA)
+- **Status:** ⛔ Regra N substituída pela [D50](#d50--relógio-do-grupo-só-o-menu-de-pausa-pausa-o-tempo-segue-o-mais-adiantado-substitui-a-regra-n-da-d9) (só o menu de pausa pausa) · **Data:** 2026-10-24 · **Decidido por:** usuário (sugerido pela IA)
 - **Contexto:** no single-player o tempo para em menus e diálogos. No multiplayer, é preciso escolher entre pausar para todos ou não pausar.
 - **Alternativas:** (a) pausa para todos quando alguém abre menu: mais simples, mas trava o dia dos outros; (b) tempo corre em menus, como no Stardew: melhor experiência, mas o jogo pode ter lógica que assume tempo parado.
 - **Decisão:** regra "o relógio pausa quando N jogadores estão em menu ou evento". Começa com N = 1 (equivale a a), e o padrão passa a N = todos (equivale a b) depois de tratar os casos especiais.
@@ -521,3 +521,19 @@ Regras deste arquivo:
   - **upgrade de ferramenta** continua individual (ferramentas no perfil, D24/D38); o dinheiro do ferreiro sai da carteira comum.
   - Perfis antigos que tinham a parte `stamina` simplesmente ignoram essa parte.
 - **Verificado (duas instâncias):** a convidada sobe o vigor máximo para 1200 → o host recebe; o host ganha um bônus de comida → a convidada não recebe, e o bônus fica gravado no perfil do host.
+
+### D50 — Relógio do grupo: só o menu de pausa pausa; o tempo segue o mais adiantado (substitui a regra N da D9)
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** usuário ("somente pausar quando for a pausa do jogo mesmo, e aí pausa pra todo mundo, de resto deixar passando o tempo"; e, sobre o Bazaar, "se os produtos vendem todos o jogo pula pro horário do final")
+- **Decisão (`Net/ClockSync`):**
+  - o tempo do grupo **só para** quando alguém está no **menu de pausa** do jogo (Esc, `UILoadKey.Pause` 119), e para para todos;
+  - em qualquer outra tela (mochila, lojas, diálogos, eventos, telas do Bazaar) o tempo do grupo **continua**. O jogo para o relógio de quem está nela; ao sair, ele é **adiantado** até a hora do grupo. No host (que é a fonte da hora), enquanto ele está numa dessas telas, a hora do grupo é calculada (hora do host + o tempo que passou) e ele é adiantado ao sair;
+  - o relógio segue o **mais adiantado**: se o tempo pula para frente no jogo de um convidado (barraca do Bazaar esgotou, evento que avança a hora), ele avisa o host (`ClockJump`), e todos pulam junto, com o aviso "O tempo avançou para HH:MM (Fulano)". Pulos maiores que 12 h ou que atravessam a virada do dia são ignorados (a virada é do DaySync);
+  - a opção `[Game] PauseWhenPlayersInMenu` saiu.
+- **Verificado (duas instâncias):** host na mochila → a convidada anda e o tempo corre (07:28 → 07:38); ao fechar, o host é adiantado (07:43 nos dois). Convidada no menu de pausa → o tempo para para os dois. O tempo da convidada pula 2 h → o host pula junto (10:06 / 10:07) com o aviso.
+- Protocolo 19 (`ClockJump` 34; `PauseReport` passa a dizer "está no menu de pausa").
+
+### D51 — Bazaar: uma barraca por vez; "juntos" = repor a mesma barraca (proposta)
+- **Status:** 🟡 Parte feita, falta teste · **Data:** 2026-10-25 · **Decidido por:** usuário ("pode ocorrer de duplicar os itens se cada um tem sua barraca"; "ou um só vende, ou os dois vendem juntos repondo as prateleiras num coop")
+- **Feito (sem teste completo):** trava da barraca, como a do armazém (D37): enquanto alguém está com a loja aberta (`BazaarManager.IsInShop`), o host registra quem é, e o menu da barraca (`RequestOpenShopDialog`: Ver estoque / Redecorar / Abrir loja) fica bloqueado para os outros, com o aviso "Fulano está vendendo na barraca neste turno." Isso impede duas barracas vendendo os mesmos itens do deck compartilhado. O pulo de tempo quando a barraca esgota é coberto pela D50.
+- **"Juntos repondo as prateleiras" (a fazer):** cada jogo simula os próprios clientes; a barraca é um objeto de cada jogo (`BazaarShopShelf` → `BazaarShopItem` → `ShopItem.itemInvData`). Plano: quem abriu a loja é o **dono** (só no jogo dele os clientes compram); o ajudante entra num modo "ajudante" em que vê e repõe as prateleiras do dono (estado das prateleiras sincronizado nos dois sentidos) e o jogo dele não gera clientes. Precisa de investigação com o jogo aberto e de teste jogando.
+- **Achado de teste:** trocar de mapa pelo comando de teste (`field`) às vezes deixa o aviso "Hoje é o bazar" sem a caixa, preso (Esc não fecha). Acontece também sem o mod (testado com uma versão antiga e jogando sozinho): é um efeito do atalho de teste, não do mod. Jogando normalmente o aviso abre e fecha certo.

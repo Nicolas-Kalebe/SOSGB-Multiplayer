@@ -144,9 +144,15 @@ public class DevBridge : MonoBehaviour
         TryAutoLoad();
     }
 
+    /// <summary>Saves de teste (world savefile/loadfile): na pasta do BepInEx, longe dos saves do usuário.</summary>
+    private static string DevSavePath(string name) =>
+        Path.Combine(BepInEx.Paths.BepInExRootPath, "devsaves", new string(name.Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray()) + ".sav");
+
     private void TryAutoLoad()
     {
         var slot = Plugin.EffectiveAutoLoadSlot;
+        var file = Environment.GetEnvironmentVariable("SOSGB_AUTOLOAD_FILE"); // save de teste (world savefile)
+        if (!string.IsNullOrEmpty(file) && slot < 0) slot = 2;
         if (_autoLoadDone || slot < 0 || !SceneManager.IsInstance) return;
         if (SceneManager.Instance.CurrentSceneMode != SceneMode.Title) { _titleSince = -1f; return; }
 
@@ -156,6 +162,13 @@ public class DevBridge : MonoBehaviour
         if (!SaveLoadManager.IsInstance || !SaveLoadManager.Instance.IsLoadedSaveDataAll) return;
 
         _autoLoadDone = true;
+        if (!string.IsNullOrEmpty(file) && File.Exists(DevSavePath(file)))
+        {
+            Plugin.Logger.LogInfo($"[DevBridge] auto-load do save de teste '{file}'");
+            WorldSnapshot.SetCaptured(File.ReadAllBytes(DevSavePath(file)));
+            WorldSnapshot.Load(2);
+            return;
+        }
         Plugin.Logger.LogInfo($"[DevBridge] auto-load do slot {slot}");
         LoadSlot(slot);
     }
@@ -226,6 +239,16 @@ public class DevBridge : MonoBehaviour
                     rows.Add($"{t.Id}: nível {t.ToolLevel} cat {t.Category} sobe→{t.UpgradeToolId} preço {t.Price} item={(isItem ? "sim" : "NÃO")}");
                 }
                 return Json(new { ok = true, rows });
+            }
+
+            case "ui":
+            {
+                // ui | ui closedialog | ui closemessage — tela atual do jogo / fechar diálogo ou mensagem (testes)
+                var uiM = UnityEngine.Object.FindObjectOfType<UIManager>();
+                string U(Func<object> f) { try { return f()?.ToString(); } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                if (arg.Trim() == "closedialog") U(() => { uiM.CloseDialog(null, null, true, false, false); return 0; });
+                if (arg.Trim() == "closemessage") U(() => { uiM.CloseMessage(null, null); return 0; });
+                return Json(new { ok = true, current = U(() => uiM.CurrentUIKey), type = U(() => uiM.CurrentUIType), menu = U(() => uiM.UIMenuKey), isMenu = U(() => uiM.IsMenu) });
             }
 
             case "stamina":
@@ -654,6 +677,27 @@ public class DevBridge : MonoBehaviour
                 {
                     WorldSnapshot.Capture(2, okCap => PushEvent($"worldcapture:{okCap}:{WorldSnapshot.Captured?.Length ?? 0}"));
                     return Json(new { ok = true, started = "capture", note = "acompanhe com 'world info'" });
+                }
+                if (arg.StartsWith("savefile "))
+                {
+                    // world savefile <nome> — grava o mundo atual em BepInEx/devsaves/<nome>.sav (fora dos saves do usuário)
+                    var devPath = DevSavePath(arg.Substring(9).Trim());
+                    WorldSnapshot.Capture(2, okCap =>
+                    {
+                        if (okCap) { Directory.CreateDirectory(Path.GetDirectoryName(devPath)); File.WriteAllBytes(devPath, WorldSnapshot.Captured); }
+                        PushEvent($"worldsavefile:{okCap}");
+                        Plugin.Logger.LogInfo($"[DevBridge] save de teste {(okCap ? "gravado" : "FALHOU")}: {devPath}");
+                    });
+                    return Json(new { ok = true, started = "savefile", path = devPath });
+                }
+                if (arg.StartsWith("loadfile "))
+                {
+                    // world loadfile <nome> — volta para um save de teste gravado com savefile
+                    var devPath = DevSavePath(arg.Substring(9).Trim());
+                    if (!File.Exists(devPath)) return Json(new { ok = false, error = "não existe: " + devPath });
+                    WorldSnapshot.SetCaptured(File.ReadAllBytes(devPath));
+                    WorldSnapshot.Load(2);
+                    return Json(new { ok = true, started = "loadfile", path = devPath });
                 }
                 if (arg.StartsWith("load"))
                 {

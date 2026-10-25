@@ -9,6 +9,8 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 | `bridge.py` | Cliente da ponte: manda um comando e imprime a resposta JSON. `python scripts/bridge.py state` |
 | `dev-cycle.sh` | Ciclo completo: fecha o jogo → compila → abre → ativa a janela → espera o save carregar. `scripts/dev-cycle.sh [--no-build]` |
 | `bed.sh [porta]` | Deita pela **cama de verdade** (teclas reais), a partir do pé da cama da casa. Use em vez do comando `sleep` da ponte, que pode deixar o personagem preso (D33) |
+| `world savefile <nome>` / `world loadfile <nome>` | Grava / volta para um **save de teste** em `BepInEx\\devsaves\\<nome>.sav` (fora dos saves do usuário). Abrir direto nele: `instance.py launch --file <nome>` (ex.: `sabado`) |
+| `ui [closedialog \| closemessage]` | Tela atual do jogo (UIManager) / tenta fechar diálogo ou mensagem |
 | `instance.py` | Abre uma instância de teste e **reabre sozinho** se ela travar na tela inicial (Launcher), se a ponte não abrir ou se o processo morrer (até 3 tentativas). `health --port N` diz se a instância está `ok <cena>`, `sem-ponte` (congelada) ou `morto`. Usado por `dev-cycle.sh` e `second-instance.sh` |
 | `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte. Pular o evento da manhã: `-Keys TAB -Milliseconds 1500` e depois `ENTER` |
 | `two-instances.sh` | **Atalho:** recompila e abre host (47800) + convidado (47801) conectados, esperando o mundo carregar |

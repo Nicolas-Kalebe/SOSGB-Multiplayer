@@ -37,6 +37,8 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D51 | **Bazaar: uma barraca por vez** (trava); "juntos" = repor a barraca do dono (a fazer) | 🟡 Parte feita |
+| D50 | **Relógio**: só o menu de pausa pausa (para todos); o resto segue; o tempo segue o mais adiantado (pulos propagam) | ✅ Decidido |
 | D49 | **Vigor máximo compartilhado** (SharedSync); **bônus de comida individuais** (perfil); upgrade de ferramenta individual | ✅ Decidido |
 | D48 | **Menu de pausa no multiplayer**: "Salvar"/"Carregar" mostram aviso em vez de erro | ✅ Decidido |
 | D47 | **Sessão de venda do Bazaar** (ideia do usuário): o relógio corre normal durante a venda (medido), então não precisa pular tempo; "um vende" ou "juntos" sem menu; aviso de barraca aberta | ✅ Decidido |

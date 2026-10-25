@@ -64,6 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 19 | `ClockJump` (34, convidado → host: o tempo pulou para frente); `PauseReport` passa a significar "no menu de pausa"; armazém 3 = barraca do Bazaar (trava). D50/D51 |
 | 18 | Mensagens de armazém (`StorageHolder`, `StorageData`, `StorageUse`) com o número do armazém (0 casa, 1 deck, 2 peças do Bazaar). D46 |
 | 17 | `RomanceClaims` (17, host → todos: NPCs comprometidos e com quem). D44 |
 | 16 | `SharedState` (33, [nome da parte][JSON gzip]: moinho, apicultura, cogumelos, vasos, pets, cavalo). D42 |

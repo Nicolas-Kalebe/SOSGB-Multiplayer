@@ -348,7 +348,7 @@ public class SharedSync : MonoBehaviour
             _cursor = (_cursor + 1) % Parts.Count;
             foreach (var p in new[] { Parts[_cursor] })
             {
-                if (p.Disabled || !p.Available()) continue;
+                if (p.Disabled || !p.Available() || TestDisabled(p.Name)) continue;
                 string json;
                 try { json = p.Capture(); }
                 catch (Exception e)
@@ -371,6 +371,14 @@ public class SharedSync : MonoBehaviour
             }
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[SharedSync] {e.Message}"); }
+    }
+
+    // Testes: SOSGB_TEST_DISABLE_SHARED="parte1,parte2" desliga partes nesta execução (para isolar problemas).
+    private static string[] _testDisabled;
+    private static bool TestDisabled(string name)
+    {
+        _testDisabled ??= (Environment.GetEnvironmentVariable("SOSGB_TEST_DISABLE_SHARED") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
+        return Array.IndexOf(_testDisabled, name) >= 0;
     }
 
     private static string FirstLine(string s) { var i = s.IndexOf((char)10); return i < 0 ? s : s.Substring(0, i); }

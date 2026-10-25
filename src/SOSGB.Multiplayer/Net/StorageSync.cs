@@ -32,6 +32,7 @@ public class StorageSync : MonoBehaviour
         public byte Index;
         public string Name;            // nome no aviso ("o armazém", "o deck do Bazaar")
         public int UiKey;              // UILoadKey da tela (trava); -1 = sem trava
+        public Func<bool> OpenNow;     // em vez da tela: outra condição de "em uso" (ex.: barraca do Bazaar aberta)
         public Func<StorageManager> Get;
         public byte Holder = NoHolder;
         public long Baseline;
@@ -44,7 +45,13 @@ public class StorageSync : MonoBehaviour
         new() { Index = 0, Name = "o armazém", UiKey = 102, Get = () => InventoryManager.Instance.HouseStorage },          // UILoadKey.HouceStorage
         new() { Index = 1, Name = "o deck do Bazaar", UiKey = 103, Get = () => InventoryManager.Instance.DeckStorage },     // UILoadKey.DeckStorage
         new() { Index = 2, Name = "as peças do Bazaar", UiKey = 113, Get = () => InventoryManager.Instance.BazaarCustomPartsStorage }, // UILoadKey.BazaarCustom
+        // Barraca do Bazaar: só uma pessoa vende por vez (D51; evita duas barracas vendendo os mesmos itens). Não tem
+        // conteúdo próprio; a trava vale enquanto a loja está aberta, e o menu da barraca é bloqueado para os outros.
+        new() { Index = 3, Name = "a barraca do Bazaar", UiKey = -1, OpenNow = () => BazaarManager.IsInstance && BazaarManager.Instance.IsInShop, Get = () => null },
     };
+
+    /// <summary>Quem está com a barraca do Bazaar aberta (NoHolder = ninguém).</summary>
+    public static byte BazaarHolder => Stores[3].Holder;
 
     /// <summary>Quem está com o armazém da casa aberto (compatível com testes antigos).</summary>
     public static byte Holder => Stores[0].Holder;
@@ -127,9 +134,11 @@ public class StorageSync : MonoBehaviour
 
     private static void WatchLocalUi(Store s)
     {
-        if (s.UiKey < 0) return;
+        if (s.UiKey < 0 && s.OpenNow == null) return;
         var ui = Ui;
-        var open = ui != null && (int)ui.UIMenuKey == s.UiKey && ui.IsMenu;
+        bool open;
+        if (s.OpenNow != null) { try { open = s.OpenNow(); } catch { open = false; } }
+        else open = ui != null && (int)ui.UIMenuKey == s.UiKey && ui.IsMenu;
         if (open == s.LocalOpen) return;
         s.LocalOpen = open;
         var me = NetSession.LocalId;
@@ -138,6 +147,13 @@ public class StorageSync : MonoBehaviour
             if (s.Holder != NoHolder && s.Holder != me)
             {
                 var name = NetSession.Players.TryGetValue(s.Holder, out var p) ? p.Name : "Outro jogador";
+                if (s.UiKey < 0)
+                {
+                    // Barraca: o menu já devia ter sido bloqueado; se escapou (os dois abriram juntos), só avisa.
+                    Plugin.Logger.LogWarning($"[StorageSync] {s.Name} aberta aqui e com {name} ao mesmo tempo");
+                    GameNotify.Show($"{name} também abriu a barraca. Combinem quem vende neste turno.");
+                    return;
+                }
                 Plugin.Logger.LogInfo($"[StorageSync] {s.Name} em uso por {name}; fechando a tela");
                 GameNotify.Show($"{name} está usando {s.Name}. Espere fechar.");
                 CloseStorageUi(ui);
@@ -316,6 +332,25 @@ public class StorageSync : MonoBehaviour
                 DevBridge.PushEvent($"armazem{s.Index}:recebido");
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// D51: o menu da barraca do Bazaar (Ver estoque / Redecorar / Abrir loja) não abre se OUTRO jogador está vendendo.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(BazaarManager), nameof(BazaarManager.RequestOpenShopDialog))]
+    private static class BazaarOpenPatch
+    {
+        private static bool Prefix()
+        {
+            if (Plugin.DevMode) Plugin.Logger.LogInfo("[StorageSync] menu da barraca do Bazaar pedido");
+            if (NetSession.Current == NetSession.Mode.Offline) return true;
+            var h = Stores[3].Holder;
+            if (h == NoHolder || h == NetSession.LocalId) return true;
+            var name = NetSession.Players.TryGetValue(h, out var p) ? p.Name : "Outro jogador";
+            GameNotify.Show($"{name} está vendendo na barraca neste turno.");
+            Plugin.Logger.LogInfo($"[StorageSync] menu da barraca bloqueado ({name} está vendendo)");
+            return false;
         }
     }
 

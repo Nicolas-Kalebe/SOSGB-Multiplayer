@@ -23,7 +23,6 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<string> PlayerName;
     internal static ConfigEntry<string> PlayerGuid;
     internal static ConfigEntry<int> RecoverySnapshotMinutes;
-    internal static ConfigEntry<int> PauseWhenPlayersInMenu;
     internal static ConfigEntry<int> NetPort;
     internal static ConfigEntry<string> NetAutoStart;
     internal static ConfigEntry<string> NetJoinAddress;
@@ -72,9 +71,7 @@ public class Plugin : BasePlugin
         OwnAppearance = Config.Bind("Visual", "OwnAppearance", true,
             "Mostra cada jogador com a própria aparência (rosto, cabelo, roupa, gênero). Ao montar a aparência de quem entrou, o seu personagem pisca por 1 a 2 segundos.");
 
-        // D9: o relógio do grupo pausa quando N jogadores estão em menu/evento (0 = todos).
-        PauseWhenPlayersInMenu = Config.Bind("Game", "PauseWhenPlayersInMenu", 1,
-            "Multiplayer: o tempo para quando este número de jogadores estiver em menu ou evento. 1 = qualquer um pausa todos; 0 = só quando todos estiverem.");
+        // D9/D50: o tempo do grupo só para no menu de pausa do jogo (pedido do usuário); a regra "N jogadores em menu" saiu.
 
         // Rede (Fase 2). Nome e porta; o menu no jogo vem na Fase 8.
         PlayerName = Config.Bind("Net", "PlayerName", "", "Seu nome no multiplayer (vazio = nome de usuário do Windows).");

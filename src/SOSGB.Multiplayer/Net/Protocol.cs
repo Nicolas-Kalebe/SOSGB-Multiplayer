@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 18;
+    public const int Version = 19;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -72,7 +72,7 @@ public enum MsgType : byte
     /// <summary>Host → convidado: [int tamanho][bytes do .sav] — snapshot do mundo (WorldSnapshot). Fase 3.1</summary>
     WorldData = 21,
 
-    /// <summary>Convidado → host: [bool pausadoLocalmente] — menu/evento aberto no convidado (3.3, D9)</summary>
+    /// <summary>Convidado → host: [bool noMenuDePausa] — o convidado está no menu de pausa do jogo (D50: só ele pausa o grupo)</summary>
     PauseReport = 22,
 
     /// <summary>Convidado → host: [bool dormindo] — o convidado deitou (3.4, D12)</summary>
@@ -107,4 +107,7 @@ public enum MsgType : byte
 
     /// <summary>Convidado ↔ host: [string parte][bytes JSON gzip] — estado de um gerenciador compartilhado (moinho, apicultura, cogumelos, vasos, pets, cavalo). 5.4, D42</summary>
     SharedState = 33,
+
+    /// <summary>Convidado → host: [long ticks] — o tempo pulou para frente no jogo do convidado; o grupo pula junto (D50)</summary>
+    ClockJump = 34,
 }

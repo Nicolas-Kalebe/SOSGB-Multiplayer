@@ -61,7 +61,8 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 
 - Os NPCs andam de forma independente em cada jogo (cada um vê o NPC no lugar calculado pelo próprio jogo).
 - **Venda no Bazaar e festivais em grupo ainda não foram testados** ([D47](../DECISOES.md)).
-- Quando alguém abre um menu ou entra num evento, **todos param** (inclusive os personagens). Pode mudar ([P7](../PERGUNTAS.md)).
+- O tempo **só para** quando alguém abre o **menu de pausa** (Esc), e aí para para todos. Em outros menus, diálogos e eventos o tempo continua para os outros; quem estava na tela é adiantado ao sair ([D50](../DECISOES.md)).
+- **Bazaar:** uma pessoa vende por vez (a barraca fica bloqueada para os outros enquanto alguém vende) ([D51](../DECISOES.md)).
 - Cada jogador aparece com a **própria aparência** (rosto, cabelo, roupa, gênero) e o **nome em cima** ([D32](../DECISOES.md)). Quando alguém entra ou troca de visual, o seu personagem **pisca** com outra aparência por 1 a 2 segundos: é normal. Se der problema, desligue em `[Visual] OwnAppearance = false` (aí todos aparecem com o seu modelo).
 - Casamento de convidado: o cônjuge mora na casa só no jogo de quem casou; eventos de casado e filhos não foram testados para convidados ([D45](../DECISOES.md)).
 
