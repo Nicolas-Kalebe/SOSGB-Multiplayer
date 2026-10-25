@@ -29,7 +29,7 @@ public static class WorldSnapshot
 
     /// <summary>Com a ponte de teste ligada, nenhum save vai para o disco (proteção dos saves do usuário).</summary>
     public static bool SavesBlocked =>
-        (Plugin.DevBridgeEnabled.Value && Plugin.BlockDiskSaves.Value)
+        (Plugin.DevMode && Plugin.BlockDiskSaves.Value)
         || Net.NetSession.Current == Net.NetSession.Mode.Client; // D2/D23: convidado nunca grava no disco
 
     public static string DumpPath => Path.Combine(Paths.BepInExRootPath, "worldsnap.sav");

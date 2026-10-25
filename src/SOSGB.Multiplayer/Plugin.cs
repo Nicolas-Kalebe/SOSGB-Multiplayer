@@ -18,6 +18,7 @@ public class Plugin : BasePlugin
 
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
+    internal static ConfigEntry<bool> FixStartupFocus;
     internal static ConfigEntry<string> PlayerName;
     internal static ConfigEntry<string> PlayerGuid;
     internal static ConfigEntry<int> RecoverySnapshotMinutes;
@@ -38,6 +39,14 @@ public class Plugin : BasePlugin
     internal static string InstanceTag = "";
     internal static string EffectivePlayerGuid;
 
+    /// <summary>
+    /// Ponte de teste ativa (D20): pelo .cfg ([DevBridge] Enabled) OU pela variável de ambiente
+    /// SOSGB_DEVBRIDGE=1 (usada pelos scripts/). Assim o .cfg do jogador fica em modo de jogo normal
+    /// e só as execuções abertas pelos scripts entram em modo de teste.
+    /// </summary>
+    internal static bool DevMode;
+    internal static bool EffectiveFixStartup;
+
     private static int? EnvInt(string name) =>
         int.TryParse(System.Environment.GetEnvironmentVariable(name), out var v) ? v : null;
 
@@ -48,6 +57,12 @@ public class Plugin : BasePlugin
         // D21: o jogo se pausa ao perder o foco; no multiplayer isso congelaria todos.
         KeepRunningWhenUnfocused = Config.Bind("Game", "KeepRunningWhenUnfocused", true,
             "Mantém o jogo rodando quando a janela perde o foco (necessário no multiplayer).");
+
+        // D25: o jogo trava na tela inicial se a janela nasce inativa (o console do BepInEx rouba o foco).
+        FixStartupFocus = Config.Bind("Game", "FixStartupFocus", true,
+            "Ativa a janela do jogo automaticamente se ele ficar preso na tela inicial (sem precisar clicar/alt-tab).");
+        // Só para testes (scripts): SOSGB_FIX_STARTUP=0 desliga nesta execução, sem gravar no .cfg.
+        EffectiveFixStartup = FixStartupFocus.Value && System.Environment.GetEnvironmentVariable("SOSGB_FIX_STARTUP") != "0";
 
         // D9: o relógio do grupo pausa quando N jogadores estão em menu/evento (0 = todos).
         PauseWhenPlayersInMenu = Config.Bind("Game", "PauseWhenPlayersInMenu", 1,
@@ -90,11 +105,14 @@ public class Plugin : BasePlugin
         EffectiveNetAutoStart = System.Environment.GetEnvironmentVariable("SOSGB_NET_AUTOSTART") ?? NetAutoStart.Value;
         InstanceTag = System.Environment.GetEnvironmentVariable("SOSGB_BRIDGE_PORT") != null ? $"-{BridgePort}" : "";
 
+        DevMode = DevBridgeEnabled.Value || System.Environment.GetEnvironmentVariable("SOSGB_DEVBRIDGE") == "1";
+
         Logger.LogInfo($"{Name} {Version} carregado (instância{(InstanceTag == "" ? " padrão" : InstanceTag)}).");
 
         new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
 
         AddComponent<FocusGuard>();
+        AddComponent<StartupGuard>();
         AddComponent<Net.NetRunner>();
         AddComponent<Net.PlayerSync>();
         Net.WorldSync.Init();
@@ -103,7 +121,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.PlayerProfiles>();
         AddComponent<DebugOverlay>();
 
-        if (DevBridgeEnabled.Value)
+        if (DevMode)
         {
             DevBridge.Start(BridgePort);
             AddComponent<DevBridge>();

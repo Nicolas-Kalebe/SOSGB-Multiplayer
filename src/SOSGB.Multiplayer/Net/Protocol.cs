@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 5;
+    public const int Version = 6;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -40,7 +40,7 @@ public enum MsgType : byte
     /// <summary>Host → todos: [byte id] (saiu)</summary>
     PlayerLeft = 5,
 
-    /// <summary>Qualquer → host → outros, 10×/s: [byte id][uint fieldId][float x,y,z][float rotY][int animHash][float animNorm] (Fase 2.4)</summary>
+    /// <summary>Qualquer → host → outros, 10×/s: [byte id][uint fieldId][float x,y,z][float rotY][byte camadas]{[int hash][float norm][float peso]}…[byte params]{[int hash][byte tipo][float valor]}… (Fase 2.4)</summary>
     PlayerState = 10,
 
     /// <summary>Host → todos, 2×/s: [long ticks][bool rodando] — relógio do host (3.2) e pausa efetiva (3.3)</summary>

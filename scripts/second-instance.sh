@@ -12,11 +12,10 @@ PORT="${1:-47801}"
 SLOT="${2:-2}"
 NET="${3:-off}"
 
-(cd "$GAME_PATH" && SOSGB_BRIDGE_PORT="$PORT" SOSGB_AUTOLOAD_SLOT="$SLOT" SOSGB_NET_AUTOSTART="$NET" ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
+(cd "$GAME_PATH" && SOSGB_DEVBRIDGE=1 SOSGB_BRIDGE_PORT="$PORT" SOSGB_AUTOLOAD_SLOT="$SLOT" SOSGB_NET_AUTOSTART="$NET" ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
 python "$ROOT/scripts/bridge.py" --port "$PORT" --wait 120 ping >/dev/null
 echo "[second-instance] ponte respondendo na porta $PORT"
-sleep 3
-powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$ROOT/scripts/kick-window.ps1")"
+# O plugin ativa a própria janela (StartupGuard, D25).
 for _ in $(seq 1 60); do
   if python "$ROOT/scripts/bridge.py" --port "$PORT" state 2>/dev/null | grep -q '"scene": "Game"'; then
     echo "[second-instance] save carregado na porta $PORT"

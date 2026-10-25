@@ -31,13 +31,12 @@ if [[ "${1:-}" != "--no-build" ]]; then
 fi
 
 # 3. Abre o jogo e espera a ponte
-(cd "$GAME_PATH" && SOSGB_NET_AUTOSTART="${NET:-off}" ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
+(cd "$GAME_PATH" && SOSGB_DEVBRIDGE=1 SOSGB_AUTOLOAD_SLOT="${SOSGB_AUTOLOAD_SLOT:-2}" SOSGB_NET_AUTOSTART="${NET:-off}" ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
 $BRIDGE --wait 120 ping >/dev/null
 echo "[dev-cycle] ponte respondendo"
 
-# 3b. Aberto por script, o jogo nasce sem foco e o Launcher trava até um alt-tab (D21).
-sleep 3
-powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$ROOT/scripts/kick-window.ps1")"
+# 3b. O plugin ativa a própria janela se ela nascer inativa (StartupGuard, D25); o kick externo
+#     (kick-window.ps1) não é mais necessário e fica só como reserva manual.
 
 # 4. Espera entrar na cena Game com relógio (save carregado)
 for _ in $(seq 1 60); do

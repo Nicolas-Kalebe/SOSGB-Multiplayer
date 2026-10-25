@@ -32,6 +32,8 @@ public class PlayerSync : MonoBehaviour
         public Vector3 Target;
         public float TargetRotY;
         public int AnimHash;
+        public int[] Hashes = Array.Empty<int>();
+        public float[] Weights = Array.Empty<float>();
         public bool HasState;
     }
 
@@ -79,14 +81,40 @@ public class PlayerSync : MonoBehaviour
         var t = GameController.Instance.GetPlayerTransform();
         if (t == null) return;
         var field = FieldManager.Instance.CurrentFieldId;
-        int hash = 0;
-        float norm = 0;
+        // O jogo anima em VÁRIAS camadas: andar/correr/pular ficam na camada 1+ (BaseAnimationObject usa
+        // layerIndex = 1 por padrão). Antes só a camada 0 ("parado") era enviada e o avatar deslizava sem
+        // animação. Agora vão todas: peso + estado + tempo.
         var anim = player.Model != null ? player.Model.GetComponentInChildren<Animator>() : null;
+        var layers = anim != null ? Math.Min(anim.layerCount, 16) : 0; // o player tem 12 camadas
+        var hashes = new int[layers];
+        var norms = new float[layers];
+        var weights = new float[layers];
+        for (var i = 0; i < layers; i++)
+        {
+            var st = anim.GetCurrentAnimatorStateInfo(i);
+            hashes[i] = st.fullPathHash;
+            norms[i] = st.normalizedTime;
+            weights[i] = anim.GetLayerWeight(i);
+        }
+        // Parâmetros do Animator: a "Move Layer" é um blend tree (parado/andar/correr) controlado por
+        // parâmetros; o estado (hash) não muda ao andar, só os parâmetros. Triggers ficam de fora.
+        var paramHashes = new List<int>();
+        var paramTypes = new List<byte>();
+        var paramValues = new List<float>();
         if (anim != null)
         {
-            var st = anim.GetCurrentAnimatorStateInfo(0);
-            hash = st.fullPathHash;
-            norm = st.normalizedTime;
+            foreach (var p in anim.parameters)
+            {
+                switch (p.type)
+                {
+                    case AnimatorControllerParameterType.Float:
+                        paramHashes.Add(p.nameHash); paramTypes.Add(0); paramValues.Add(anim.GetFloat(p.nameHash)); break;
+                    case AnimatorControllerParameterType.Int:
+                        paramHashes.Add(p.nameHash); paramTypes.Add(1); paramValues.Add(anim.GetInteger(p.nameHash)); break;
+                    case AnimatorControllerParameterType.Bool:
+                        paramHashes.Add(p.nameHash); paramTypes.Add(2); paramValues.Add(anim.GetBool(p.nameHash) ? 1 : 0); break;
+                }
+            }
         }
 
         var id = NetSession.LocalId;
@@ -98,8 +126,10 @@ public class PlayerSync : MonoBehaviour
             w.Put(field);
             w.Put(pos.x); w.Put(pos.y); w.Put(pos.z);
             w.Put(rotY);
-            w.Put(hash);
-            w.Put(norm);
+            w.Put((byte)layers);
+            for (var i = 0; i < layers; i++) { w.Put(hashes[i]); w.Put(norms[i]); w.Put(weights[i]); }
+            w.Put((byte)Math.Min(paramHashes.Count, 255));
+            for (var i = 0; i < Math.Min(paramHashes.Count, 255); i++) { w.Put(paramHashes[i]); w.Put(paramTypes[i]); w.Put(paramValues[i]); }
         }, DeliveryMethod.Sequenced);
     }
 
@@ -114,11 +144,33 @@ public class PlayerSync : MonoBehaviour
         rm.Field = r.GetUInt();
         rm.Target = new Vector3(r.GetFloat(), r.GetFloat(), r.GetFloat());
         rm.TargetRotY = r.GetFloat();
-        var hash = r.GetInt();
-        var norm = r.GetFloat();
-        if (rm.Animator != null && hash != 0 && hash != rm.AnimHash)
-            rm.Animator.Play(hash, 0, norm % 1f);
-        rm.AnimHash = hash;
+        var layers = r.GetByte();
+        if (rm.Hashes.Length != layers) { rm.Hashes = new int[layers]; rm.Weights = new float[layers]; }
+        for (var i = 0; i < layers; i++)
+        {
+            var hash = r.GetInt();
+            var norm = r.GetFloat();
+            var weight = r.GetFloat();
+            rm.Weights[i] = weight;
+            if (rm.Animator != null && i < rm.Animator.layerCount)
+            {
+                rm.Animator.SetLayerWeight(i, weight);
+                if (hash != 0 && hash != rm.Hashes[i]) rm.Animator.Play(hash, i, norm % 1f);
+            }
+            rm.Hashes[i] = hash;
+        }
+        var pc = r.GetByte();
+        for (var i = 0; i < pc; i++)
+        {
+            var ph = r.GetInt();
+            var pt = r.GetByte();
+            var pv = r.GetFloat();
+            if (rm.Animator == null) continue;
+            if (pt == 0) rm.Animator.SetFloat(ph, pv);
+            else if (pt == 1) rm.Animator.SetInteger(ph, (int)pv);
+            else rm.Animator.SetBool(ph, pv > 0.5f);
+        }
+        rm.AnimHash = layers > 0 ? rm.Hashes[0] : 0;
         rm.HasState = true;
     }
 
@@ -160,6 +212,13 @@ public class PlayerSync : MonoBehaviour
             UnityEngine.Object.Destroy(col);
         rm.Avatar = clone;
         rm.Animator = clone.GetComponentInChildren<Animator>();
+        var localAnim = local.Model.GetComponentInChildren<Animator>();
+        if (rm.Animator != null && localAnim != null)
+        {
+            // O controller do player é carregado em tempo de execução (override); garante o mesmo no clone.
+            if (rm.Animator.runtimeAnimatorController == null) rm.Animator.runtimeAnimatorController = localAnim.runtimeAnimatorController;
+            rm.Animator.enabled = true;
+        }
         clone.transform.position = rm.Target;
         Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} criado");
         DevBridge.PushEvent($"avatar:{id}:criado");
@@ -209,6 +268,40 @@ public class PlayerSync : MonoBehaviour
         var l = new List<string>();
         foreach (var r in rs) if (r.enabled && r.gameObject.activeInHierarchy) l.Add($"{r.name}:{r.GetIl2CppType().Name}:{r.isVisible}");
         return l.ToArray();
+    }
+
+    /// <summary>Ponte de teste: camadas do Animator do jogador local e dos avatares (diagnóstico de animação).</summary>
+    public static object AnimDiag()
+    {
+        object Describe(Animator a)
+        {
+            if (a == null) return null;
+            var layers = new List<object>();
+            for (var i = 0; i < a.layerCount; i++)
+            {
+                var st = a.GetCurrentAnimatorStateInfo(i);
+                var clips = a.GetCurrentAnimatorClipInfo(i);
+                layers.Add(new { i, name = a.GetLayerName(i), weight = a.GetLayerWeight(i), hash = st.fullPathHash, norm = (float)Math.Round(st.normalizedTime, 2), clip = clips.Length > 0 && clips[0].clip != null ? clips[0].clip.name : null });
+            }
+            var ps = new Dictionary<string, object>();
+            foreach (var p in a.parameters)
+            {
+                if (p.type == AnimatorControllerParameterType.Float) ps[p.name] = (float)Math.Round(a.GetFloat(p.nameHash), 3);
+                else if (p.type == AnimatorControllerParameterType.Int) ps[p.name] = a.GetInteger(p.nameHash);
+                else if (p.type == AnimatorControllerParameterType.Bool) ps[p.name] = a.GetBool(p.nameHash);
+                else ps[p.name] = "trigger";
+            }
+            return new { controller = a.runtimeAnimatorController != null ? a.runtimeAnimatorController.name : null, enabled = a.enabled, layers, parameters = ps };
+        }
+        var local = GameController.IsInstance ? GameController.Instance.GetPlayer() : null;
+        var remotes = new Dictionary<string, object>();
+        foreach (var kv in Remotes) remotes[kv.Key.ToString()] = Describe(kv.Value.Animator);
+        return new
+        {
+            localLayerIndex = local != null ? local.CurrentLayerIndex : -1,
+            local = local != null && local.Model != null ? Describe(local.Model.GetComponentInChildren<Animator>()) : null,
+            remotes,
+        };
     }
 
     /// <summary>Para a ponte de teste: posição dos avatares remotos.</summary>

@@ -51,6 +51,7 @@ Idioma da documentação: **português do Brasil** (termos técnicos e identific
 | `AGENTS.md` | Este arquivo: regras para IAs |
 | `CLAUDE.md` | Ponte para o Claude Code (importa este arquivo) |
 | `CONTEXTO.md` | Visão geral do projeto e da estrutura de pastas |
+| `PERGUNTAS.md` | Dúvidas para o usuário (anotar em vez de parar o trabalho) |
 | `ROTEIRO.md` | **Planejamento oficial**: fases em ordem, tarefas, critérios de pronto |
 | `PLANO.md` | Objetivo, arquitetura, checklist, riscos, roadmap, próximos passos |
 | `DECISOES.md` | Registro completo das decisões, com contexto |

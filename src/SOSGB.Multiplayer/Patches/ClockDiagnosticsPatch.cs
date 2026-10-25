@@ -17,7 +17,7 @@ internal static class ClockDiagnosticsPatch
 {
     private static void Report(string what)
     {
-        if (!Plugin.DevBridgeEnabled.Value) return;
+        if (!Plugin.DevMode) return;
         var stack = StackTraceUtility.ExtractStackTrace();
         Plugin.Logger.LogInfo($"[ClockDiag] {what}\n{stack}");
         DevBridge.PushEvent($"clock:{what}");

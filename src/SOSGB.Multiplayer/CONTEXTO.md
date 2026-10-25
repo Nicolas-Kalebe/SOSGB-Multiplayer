@@ -17,6 +17,7 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 | `PlayerContext.cs` | Troca de contexto por jogador (D3/D13): snapshots em JSON dos managers do jogo |
 | `WorldSnapshot.cs` | Snapshot do mundo via pipeline de save do jogo (patches em `SaveDataAccessorWindows`) |
 | `Notice.cs` | Aviso curto na tela (via overlay) |
+| `StartupGuard.cs` | D25: ativa a janela do jogo se ela ficar presa no Launcher (sem clique/alt-tab) |
 | `FocusGuard.cs` | Mantém `runInBackground` (D21) |
 | [`Net/`](Net/CONTEXTO.md) | Camada de rede (LiteNetLib) |
 | [`Patches/`](Patches/CONTEXTO.md) | Patches Harmony nos métodos do jogo |

@@ -14,7 +14,7 @@ internal static class SleepDiagnosticsPatch
 {
     private static void Report(string what)
     {
-        if (!Plugin.DevBridgeEnabled.Value) return;
+        if (!Plugin.DevMode) return;
         Plugin.Logger.LogInfo($"[SleepDiag] {what}\n{StackTraceUtility.ExtractStackTrace()}");
         DevBridge.PushEvent($"sleep:{what}");
     }

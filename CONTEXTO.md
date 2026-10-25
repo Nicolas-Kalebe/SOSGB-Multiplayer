@@ -35,6 +35,7 @@ Mod de multiplayer co-op para **STORY OF SEASONS: Grand Bazaar** (Marvelous, 202
 | [`.gitignore`](.gitignore) | Bloqueia arquivos do jogo, saves e dump |
 | [`AGENTS.md`](AGENTS.md) | Regras para IAs (autodocumentação) |
 | [`CLAUDE.md`](CLAUDE.md) | Ponte para o Claude Code |
+| [`PERGUNTAS.md`](PERGUNTAS.md) | **Dúvidas e testes pendentes com o usuário** |
 | [`ROTEIRO.md`](ROTEIRO.md) | **Planejamento oficial**: o que fazer e em que ordem |
 | [`PLANO.md`](PLANO.md) | Plano: decisões (resumo), arquitetura, checklist, riscos, roadmap |
 | [`DECISOES.md`](DECISOES.md) | Decisões completas com contexto |

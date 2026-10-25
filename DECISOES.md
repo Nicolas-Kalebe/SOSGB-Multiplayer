@@ -237,3 +237,10 @@ Regras deste arquivo:
 - **Consequências:**
   - Se o host travar no meio do dia, os convidados perdem o progresso individual desde a última virada. É o mesmo comportamento do mundo (D23).
   - O `OnChangeDate` pessoal roda no convidado, não no host. Validar na Fase 4/6 que os contadores diários (presente/conversa) zeram certo.
+
+### D25 — O próprio mod ativa a janela do jogo na inicialização
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (o usuário pediu: "tenha certeza de não deixar o jogo sem rodar [...] por causa do bug que o jogo só inicializa minimizando ou clicando")
+- **Contexto:** com o BepInEx, o console abre **antes** da janela do jogo e fica com o foco. A janela da Unity nasce inativa e a tela inicial (Launcher) não avança até uma ativação real do Windows (clique/alt-tab). Mandar `WM_ACTIVATE` não resolve (D21). Antes, o contorno era o `scripts/kick-window.ps1`, que só existia nos testes da IA. Para os jogadores, o problema continuava.
+- **Experimento (em runtime, de dentro do jogo):** "só mostrar" (`ShowWindow`) não destrava; **trazer para frente** (toque de ALT + `ShowWindow(RESTORE)` + `BringWindowToTop` + `SetForegroundWindow`) **destrava**. Funciona porque o processo do jogo é dono do console que está em primeiro plano, e o Windows deixa ele trocar o foco.
+- **Decisão:** componente `StartupGuard`. Enquanto o jogo estiver no Launcher, a cada 4 s, se a janela da Unity não estiver em primeiro plano, ela é trazida para frente. Minimizar/restaurar fica só como reserva. Configurável em `[Game] FixStartupFocus` (padrão `true`).
+- **Verificado:** abrindo por script, sem nenhuma ajuda externa, o jogo chega ao título e ao save com **1 ativação**, inclusive com duas instâncias. Os scripts de teste não usam mais o `kick-window.ps1`.

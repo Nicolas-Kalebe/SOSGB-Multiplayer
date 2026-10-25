@@ -265,6 +265,13 @@ public class DevBridge : MonoBehaviour
                 }
                 return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status() });
 
+            case "kick":
+                // kick <1|2|3> — testa as formas de ativar a janela do jogo (D25)
+                return Json(new { ok = true, result = StartupGuard.Activate(int.Parse(arg)) });
+
+            case "anim":
+                return Json(new { ok = true, anim = Net.PlayerSync.AnimDiag() });
+
             case "warp":
                 // warp <dx> <dz> — teleporta o jogador local (teste de sincronização, 2.4).
                 // Mexer no transform direto não adianta: o jogo devolve o modelo para o lugar.
