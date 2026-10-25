@@ -65,6 +65,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 3.5 ✅ | **Virada do dia** sincronizada (`OnChangeDate` só no host, resultado para todos) | M | Teste da IA |
 | 3.7 ✅ | **Save só na virada do dia (D23)**: bloquear "Salvar" do menu no multiplayer (com aviso), host salva após o dia virar; snapshot periódico em memória para recuperar de queda | M | Teste da IA: `save` pelo menu é recusado; dia vira → save gravado |
 | 3.6 ✅ | Guardar os dados do convidado (personagem, mochila etc.) **dentro do save do host**, com reconexão | M | Teste da IA: sair e voltar |
+| 3.9 ✅ | **Dormir de verdade (D33)**: cama real sem queda; quem dorme não congela os outros; relógio segue para os acordados | M | Teste da IA: duas instâncias, os dois pela cama |
 | 3.8 ✅ | **Convidado novo começa do zero (D30)**: corações/conversas zerados, mochila vazia, ferramentas básicas; só o visual vem do save dele | M | Teste da IA: `ctx fresh` (uma instância). ⏳ falta em rede |
 
 **✔ Pronto quando:** um dia inteiro passa sincronizado, todos dormem, o dia vira e o progresso persiste no save do host.
@@ -159,6 +160,6 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 - **Fase:** 4 — Economia (v0.3), ainda não iniciada. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
 - **Pacote de teste para amigos:** v0.3 (`Downloads\SOSGB-Multiplayer-v0.3-amiga.zip`, fora do repositório; protocolo 9, não se mistura com a v0.2).
-- **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P2 cama de verdade, P3 log da amiga, P5 memória, P6 teste em rede). P1 e P4 respondidas: convidado começa do zero (D30, feito) e aparência (D31 → corrigida na D32).
-- **Próxima tarefa sugerida:** teste em rede da aparência (D32) e do perfil do zero (D30) quando houver memória ou amigos (P6); depois, 4.1 (dinheiro compartilhado).
+- **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P3 log da amiga, P5 memória, P7 pausa por menu). P2 e P6 feitas pela IA (D33). P1 e P4 respondidas: convidado começa do zero (D30, feito) e aparência (D31 → corrigida na D32).
+- **Próxima tarefa sugerida:** levantar da cama (pedido do usuário), espectar quem está acordado (se viável); depois, 4.1 (dinheiro compartilhado).
 - **Última atualização:** 2026-10-25

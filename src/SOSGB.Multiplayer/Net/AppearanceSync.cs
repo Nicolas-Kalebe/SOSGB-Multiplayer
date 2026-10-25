@@ -82,10 +82,19 @@ public class AppearanceSync : MonoBehaviour
     }
 
     // Sem montar durante eventos/cenas: o personagem local aparece neles e a troca temporária ficaria visível.
+    // E só depois de o jogo instalar o controlador de animação real (AnimatorOverrideController): logo após
+    // carregar o mundo o player ainda tem o controlador base, com clips "dummy_*" (avatar com pose quebrada).
     private static bool Ready() =>
         SceneManager.IsInstance && SceneManager.Instance.CurrentSceneMode == SceneMode.Game
         && AvatarMakeManager.IsInstance && GameController.IsInstance && GameController.Instance.GetPlayer() != null
-        && !GameController.Instance.IsPlayingEvent && !DaySync.InDayChange;
+        && !GameController.Instance.IsPlayingEvent && !DaySync.InDayChange && HasRealController(GameController.Instance.GetPlayer());
+
+    private static bool HasRealController(PlayerCharacter p)
+    {
+        var anim = p.Model != null ? p.Model.GetComponentInChildren<Animator>() : null;
+        return anim != null && anim.runtimeAnimatorController != null
+            && anim.runtimeAnimatorController.TryCast<AnimatorOverrideController>() != null;
+    }
 
     // ---------- API ----------
 

@@ -31,6 +31,13 @@ public class ClockSync : MonoBehaviour
     /// <summary>Este jogador está em menu/evento (valor original do jogo).</summary>
     public static bool LocalPaused { get; private set; }
 
+    /// <summary>
+    /// "Pausado" para a regra do grupo: em menu/evento, mas NÃO dormindo. Quem deitou fica com o relógio local
+    /// parado (estado de sono do jogo); se isso contasse, o grupo inteiro pausaria e os outros ficariam
+    /// congelados sem conseguir chegar à cama (achado no P2, D33).
+    /// </summary>
+    public static bool PausedForGroup => LocalPaused && !DaySync.LocalSleeping;
+
     /// <summary>O grupo deve estar pausado (decidido pelo host).</summary>
     public static bool GroupPaused { get; private set; }
 
@@ -64,7 +71,7 @@ public class ClockSync : MonoBehaviour
 
     private void HostTick()
     {
-        var paused = LocalPaused ? 1 : 0;
+        var paused = PausedForGroup ? 1 : 0;
         foreach (var v in GuestPaused.Values) if (v) paused++;
         var n = Plugin.PauseWhenPlayersInMenu.Value;
         var total = NetSession.Players.Count;
@@ -80,10 +87,10 @@ public class ClockSync : MonoBehaviour
     private void ClientTick()
     {
         // Avisa o host quando muda (e a cada 1 s, para o caso de um pacote se perder).
-        if (LocalPaused == _lastReported && Time.unscaledTime < _nextReport) return;
-        _lastReported = LocalPaused;
+        if (PausedForGroup == _lastReported && Time.unscaledTime < _nextReport) return;
+        _lastReported = PausedForGroup;
         _nextReport = Time.unscaledTime + 1f;
-        var p = LocalPaused;
+        var p = PausedForGroup;
         NetSession.SendGame(MsgType.PauseReport, w => w.Put(p), DeliveryMethod.ReliableOrdered);
     }
 
@@ -125,8 +132,11 @@ public class ClockSync : MonoBehaviour
         private static void Postfix(ref bool __result)
         {
             LocalPaused = !__result;
-            if (NetSession.Current != NetSession.Mode.Offline && GroupPaused)
-                __result = false;
+            if (NetSession.Current == NetSession.Mode.Offline) return;
+            if (GroupPaused) __result = false;
+            // Dormindo à espera dos outros: o relógio do mundo continua para quem está acordado (como no
+            // Stardew). No host isso é essencial: ele é a fonte da hora de todos (D33).
+            else if (DaySync.LocalSleeping) __result = true;
         }
     }
 }

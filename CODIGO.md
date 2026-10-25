@@ -206,6 +206,8 @@ Armadilhas das flags de evento:
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo
+- **Structs não-blittable viram CLASSES no interop** (ex.: `Cysharp.Threading.Tasks.UniTask`). Num patch, `__result = default` vira nulo e o jogo cai ao receber o retorno. Use um valor real (`UniTask.CompletedTask`).
+- `DateManager.IsUpdateEnabled = false` não para só o relógio: **trava o controle do personagem** também (visto no P2, D33).
 - `ScreenCapture.CaptureScreenshot(string)` → `MissingMethodException` (marshalling de string). Use `CaptureScreenshotAsTexture()`.
 - `ImageConversion.EncodeToPNG` → `InvalidOperationException` (`BlittableArrayWrapper.Unmarshal`). Use `GetPixels32()` + um codificador próprio (`PngWriter`).
 - As constantes de `SceneMode` (`Game`, `Title`...) viram campos estáticos, sem `const`, e não podem ser usadas em `switch`.

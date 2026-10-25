@@ -149,7 +149,10 @@ public class DaySync : MonoBehaviour
                 return true; // virada liberada pelo host (todos dormindo)
             }
             LocalWantsToSleep();
-            __result = default; // UniTask concluída: segura a virada
+            // UniTask concluída: segura a virada. NÃO usar "default": no interop IL2CPP o UniTask é uma CLASSE
+            // (struct não-blittable), então default = null e o jogo cai ao receber o retorno (achado no P2,
+            // dormindo pela cama de verdade: NullReferenceException em StartNextDay).
+            __result = Cysharp.Threading.Tasks.UniTask.CompletedTask;
             return false;
         }
     }

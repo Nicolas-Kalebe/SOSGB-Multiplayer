@@ -237,6 +237,8 @@ public class PlayerProfiles : MonoBehaviour
         string Clean(string s) => new string((s ?? "x").Where(char.IsLetterOrDigit).ToArray());
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "STORY OF SEASONS Grand Bazaar", "SOSGB-MP");
+        // Modo de teste: perfis e snapshots de recuperação numa subpasta, longe dos perfis reais do jogador.
+        if (Plugin.DevMode) dir = Path.Combine(dir, "dev");
         Directory.CreateDirectory(dir);
         return Path.Combine(dir, $"profiles_{Clean(ui.FarmName)}_{Clean(ui.PlayerName)}.json");
     }

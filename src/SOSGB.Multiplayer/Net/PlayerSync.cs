@@ -324,15 +324,15 @@ public class PlayerSync : MonoBehaviour
             }
             rm.Avatar = model;
             rm.Animator = model.GetComponentInChildren<Animator>();
-            // Mesmo gênero (MotionType) do jogador local: usa o controller dele (SyncController mantém em dia).
-            // Gênero diferente: cópia própria do controller capturado na montagem; a referência original não é
-            // estável (o jogo cria outro controller ao devolver a aparência local).
-            var sameMotion = AppearanceSync.MotionTypeId(app) == AppearanceSync.MotionTypeId(AppearanceSync.Stable ?? AppearanceSync.Local());
-            rm.Controller = !sameMotion && controller != null ? UnityEngine.Object.Instantiate(controller) : null;
+            // Sempre uma CÓPIA própria do controller capturado na montagem (já com as animações do gênero do
+            // jogador). Compartilhar o do jogador local não serve: SwitchGenderMotion altera aquele objeto no
+            // lugar, e o avatar passaria a usar as animações do gênero de quem está olhando (D32, teste em rede).
+            var real = controller != null && controller.TryCast<AnimatorOverrideController>() != null;
+            rm.Controller = real ? UnityEngine.Object.Instantiate(controller) : null; // sem o real: segue o do local
             if (rm.Animator != null && rm.Controller != null)
             {
                 rm.Animator.runtimeAnimatorController = rm.Controller;
-                rm.Animator.Rebind(); // sem isto o clone pode continuar nas animações do outro gênero
+                rm.Animator.Rebind(); // sem isto o clone pode continuar nas animações anteriores
             }
             rm.Hashes = Array.Empty<int>();
             rm.BuiltAppearance = app;

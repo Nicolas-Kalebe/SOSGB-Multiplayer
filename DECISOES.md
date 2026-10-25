@@ -329,3 +329,19 @@ Regras deste arquivo:
 - **Consequências:**
   - Ao montar a aparência de quem entrou (ou de quem trocou de roupa), **o seu personagem pisca** com outra aparência por cerca de 1 a 2 segundos. É o custo da troca temporária. Acontece pouco: na entrada de alguém e quando alguém troca de visual.
   - **Falta o teste em rede de verdade** (duas instâncias ou com os amigos). Não foi feito por falta de memória (4 GB livres com o jogo fechado; cada instância usa ~2 GB).
+
+### D33 — Dormir de verdade: quem dorme não pausa o grupo e o relógio continua para os acordados
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (achados do teste P2, pedido pelo usuário)
+- **Contexto:** o teste P2 (dormir pela cama de verdade, com duas instâncias) achou três problemas que o comando de teste `sleep` não mostrava:
+  1. **O host caía ao deitar.** O patch de `GameController.StartNextDay` devolvia `default` para um `UniTask`. No interop IL2CPP o `UniTask` é uma **classe** (struct não-blittable), então `default` = nulo e o jogo morria com `NullReferenceException` no retorno.
+  2. **Quem ficava acordado congelava.** Ao deitar, o jogo para o relógio local (estado de sono). O mod contava isso como "jogador em menu" e, pela regra da D9 (N = 1), pausava o grupo. A pausa do grupo força `DateManager.IsUpdateEnabled = false`, o que **também trava o personagem** dos outros. Resultado: ninguém conseguia chegar à cama (impasse).
+  3. O nome dos outros jogadores aparecia **por cima** das janelas e diálogos do jogo.
+- **Decisão:**
+  - o patch devolve `UniTask.CompletedTask` (nunca `default`);
+  - quem está dormindo **não conta** como pausado para a regra do grupo (`ClockSync.PausedForGroup`);
+  - enquanto alguém dorme esperando os outros, o relógio do mundo **continua** para quem está acordado (como no Stardew). No host isso é essencial, porque ele é a fonte da hora de todos;
+  - nomes acima dos avatares somem enquanto o jogador local está em menu, diálogo ou evento.
+- **Verificado (duas instâncias):** host deita pela cama (`ActionSleep` → `GameController.StartNextDay`, sem cair); a convidada continua andando e o relógio corre (11:37 → 11:45); ela deita pela cama; o dia vira para os dois (dia 24, 06:18). Mochila, aparência e animações de cada um se mantêm depois da virada. A convidada vê o host deitado na cama (animação sincronizada).
+- **Consequências:**
+  - A pausa por menu (D9, N = 1) continua congelando os outros jogadores, não só o relógio. Isso vale para menus e eventos. Ver pergunta P7.
+  - Junto: os perfis e snapshots do **modo de teste** agora vão para `SOSGB-MP\dev`, longe dos perfis reais.
