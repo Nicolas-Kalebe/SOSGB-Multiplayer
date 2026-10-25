@@ -179,7 +179,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "log <texto>", "quit",
                     },
                 });
 
@@ -227,6 +227,25 @@ public class DevBridge : MonoBehaviour
 
             case "ctx":
                 return CtxCommand(arg);
+
+            case "net":
+                // net host [porta] | net join <ip> [porta] | net status | net leave — tarefa 2.1
+                var na = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                switch (na.Length > 0 ? na[0] : "status")
+                {
+                    case "host": Net.NetSession.Host(na.Length > 1 ? int.Parse(na[1]) : Plugin.NetPort.Value); break;
+                    case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
+                    case "leave": Net.NetSession.Stop(); break;
+                }
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status() });
+
+            case "warp":
+                // warp <dx> <dz> — desloca o jogador local (teste de sincronização, 2.4)
+                var wa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var pl = GameController.Instance.GetPlayer().transform;
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                pl.position += new Vector3(float.Parse(wa[0], inv), 0, float.Parse(wa[1], inv));
+                return Json(new { ok = true, pos = new[] { pl.position.x, pl.position.y, pl.position.z } });
 
             case "world":
                 // world capture | world load — tarefa 1.5 (ver WorldSnapshot). Slot de teste = 2.

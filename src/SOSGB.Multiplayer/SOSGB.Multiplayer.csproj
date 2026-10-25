@@ -16,7 +16,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <Version>0.0.3</Version>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Version>0.1.0</Version>
 
     <GamePath Condition="'$(GamePath)' == ''">L:\Games\STORY OF SEASONS Grand Bazaar</GamePath>
     <BepInExPath>$(GamePath)\BepInEx</BepInExPath>
@@ -44,10 +45,15 @@
     <Reference Include="$(BepInExPath)\interop\UnityEngine.TextRenderingModule.dll" Private="false" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Rede (D7): LiteNetLib, MIT. A DLL vai junto do plugin para BepInEx/plugins. -->
+    <PackageReference Include="LiteNetLib" Version="2.1.4" />
+  </ItemGroup>
+
   <!-- Depois do build, copia a DLL para BepInEx/plugins do jogo -->
   <Target Name="CopyToGame" AfterTargets="Build" Condition="Exists('$(BepInExPath)\plugins')">
     <MakeDir Directories="$(BepInExPath)\plugins\SOSGB.Multiplayer" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExPath)\plugins\SOSGB.Multiplayer" />
+    <Copy SourceFiles="$(TargetPath);$(OutputPath)LiteNetLib.dll" DestinationFolder="$(BepInExPath)\plugins\SOSGB.Multiplayer" />
   </Target>
 
 </Project>

@@ -12,12 +12,14 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "com.nicolaskalebe.sosgb.multiplayer";
     public const string Name = "SOSGB Multiplayer";
-    public const string Version = "0.0.3";
+    public const string Version = "0.1.0-dev";
 
     internal static ManualLogSource Logger;
 
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
+    internal static ConfigEntry<string> PlayerName;
+    internal static ConfigEntry<int> NetPort;
     internal static ConfigEntry<bool> DevBridgeEnabled;
     internal static ConfigEntry<int> DevBridgePort;
     internal static ConfigEntry<int> AutoLoadSlot;
@@ -39,6 +41,10 @@ public class Plugin : BasePlugin
         KeepRunningWhenUnfocused = Config.Bind("Game", "KeepRunningWhenUnfocused", true,
             "Mantém o jogo rodando quando a janela perde o foco (necessário no multiplayer).");
 
+        // Rede (Fase 2). Nome e porta; o menu no jogo vem na Fase 8.
+        PlayerName = Config.Bind("Net", "PlayerName", "", "Seu nome no multiplayer (vazio = nome de usuário do Windows).");
+        NetPort = Config.Bind("Net", "Port", Net.Protocol.DefaultPort, "Porta UDP do host.");
+
         // D20: ponte de teste desligada por padrão; só o PC de desenvolvimento liga.
         DevBridgeEnabled = Config.Bind("DevBridge", "Enabled", false,
             "Ponte de teste para IA (só desenvolvimento). Abre um servidor em 127.0.0.1.");
@@ -59,6 +65,8 @@ public class Plugin : BasePlugin
         new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
 
         AddComponent<FocusGuard>();
+        AddComponent<Net.NetRunner>();
+        AddComponent<Net.PlayerSync>();
         AddComponent<DebugOverlay>();
 
         if (DevBridgeEnabled.Value)

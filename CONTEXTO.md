@@ -39,11 +39,10 @@ Mod de multiplayer co-op para **STORY OF SEASONS: Grand Bazaar** (Marvelous, 202
 | [`PLANO.md`](PLANO.md) | Plano: decisões (resumo), arquitetura, checklist, riscos, roadmap |
 | [`DECISOES.md`](DECISOES.md) | Decisões completas com contexto |
 | [`CODIGO.md`](CODIGO.md) | Mapa das classes do jogo |
+| [`docs/`](docs/CONTEXTO.md) | Documentação técnica (protocolo de rede) |
 | [`src/`](src/CONTEXTO.md) | **Código do mod** (plugin BepInEx) |
 | [`scripts/`](scripts/CONTEXTO.md) | Scripts para a IA testar o jogo sozinha (ponte de teste, ciclo de build) |
 | [`tools/`](tools/CONTEXTO.md) | Ferramentas externas (Cpp2IL) |
 | [`dump/`](dump/CONTEXTO.md) | Classes do jogo extraídas, **não distribuir** |
 | [`backups/`](backups/CONTEXTO.md) | Backups dos saves + **como restaurar** (o jogo original fica em `L:\Backups\SOSGB`) |
 
-Pastas futuras previstas (cada uma vai ganhar o seu `CONTEXTO.md` ao ser criada):
-- `docs/`: documentação extra, se necessário.
