@@ -263,6 +263,44 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, mail = Net.LetterSync.Status() });
             }
 
+            case "farm":
+            {
+                // farm | farm dump <tipo> [n] — objetos do mapa atual por tipo / dados de alguns (investigação da Fase 5)
+                if (arg == "cap") return Json(new { ok = true, cap = FarmLab.Cap() });
+                if (arg == "apply") return Json(new { ok = true, apply = FarmLab.ApplyCaptured() });
+                if (arg == "resident") return Json(new { ok = true, resident = FarmLab.ApplyResident() });
+                if (arg == "install") return Json(new { ok = true, install = FarmLab.InstallCaptured() });
+                if (arg.StartsWith("bench")) return Json(new { ok = true, bench = FarmLab.Bench() });
+                if (arg.StartsWith("snap")) return Json(new { ok = true, snap = FarmLab.Snapshot(arg.Length > 5 ? arg.Substring(5).Trim() : null) });
+                if (arg.StartsWith("near")) return Json(new { ok = true, near = FarmLab.Near(arg.Length > 5 ? int.Parse(arg.Substring(5)) : 8) });
+                if (arg.StartsWith("rm ")) return Json(new { ok = true, result = FarmLab.Remove(arg.Substring(3).Trim()) });
+                if (arg.StartsWith("mk "))
+                {
+                    // farm mk <Tipo> <json> — cria uma entidade a partir dos dados (teste da Fase 5)
+                    var sp = arg.IndexOf(' ', 3);
+                    var mkType = Enum.Parse<FieldDynamicObjectType>(arg.Substring(3, sp - 3));
+                    return Json(new { ok = true, result = FarmLab.Create(mkType, arg.Substring(sp + 1)) });
+                }
+                if (arg.StartsWith("re ")) return Json(new { ok = true, result = FarmLab.Recreate(arg.Substring(3).Trim()) });
+                if (arg.StartsWith("data ")) { var en = FarmLab.Cache.GetLayerObject(arg.Substring(5).Trim()); return Json(new { ok = true, json = en != null ? FarmLab.DataJson(en) : "não achei" }); }
+                var fc = FieldManager.Instance.CurrentFieldCache;
+                var counts = new Dictionary<string, int>();
+                var samples = new List<string>();
+                var farmArgs = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var want = farmArgs.Length >= 2 && farmArgs[0] == "dump" ? farmArgs[1] : null;
+                var n = farmArgs.Length >= 3 ? int.Parse(farmArgs[2]) : 2;
+                foreach (var kv in fc.LayerObjects)
+                    foreach (var e in kv.Value)
+                    {
+                        if (e == null) continue;
+                        var t = e.FieldObjectType.ToString();
+                        counts[t] = counts.TryGetValue(t, out var c0) ? c0 + 1 : 1;
+                        if (want != null && t == want && samples.Count < n)
+                            samples.Add(StringExtensions.ToJson(e.ToData<FieldLayerObjectEntityData>()));
+                    }
+                return Json(new { ok = true, field = FieldManager.Instance.CurrentFieldId, layers = fc.LayerObjects.Count, counts, samples });
+            }
+
             case "spendmoney":
                 // spendmoney <n> — gasta pelo caminho do jogo (SpendMoney), teste da carteira compartilhada (4.1)
                 var beforeSpend = ExternalData.Instance.UserInfo.PlayerMoney;

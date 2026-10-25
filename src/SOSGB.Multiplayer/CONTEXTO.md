@@ -20,6 +20,7 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 | `MultiplayerUI.cs` | D27: painel do título (modo/nome/IP), lista de jogadores no jogo, menu F9. Controles próprios (o IMGUI do jogo foi podado) |
 | `AppearanceLab.cs` | (Só testes) laboratório de aparência: sonda da montagem, troca de animação de gênero, "jogador falso" (comandos `applab probe/motion/make/build/set/cat`) |
 | `PlayerContext.cs` (partes) | Partes do perfil: likeability, talk, eventflags, bag, tools, toolstate, **tooldata** e **stamina** (D38), appearance |
+| `FarmLab.cs` | (Só testes) laboratório da Fase 5: objetos do mapa, remover/recriar, capturar/aplicar/instalar estado (comando `farm`) |
 | `CoroutineProbe.cs` | Roda uma corrotina IL2CPP do jogo passo a passo (descendo nas aninhadas), com tempo limite de verdade e relatório de onde travou (D32) |
 | `GameNotify.cs` | D26: avisos no sistema de avisos do jogo (aviso de correio com texto trocado) |
 | `Notice.cs` | Aviso curto na tela (via overlay) |

@@ -69,6 +69,14 @@
 - Animais: `AnimalManager` (`AddAnimal`, `Breed`, `FarmAnimalBarn`). Moinhos: `WindmillCraftingManager`. Também `BeekeepingManager` e `MushroomFarmingManager`.
 - `FieldManager.AdvanceDateTime(...)` já atualiza mapas fora da tela.
 
+### Objetos do mapa (Fase 5, investigação)
+- Mapa carregado: `FieldManager.Instance.CurrentFieldCache` (`FieldCache`); objetos em `LayerObjects` (`Dictionary<uint, List<FieldLayerObjectEntity>>`), por GUID: `GetLayerObject(guid)`. Itens no chão são outro tipo (`FieldItemEntity : FieldFreeObjectEntity`, em `FreeObjects`).
+- **Mapas residentes:** `FieldManager.fieldCacheDict` (privado) guarda caches que ficam SEMPRE na memória (ex.: a fazenda, mapa 1). Eles não são recarregados do save ao voltar, e o dia é processado neles direto. Mexer nesse cache com o jogador em outro mapa funciona (os objetos aparecem ao voltar).
+- **IDs sazonais:** o mapa carregado pode ter ID sazonal (2 = mapa 1 no verão). O save de mapas guarda pelo ID raiz: `MasterDataManager.Instance.FieldMaster.ConvertToFieldId(id)`.
+- **Dados de um objeto:** `entidade.ToData<T>()` chamado pela classe base devolve os campos do tipo ZERADOS. Use `entidade.Cast<FieldCropEntity>().ToData<FieldCropEntityData>()` ou o serializador oficial: `FieldSaveManager.CreateData(id, cache)` + `FieldSaveManager.DecodeObjectSaveData(sd)` (listas tipadas: Crop, Ridge, Tree, General, Grass, Flower, InRidge = sprinkler, Item, Egg, Animal). ~1,4 ms + 1 ms para ~140 objetos.
+- **Criar/remover ao vivo (validado na tela):** remover = `entidade.Unregister()`. Criar = a função de carga de cada tipo: `AttributeManager.CreateRidge(cache, dados, null)`, `CropManager.CreateCrop(cache, dados, canteiroPai, árvorePai)`, `TreeManager.CreateTree(cache, dados, canteiroPai, null)`, `GeneralManager.CreateLayerObject(cache, dados)`, `GrassManager.CreateGrass`, `FlowerManager.CreateFlower`, `SprinklerManager.CreateObject`, `EggManager.CreateEgg` (gerenciadores em `FieldManager.Instance.ManagerAccessor`).
+- O enum `FieldDynamicObjectType` do dump não tem nomes para grama e flor.
+
 ## 7. Correio
 
 - `LetterManager` (singleton): `AddPostSimple(id)` põe carta na caixa; `PutInBag()` pega as cartas; `Read`/`Receive` (ler / receber anexo). `SaveData`: `NowIndex`, `LetterTrendData`, `InPostLetterIndex/Id`, `InBagLetterList` (`InBagLetterData`: Index, Id, IsOpen, IsReceive, Ticks, Info), `InPostLetterInfoList`, `LetterHistoryId`.
