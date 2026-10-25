@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 20;
+    public const int Version = 21;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -116,4 +116,7 @@ public enum MsgType : byte
 
     /// <summary>Convidado → host: [long ticks] — o tempo pulou para frente no jogo do convidado; o grupo pula junto (D50)</summary>
     ClockJump = 34,
+
+    /// <summary>Ajudante → host (→ dono da barraca): [byte ajudante][byte tipo 1=atender 2=pôr item][byte balcão][byte espaço][uint item][int qtd][int qualidade][int frescor] — pedido do ajudante no Bazaar; o host repassa ao dono se não for ele (D56)</summary>
+    BazaarHelp = 35,
 }

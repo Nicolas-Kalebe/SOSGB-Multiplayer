@@ -480,6 +480,8 @@ public class SharedSync : MonoBehaviour
                 if (!Baseline.TryGetValue(p.Name, out var old)) { Baseline[p.Name] = sig; continue; }
                 if (old == sig) continue;
                 Baseline[p.Name] = sig;
+                // Ajudante do Bazaar (D56): o jogo dele abre e fecha uma loja "de mentira"; o progresso do Bazaar é só do dono.
+                if (p.Name.StartsWith("bazaar") && BazaarHelpSync.SuppressWrites) continue;
                 var packed = LetterSync.Pack(json);
                 var name = p.Name;
                 if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: NetSession.LocalId);

@@ -583,6 +583,39 @@ public class DevBridge : MonoBehaviour
                     "tent on" => R(() => { UnityEngine.Object.FindObjectOfType<BazaarMyShop>().ShopShelfRoot.ChangeTent(true, false); return null; }),
                     "tent off" => R(() => { UnityEngine.Object.FindObjectOfType<BazaarMyShop>().ShopShelfRoot.ChangeTent(false, false); return null; }),
                     "rootshelves" => R(() => UnityEngine.Object.FindObjectOfType<BazaarMyShop>().ShopShelfRoot.ShopShelfs?.Length),
+                    "close" => R(() => { bmC.CloseShopCallBack(); return null; }),
+                    // deckinfo / deckrefresh: lista do mini deck (D56: o menu de itens da barraca aparecia vazio)
+                    "deckinfo" => R(() =>
+                    {
+                        var d = InventoryManager.Instance.DeckStorage;
+                        var bar = d.selectedBarItemDatas;
+                        var barS = new List<string>();
+                        if (bar != null) foreach (var it in bar) barS.Add(it == null ? "null" : $"{it.ItemId}x{it.Stack}#{it.DeckNumber}");
+                        var nums = new List<string>();
+                        foreach (var it in d.ItemDatas) if (it != null && it.ItemId != 0) nums.Add($"{it.ItemId}#{it.DeckNumber}");
+                        return $"lista={d.ItemDataInDeckList?.Count} numeroSel={d.selectedItemDeckNumber} barra=[{string.Join(",", barS)}] itens=[{string.Join(",", nums)}] podeAbrir={bmC.CanOpenBazaarMiniDeck}";
+                    }),
+                    "deckrefresh" => R(() =>
+                    {
+                        var d = InventoryManager.Instance.DeckStorage;
+                        var l = d.GetMiniDeckItemsData();
+                        return $"GetMiniDeckItemsData={l?.Count} lista={d.ItemDataInDeckList?.Count}";
+                    }),
+                    "minireset" => R(() => { bmC.ResetMiniDeck(); return null; }),
+                    // setslot <balcão> <espaço> [select <posDeck> | access]: aponta o "espaço atual" e age nele (pedidos do ajudante, D56)
+                    var x when x.StartsWith("setslot ") => R(() =>
+                    {
+                        var sp = x.Split(' ');
+                        var shelf = bmC.ShopShelfs[int.Parse(sp[1])];
+                        var slot = int.Parse(sp[2]);
+                        var id = shelf.GetShopItems()[slot].GetSalePointObjId();
+                        bmC.UpdateCurrentShopShelf(id);
+                        var extra = "";
+                        if (sp.Length >= 5 && sp[3] == "select") { bmC.SelectExhibit(int.Parse(sp[4])); extra = " select"; }
+                        if (sp.Length >= 4 && sp[3] == "access") { extra = $" standby={bmC.IsBuyStandby(slot)}"; bmC.ActionAccessShopShelf(slot); }
+                        if (sp.Length >= 4 && sp[3] == "sell") { extra = $" standby={bmC.IsBuyStandby(slot)}"; bmC.Sell(slot, false); }
+                        return $"id={id} atual={bmC.GetCurrentShelfIndex()}{extra}";
+                    }),
                     // shelfset <espaço> <item> <qtd>: põe um item no VISUAL da prateleira atual (teste do espelhamento)
                     var x when x.StartsWith("shelfset ") => R(() =>
                     {
@@ -957,7 +990,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

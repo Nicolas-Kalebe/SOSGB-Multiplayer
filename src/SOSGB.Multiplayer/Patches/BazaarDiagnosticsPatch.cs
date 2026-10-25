@@ -38,9 +38,17 @@ public static class BazaarDiagnosticsPatch
     [HarmonyPrefix]
     private static void Result(uint itemId, int saleNum) => Log($"AddBazaarResultData(item={itemId}, qtd={saleNum})");
 
-    [HarmonyPatch(typeof(BazaarManager), nameof(BazaarManager.UpdateCurrentShopShelf))]
+    [HarmonyPatch(typeof(BazaarManager), nameof(BazaarManager.CloseShopCallBack))]
     [HarmonyPrefix]
-    private static void Shelf(int id) => Log($"UpdateCurrentShopShelf({id})");
+    private static void Close() => Log("CloseShopCallBack()");
+
+    [HarmonyPatch(typeof(BazaarManager), nameof(BazaarManager.ShowResultPage))]
+    [HarmonyPrefix]
+    private static void ResultPage() => Log("ShowResultPage()");
+
+    [HarmonyPatch(typeof(BazaarManager), nameof(BazaarManager.ExitAllVisitor))]
+    [HarmonyPrefix]
+    private static void ExitAll() => Log("ExitAllVisitor()");
 
     [HarmonyPatch(typeof(UIBazaarMainPage), nameof(UIBazaarMainPage.OpenMiniDeck))]
     [HarmonyPrefix]

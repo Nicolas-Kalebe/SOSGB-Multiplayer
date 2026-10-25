@@ -38,6 +38,7 @@ public class StorageSync : MonoBehaviour
         public long Baseline;
         public bool HasBaseline;
         public bool LocalOpen;
+        public string LastReceived;    // último conteúdo vindo da rede (ou enviado): o ajudante do Bazaar volta a ele (D56)
     }
 
     private static readonly Store[] Stores =
@@ -46,8 +47,9 @@ public class StorageSync : MonoBehaviour
         new() { Index = 1, Name = "o deck do Bazaar", UiKey = 103, Get = () => InventoryManager.Instance.DeckStorage },     // UILoadKey.DeckStorage
         new() { Index = 2, Name = "as peças do Bazaar", UiKey = 113, Get = () => InventoryManager.Instance.BazaarCustomPartsStorage }, // UILoadKey.BazaarCustom
         // Barraca do Bazaar: só uma pessoa vende por vez (D51; evita duas barracas vendendo os mesmos itens). Não tem
-        // conteúdo próprio; a trava vale enquanto a loja está aberta, e o menu da barraca é bloqueado para os outros.
-        new() { Index = 3, Name = "a barraca do Bazaar", UiKey = -1, OpenNow = () => BazaarManager.IsInstance && BazaarManager.Instance.IsInShop, Get = () => null },
+        // conteúdo próprio; a trava vale enquanto a loja está aberta. Quem abre a loja com a barraca de outro é
+        // ajudante (D56) e não pega a trava.
+        new() { Index = 3, Name = "a barraca do Bazaar", UiKey = -1, OpenNow = () => BazaarManager.IsInstance && BazaarManager.Instance.IsInShop && !BazaarHelpSync.Active, Get = () => null },
     };
 
     /// <summary>Quem está com a barraca do Bazaar aberta (NoHolder = ninguém).</summary>
@@ -102,6 +104,12 @@ public class StorageSync : MonoBehaviour
                 if (!s.HasBaseline) { s.Baseline = sig; s.HasBaseline = true; continue; }
                 if (sig == s.Baseline) continue;
                 s.Baseline = sig;
+                if (s.Index == 1 && BazaarHelpSync.SuppressWrites)
+                {
+                    // Ajudante do Bazaar: o deck só é escrito pelo dono da barraca (D56). Mudança local não vai para a rede.
+                    Plugin.Logger.LogInfo("[StorageSync] deck mudou no jogo do ajudante; não enviado (vale o do dono)");
+                    continue;
+                }
                 if (s.Holder != NoHolder && s.Holder != NetSession.LocalId)
                 {
                     // Mexeram aqui enquanto outro está com a tela aberta: vale o dele (o próximo StorageData corrige).
@@ -144,6 +152,17 @@ public class StorageSync : MonoBehaviour
         var me = NetSession.LocalId;
         if (open)
         {
+            // D56: durante a venda o deck (e as peças) ficam com quem vende — dois jogos mexendo no deck ao mesmo tempo
+            // poderiam duplicar itens.
+            var seller = Stores[3].Holder;
+            if ((s.Index == 1 || s.Index == 2) && seller != NoHolder && seller != me)
+            {
+                var sname = NetSession.Players.TryGetValue(seller, out var sp) ? sp.Name : "Outro jogador";
+                GameNotify.Show($"{sname} está vendendo: {s.Name} fica com quem vende até a loja fechar.");
+                CloseStorageUi(ui);
+                s.LocalOpen = false;
+                return;
+            }
             if (s.Holder != NoHolder && s.Holder != me)
             {
                 var name = NetSession.Players.TryGetValue(s.Holder, out var p) ? p.Name : "Outro jogador";
@@ -247,6 +266,20 @@ public class StorageSync : MonoBehaviour
         s.Get().FromSaveData(StringExtensions.JsonToObject<StorageManager.SaveData>(json));
         s.Baseline = Signature(s);
         s.HasBaseline = true;
+        s.LastReceived = json;
+    }
+
+    /// <summary>
+    /// Ajudante do Bazaar, ao terminar (D56): o jogo dele pode ter "devolvido" ao deck itens dos balcões, que eram cópia
+    /// dos do dono. Volta ao último deck recebido da rede, sem enviar nada.
+    /// </summary>
+    public static void RevertDeckToLastReceived()
+    {
+        var s = Stores[1];
+        if (s.LastReceived == null || s.Get() == null) return;
+        var before = Signature(s);
+        Apply(s, s.LastReceived);
+        if (Signature(s) != before) Plugin.Logger.LogInfo("[StorageSync] deck do ajudante voltou ao último recebido do dono");
     }
 
     private static byte[] Pack(string json)
@@ -265,7 +298,9 @@ public class StorageSync : MonoBehaviour
 
     private static void SendSnapshot(Store s)
     {
-        var packed = Pack(Capture(s));
+        var json = Capture(s);
+        s.LastReceived = json;
+        var packed = Pack(json);
         var idx = s.Index;
         if (NetSession.Current == NetSession.Mode.Host)
         {
@@ -336,7 +371,8 @@ public class StorageSync : MonoBehaviour
     }
 
     /// <summary>
-    /// D51: o menu da barraca do Bazaar (Ver estoque / Redecorar / Abrir loja) não abre se OUTRO jogador está vendendo.
+    /// D51/D56: com OUTRO jogador vendendo, o menu da barraca abre, mas "Abrir loja" vira ajudar (BazaarHelpSync);
+    /// "Ver estoque" e "Redecorar" ficam bloqueados pelo deck/peças estarem com quem vende.
     /// </summary>
     [HarmonyLib.HarmonyPatch(typeof(BazaarManager), nameof(BazaarManager.RequestOpenShopDialog))]
     private static class BazaarOpenPatch
@@ -348,9 +384,9 @@ public class StorageSync : MonoBehaviour
             var h = Stores[3].Holder;
             if (h == NoHolder || h == NetSession.LocalId) return true;
             var name = NetSession.Players.TryGetValue(h, out var p) ? p.Name : "Outro jogador";
-            GameNotify.Show($"{name} está vendendo na barraca neste turno.");
-            Plugin.Logger.LogInfo($"[StorageSync] menu da barraca bloqueado ({name} está vendendo)");
-            return false;
+            GameNotify.Show($"{name} está vendendo. Escolha \"Abrir loja\" para ajudar na barraca.");
+            Plugin.Logger.LogInfo($"[StorageSync] menu da barraca aberto como ajudante ({name} está vendendo)");
+            return true;
         }
     }
 

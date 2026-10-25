@@ -119,7 +119,22 @@ public class Plugin : BasePlugin
 
         Logger.LogInfo($"{Name} {Version} carregado (instância{(InstanceTag == "" ? " padrão" : InstanceTag)}).");
 
-        new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
+        var harmony = new Harmony(Guid);
+        harmony.PatchAll(typeof(Plugin).Assembly);
+        // Só testes: SOSGB_TEST_UNPATCH="BazaarManager.IsBuyStandby,UIBazaarMainPage.OpenMiniDeck" tira os patches do mod
+        // desses métodos (achar qual patch atrapalha o jogo sem recompilar).
+        var unpatch = System.Environment.GetEnvironmentVariable("SOSGB_TEST_UNPATCH");
+        if (DevMode && !string.IsNullOrWhiteSpace(unpatch))
+            foreach (var spec in unpatch.Split(','))
+            {
+                var dot = spec.Trim().LastIndexOf('.');
+                if (dot <= 0) continue;
+                var type = AccessTools.TypeByName("BokuMono." + spec.Trim().Substring(0, dot)) ?? AccessTools.TypeByName(spec.Trim().Substring(0, dot));
+                var name = spec.Trim().Substring(dot + 1);
+                if (type == null) { Logger.LogWarning($"[Teste] tipo não achado: {spec}"); continue; }
+                foreach (var m in AccessTools.GetDeclaredMethods(type))
+                    if (m.Name == name) { harmony.Unpatch(m, HarmonyPatchType.All, Guid); Logger.LogInfo($"[Teste] patches do mod tirados de {type.Name}.{name}"); }
+            }
 
         AddComponent<FocusGuard>();
         AddComponent<StartupGuard>();
@@ -139,6 +154,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.SharedSync>();
         AddComponent<Net.RomanceSync>();
         AddComponent<Net.BazaarViewSync>();
+        AddComponent<Net.BazaarHelpSync>();
         AddComponent<MultiplayerUI>();
         // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
         if (DevMode) AddComponent<DebugOverlay>();

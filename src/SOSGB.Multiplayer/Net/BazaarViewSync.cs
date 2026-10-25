@@ -67,6 +67,7 @@ public class BazaarViewSync : MonoBehaviour
     private static readonly int SpeedParam = Animator.StringToHash("Speed");
     private static readonly Dictionary<uint, Puppet> Puppets = new();
     private static readonly List<NPCBazaarVisitorAgent> Hidden = new();
+    private static readonly Dictionary<IntPtr, Puppet> Frozen = new();
     private static readonly Dictionary<uint, float> PopTried = new();
     private static readonly Dictionary<IntPtr, Animator> AnimCache = new();
 
@@ -76,8 +77,9 @@ public class BazaarViewSync : MonoBehaviour
     private static byte _owner = NetSession.UnknownId;
     private static uint _ownerField;
     private static float _lastVisitorsAt = -100;
-    private static Slot[] _shelf;
-    private static int _shelfIndex = -1;
+    private static Slot[] _shelf;          // os 12 espaços do dono (balcão×4 + espaço)
+    private static string _esmJson;        // os mesmos, no formato do jogo (StorageManager.SaveData), para o ajudante
+    private static string _esmApplied = "";
     private static bool _shelfFresh;
     private static string _shelfShown = "";
     private static bool _active;
@@ -113,7 +115,8 @@ public class BazaarViewSync : MonoBehaviour
                 _wasOwner = false;
                 return;
             }
-            var owner = bm.IsInShop;
+            // Quem abriu a loja como ajudante (D56) não é dono: assiste e manda pedidos.
+            var owner = bm.IsInShop && !BazaarHelpSync.Active;
             if (owner) OwnerTick(bm);
             else if (_wasOwner) SendClosed();
             _wasOwner = owner;
@@ -162,6 +165,8 @@ public class BazaarViewSync : MonoBehaviour
                 }
             var me = NetSession.LocalId;
             var field = FieldManager.Instance.CurrentFieldId;
+            // Estado de cada espaço dos balcões (vender, trocar, pôr...): o jogo do ajudante mostra os mesmos avisos (D56).
+            var states = BazaarHelpSync.ComputeAccessStates(bm);
             NetSession.SendGame(MsgType.BazaarVisitors, w =>
             {
                 w.Put(me); w.Put(field); w.Put(true); w.Put((byte)list.Count);
@@ -170,35 +175,24 @@ public class BazaarViewSync : MonoBehaviour
                     w.Put(v.Id); w.Put(v.Pos.x); w.Put(v.Pos.y); w.Put(v.Pos.z); w.Put(v.RotY);
                     w.Put(v.Hash); w.Put(v.Norm); w.Put(v.Speed); w.Put(v.Sign);
                 }
+                w.Put((byte)states.Length);
+                foreach (var st in states) w.Put(st);
             }, DeliveryMethod.Sequenced);
             Sent++;
         }
 
         if (Time.unscaledTime < _nextShelfCheck) return;
         _nextShelfCheck = Time.unscaledTime + ShelfInterval;
-        var idx = bm.GetCurrentShelfIndex();
-        var shelves = bm.ShopShelfs;
-        if (shelves == null || idx < 0 || idx >= shelves.Length || shelves[idx] == null) return;
-        var shelf = shelves[idx];
-        var n = shelf.GetShopItemLength();
-        var slots = new Slot[n];
-        var sig = idx + ":";
-        for (var i = 0; i < n; i++)
-        {
-            var it = shelf.GetShopItem(i)?.ItemInvData();
-            if (it != null && it.ItemId != 0 && it.Stack > 0)
-                slots[i] = new Slot { ItemId = it.ItemId, Stack = it.Stack, Quality = it.QualityValue, Freshness = it.FreshnessValue };
-            sig += $"{slots[i].ItemId}x{slots[i].Stack}q{slots[i].Quality},";
-        }
-        if (sig == _shelfSent && Time.unscaledTime < _nextShelfResend) return;
-        _shelfSent = sig;
+        // Os balcões inteiros (12 espaços = balcão×4 + espaço) com os dados completos dos itens: o ajudante (D56) aplica
+        // nos dados do jogo dele; quem só assiste usa para o visual.
+        var esm = InventoryManager.Instance?.ExhibitionShelf;
+        if (esm == null) return;
+        var json = StringExtensions.ToJson(esm.ToSaveData());
+        if (json == _shelfSent && Time.unscaledTime < _nextShelfResend) return;
+        _shelfSent = json;
         _nextShelfResend = Time.unscaledTime + ShelfResend;
         var me2 = NetSession.LocalId;
-        NetSession.SendGame(MsgType.BazaarShelves, w =>
-        {
-            w.Put(me2); w.Put(idx); w.Put((byte)slots.Length);
-            foreach (var s in slots) { w.Put(s.ItemId); w.Put(s.Stack); w.Put(s.Quality); w.Put(s.Freshness); }
-        }, DeliveryMethod.ReliableOrdered);
+        NetSession.SendGame(MsgType.BazaarShelves, w => { w.Put(me2); w.Put(json); }, DeliveryMethod.ReliableOrdered);
     }
 
     private static void SendClosed()
@@ -234,12 +228,19 @@ public class BazaarViewSync : MonoBehaviour
                     Speed = r.GetFloat(),
                     Sign = r.GetByte(),
                 });
+            if (open && r.AvailableBytes >= 1)
+            {
+                var ns = r.GetByte();
+                var states = new byte[ns];
+                for (var i = 0; i < ns; i++) states[i] = r.GetByte();
+                BazaarHelpSync.OwnerStates = states;
+            }
             _owner = owner;
             _ownerField = field;
             _visitors = open ? list : null;
             _visitorsFresh = true;
             _lastVisitorsAt = open ? Time.unscaledTime : -100;
-            if (!open) { _shelf = null; _shelfFresh = true; }
+            if (!open) { _shelf = null; _esmJson = null; _shelfFresh = true; BazaarHelpSync.OwnerClosed(); }
             Received++;
         }
         else if (type == MsgType.BazaarShelves)
@@ -247,17 +248,36 @@ public class BazaarViewSync : MonoBehaviour
             var owner = r.GetByte();
             if (owner == NetSession.LocalId) return;
             if (NetSession.Current == NetSession.Mode.Host && owner != from) return;
-            _shelfIndex = r.GetInt();
-            var n = r.GetByte();
-            var slots = new Slot[n];
-            for (var i = 0; i < n; i++)
-                slots[i] = new Slot { ItemId = r.GetUInt(), Stack = r.GetInt(), Quality = r.GetInt(), Freshness = r.GetInt() };
-            _shelf = slots;
+            _esmJson = r.GetString();
+            _shelf = ParseShelf(_esmJson);
             _shelfFresh = true;
         }
     }
 
     // ---------- quem não está vendendo: cópias ----------
+
+    private static Slot[] ParseShelf(string json)
+    {
+        var list = new List<Slot>();
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("itemDatas", out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                foreach (var e in arr.EnumerateArray())
+                {
+                    if (e.ValueKind != System.Text.Json.JsonValueKind.Object) { list.Add(new Slot()); continue; }
+                    list.Add(new Slot { ItemId = U(e, "ItemId"), Stack = N(e, "Stack"), Quality = N(e, "QualityValue"), Freshness = N(e, "FreshnessValue") });
+                }
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning($"[BazaarView] balcões: {ex.Message}"); }
+        return list.ToArray();
+    }
+
+    private static uint U(System.Text.Json.JsonElement e, string n) =>
+        e.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? v.GetUInt32() : 0;
+
+    private static int N(System.Text.Json.JsonElement e, string n) =>
+        e.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? v.GetInt32() : 0;
 
     private void ViewerTick(BazaarManager bm, bool owner)
     {
@@ -270,8 +290,8 @@ public class BazaarViewSync : MonoBehaviour
         }
         if (!_active)
         {
-            Plugin.Logger.LogInfo($"[BazaarView] mostrando os clientes e a barraca de #{_owner}");
-            OpenTent();
+            Plugin.Logger.LogInfo($"[BazaarView] mostrando os clientes e a barraca de #{_owner}{(BazaarHelpSync.Active ? " (ajudante)" : "")}");
+            if (!bm.IsInShop) OpenTent();
         }
         _active = true;
 
@@ -293,7 +313,8 @@ public class BazaarViewSync : MonoBehaviour
         {
             if (p.Agent == null) continue;
             var tr = p.Agent.transform;
-            if ((tr.position - p.Target).sqrMagnitude > 25f) tr.position = p.Target;
+            // Longe da posição do dono (o jogo daqui reposicionou o cliente): pula direto, sem atravessar a barraca.
+            if ((tr.position - p.Target).sqrMagnitude > 2.25f) tr.position = p.Target;
             else tr.position = Vector3.Lerp(tr.position, p.Target, k);
             tr.rotation = Quaternion.Slerp(tr.rotation, Quaternion.Euler(0, p.RotY, 0), k);
         }
@@ -400,6 +421,8 @@ public class BazaarViewSync : MonoBehaviour
                 if (Hidden.Exists(h => h != null && h.Pointer == a.Pointer)) continue;
                 a.SetActiveGraphic(false);
                 Hidden.Add(a);
+                // Ajudante em modo loja: os clientes do próprio jogo não podem andar até o balcão nem reservar espaços.
+                if (BazaarHelpSync.Active && !Frozen.ContainsKey(a.Pointer)) { Frozen[a.Pointer] = Capture(a); a.SetActiveGraphic(false); }
             }
     }
 
@@ -442,26 +465,46 @@ public class BazaarViewSync : MonoBehaviour
     private static void ApplyShelf(BazaarManager bm)
     {
         var shelves = bm.ShopShelfs;
-        if (_shelf == null || shelves == null || _shelfIndex < 0 || _shelfIndex >= shelves.Length || shelves[_shelfIndex] == null)
+        if (BazaarHelpSync.Active)
+        {
+            // Ajudante: os balcões do jogo dele passam a ter os mesmos itens do dono (dados + visual, ReExhibit), para os
+            // botões do jogo (Enter, Tab) enxergarem o que está em cada espaço.
+            if (_esmJson == null || _esmJson == _esmApplied) return;
+            try
+            {
+                var esm = InventoryManager.Instance.ExhibitionShelf;
+                esm.FromSaveData(StringExtensions.JsonToObject<StorageManager.SaveData>(_esmJson));
+                bm.ReExhibit();
+                _esmApplied = _esmJson;
+                _shelfShown = "ajudante";
+            }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarView] balcões do ajudante: {e.Message}"); }
+            return;
+        }
+        if (_shelf == null || shelves == null)
         {
             ClearShownShelf(bm);
             return;
         }
-        var shelf = shelves[_shelfIndex];
-        var n = Math.Min(_shelf.Length, shelf.GetShopItemLength());
-        var shown = _shelfIndex + ":";
-        for (var i = 0; i < n; i++)
+        var shown = "";
+        for (var sh = 0; sh < shelves.Length; sh++)
         {
-            var s = _shelf[i];
-            var si = shelf.GetShopItem(i);
-            if (si == null) continue;
-            try
+            if (shelves[sh] == null) continue;
+            var n = shelves[sh].GetShopItemLength();
+            for (var i = 0; i < n; i++)
             {
-                if (s.ItemId == 0) si.ClearContent();
-                else si.UpdateExhibitUniqueData(new BokuMono.Data.ItemData { ItemId = s.ItemId, Stack = s.Stack, QualityValue = s.Quality, FreshnessValue = s.Freshness });
+                var g = sh * 4 + i;
+                var s = g < _shelf.Length ? _shelf[g] : new Slot();
+                var si = shelves[sh].GetShopItem(i);
+                if (si == null) continue;
+                try
+                {
+                    if (s.ItemId == 0 || s.Stack <= 0) si.ClearContent();
+                    else si.UpdateExhibitUniqueData(new BokuMono.Data.ItemData { ItemId = s.ItemId, Stack = s.Stack, QualityValue = s.Quality, FreshnessValue = s.Freshness });
+                }
+                catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarView] balcão {sh} espaço {i}: {e.Message}"); }
+                shown += $"{s.ItemId}x{s.Stack},";
             }
-            catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarView] prateleira {i}: {e.Message}"); }
-            shown += $"{s.ItemId}x{s.Stack},";
         }
         _shelfShown = shown;
     }
@@ -469,18 +512,26 @@ public class BazaarViewSync : MonoBehaviour
     private static void ClearShownShelf(BazaarManager bm)
     {
         if (_shelfShown.Length == 0) return;
-        var idx = int.Parse(_shelfShown.Substring(0, _shelfShown.IndexOf(':')));
+        var wasHelper = _shelfShown == "ajudante";
         _shelfShown = "";
+        _esmApplied = "";
+        if (wasHelper) return; // os balcões do ajudante são limpos pelo BazaarHelpSync
         var shelves = bm?.ShopShelfs;
-        if (shelves == null || idx < 0 || idx >= shelves.Length || shelves[idx] == null) return;
-        for (var i = 0; i < shelves[idx].GetShopItemLength(); i++)
-            try { shelves[idx].GetShopItem(i)?.ClearContent(); } catch { }
+        if (shelves == null) return;
+        foreach (var sh in shelves)
+        {
+            if (sh == null) continue;
+            for (var i = 0; i < sh.GetShopItemLength(); i++)
+                try { sh.GetShopItem(i)?.ClearContent(); } catch { }
+        }
     }
 
     private static void ReleaseAll()
     {
         foreach (var p in Puppets.Values) Release(p);
         Puppets.Clear();
+        foreach (var p in Frozen.Values) Release(p);
+        Frozen.Clear();
         foreach (var a in Hidden)
             if (a != null) try { a.SetActiveGraphic(true); } catch { }
         Hidden.Clear();
@@ -501,6 +552,7 @@ public class BazaarViewSync : MonoBehaviour
         puppets = Puppets.Count,
         hidden = Hidden.Count,
         shelf = _shelfShown,
+        frozen = Frozen.Count,
         sent = Sent,
         received = Received,
     };
