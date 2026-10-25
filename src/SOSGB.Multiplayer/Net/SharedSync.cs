@@ -11,8 +11,9 @@ using UnityEngine;
 namespace SOSGB.Multiplayer.Net;
 
 /// <summary>
-/// Estado compartilhado genérico (5.4, D42): gerenciadores do jogo com ToSaveData/FromSaveData cujo estado é do
-/// MUNDO (moinhos, apicultura, cogumelos, vasos de flor, pets, cavalo...).
+/// Estado compartilhado genérico (5.4, D42; progresso do mundo na D43): gerenciadores do jogo com
+/// ToSaveData/FromSaveData cujo estado é do MUNDO (moinhos, apicultura, cogumelos, vasos de flor, ampliações, pets,
+/// cavalo, prêmios, adega, banho, receitas, missões, peixes, reforços, lojas, troféus, flags de evento).
 ///
 ///  - A cada 1 s, cada parte é comparada (JSON sem os campos de movimento, em qualquer nível) com a última versão
 ///    sincronizada. Mudou → o JSON completo vai ao host, que aplica e repassa.
@@ -56,6 +57,39 @@ public class SharedSync : MonoBehaviour
         Make("expansion", () => ExpansionManager.IsInstance,
             () => StringExtensions.ToJson(ExpansionManager.Instance.ToSaveData()),
             j => ExpansionManager.Instance.FromSaveData(StringExtensions.JsonToObject<ExpansionData>(j))),
+        // Progresso do mundo que o convidado pode mudar durante o dia (sem isto, perderia na virada).
+        Make("awards", () => AwardManager.IsInstance,
+            () => StringExtensions.ToJson(AwardManager.Instance.ToSaveData()),
+            ApplyAwards),
+        Make("basement", () => BasementManager.IsInstance,
+            () => StringExtensions.ToJson(BasementManager.Instance.ToSaveData()),
+            ApplyBasement),
+        Make("bath", () => BathManager.IsInstance,
+            () => StringExtensions.ToJson(BathManager.Instance.ToSaveData()),
+            j => BathManager.Instance.FromSaveData(StringExtensions.JsonToObject<BathData>(j))),
+        Make("cooking", () => CookingManager.IsInstance,
+            () => StringExtensions.ToJson(CookingManager.Instance.ToSaveData()),
+            j => CookingManager.Instance.FromSaveData(StringExtensions.JsonToObject<CookingManager.SaveData>(j))),
+        Make("coromission", () => CoroMissionManager.IsInstance,
+            () => StringExtensions.ToJson(CoroMissionManager.Instance.ToSaveData()),
+            j => CoroMissionManager.Instance.FromSaveData(StringExtensions.JsonToObject<CoroMissionManager.SaveData>(j))),
+        Make("fish", () => FishManager.IsInstance,
+            () => StringExtensions.ToJson(FishManager.Instance.ToSaveData()),
+            j => FishManager.Instance.FromSaveData(StringExtensions.JsonToObject<FishManager.SaveData>(j))),
+        Make("reinforce", () => ReinForceManager.IsInstance,
+            () => StringExtensions.ToJson(ReinForceManager.Instance.ToSaveData()),
+            j => ReinForceManager.Instance.FromSaveData(StringExtensions.JsonToObject<ReinForceData>(j))),
+        Make("shop", () => ShopManager.IsInstance,
+            () => StringExtensions.ToJson(ShopManager.Instance.ToSaveData()),
+            ApplyShop),
+        Make("shopanimal", () => ShopAnimalInfoManager.IsInstance,
+            () => StringExtensions.ToJson(ShopAnimalInfoManager.Instance.ToSaveData()),
+            j => ShopAnimalInfoManager.Instance.FromSaveData(StringExtensions.JsonToObject<ShopAnimalInfoManager.ShopAnimalInfoData>(j))),
+        // NÃO incluir TrophyRackManager: o FromSaveData dele ACUMULA (cada aplicação soma os troféus de novo; testado).
+        // Flags de evento (eventos de história e de coração já vistos): UNIÃO — só acrescenta/atualiza, nunca apaga.
+        Make("eventflags", () => EventFlagManager.IsInstance,
+            () => StringExtensions.ToJson(new EventFlagSaveData(EventFlagManager.Instance.ToSaveData())),
+            UnionEventFlags),
         Make("pets", () => AnimalManager.IsInstance && AnimalManager.Instance.PetAnimalController != null,
             () => StringExtensions.ToJson(AnimalManager.Instance.PetAnimalController.ToSaveData()),
             j => AnimalManager.Instance.PetAnimalController.FromSaveData(StringExtensions.JsonToObject<BokuMono.Animal.PetAnimalController.SaveData>(j))),
@@ -64,10 +98,115 @@ public class SharedSync : MonoBehaviour
             j => AnimalManager.Instance.RideableAnimalController.FromSaveData(StringExtensions.JsonToObject<BokuMono.Animal.RideableAnimalController.SaveData>(j))),
     };
 
+    // ----- Partes que o JsonToObject do jogo não monta (classes sem construtor vazio): montadas à mão -----
+
+    private static System.Text.Json.JsonElement Prop(System.Text.Json.JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) ? v : default;
+
+    private static Il2CppSystem.Collections.Generic.List<uint> UList(System.Text.Json.JsonElement e)
+    {
+        var l = new Il2CppSystem.Collections.Generic.List<uint>();
+        if (e.ValueKind == System.Text.Json.JsonValueKind.Array) foreach (var x in e.EnumerateArray()) l.Add(x.GetUInt32());
+        return l;
+    }
+
+    private static Il2CppSystem.Collections.Generic.List<int> IList(System.Text.Json.JsonElement e)
+    {
+        var l = new Il2CppSystem.Collections.Generic.List<int>();
+        if (e.ValueKind == System.Text.Json.JsonValueKind.Array) foreach (var x in e.EnumerateArray()) l.Add(x.GetInt32());
+        return l;
+    }
+
+    /// <summary>Adega: SaveData só tem construtor com os 4 valores.</summary>
+    private static void ApplyBasement(string json)
+    {
+        using var d = System.Text.Json.JsonDocument.Parse(json);
+        var r = d.RootElement;
+        bool B(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.True;
+        BasementManager.Instance.FromSaveData(new BasementManager.SaveData(B("IsSetSpringSun"), B("IsSetSummerSun"), B("IsSetAutumnSun"), B("IsSetWinterSun")));
+    }
+
+    /// <summary>Prêmios: cada AwardData só se constrói com o dado mestre do prêmio.</summary>
+    private static void ApplyAwards(string json)
+    {
+        using var d = System.Text.Json.JsonDocument.Parse(json);
+        var r = d.RootElement;
+        var sd = AwardManager.Instance.ToSaveData(); // base local (mantém o que não vier)
+        var list = new Il2CppSystem.Collections.Generic.List<AwardData>();
+        var master = MasterDataManager.Instance.AwardMaster;
+        foreach (var a in Prop(r, "AwardDatas").EnumerateArray())
+        {
+            var id = a.GetProperty("AwardId").GetUInt32();
+            if (!master.TryGetData(id, out var m)) continue;
+            var ad = new AwardData(m)
+            {
+                AwardId = id,
+                ProgressNumber = a.GetProperty("ProgressNumber").GetInt32(),
+                IsComplete = a.GetProperty("IsComplete").GetBoolean(),
+                IsReceived = a.GetProperty("IsReceived").GetBoolean(),
+                IsSelected = a.GetProperty("IsSelected").GetBoolean(),
+                saveValue = IList(Prop(a, "saveValue")),
+            };
+            list.Add(ad);
+        }
+        sd.AwardDatas = list;
+        sd.SettingTitleId = Prop(r, "SettingTitleId").ValueKind == System.Text.Json.JsonValueKind.Number ? r.GetProperty("SettingTitleId").GetUInt32() : sd.SettingTitleId;
+        sd.ReservedShowAwardIds = UList(Prop(r, "ReservedShowAwardIds"));
+        sd.AlReadAwardIds = UList(Prop(r, "AlReadAwardIds"));
+        AwardManager.Instance.FromSaveData(sd);
+    }
+
+    /// <summary>
+    /// Loja: o histórico de compras (HistoryData) não se monta do JSON e fica o local; itens limitados (estoque),
+    /// roupas compradas, sorteio e catálogo vêm do recebido.
+    /// </summary>
+    private static void ApplyShop(string json)
+    {
+        using var d = System.Text.Json.JsonDocument.Parse(json);
+        var r = d.RootElement;
+        var sd = ShopManager.Instance.ToSaveData();
+        var inc = StringExtensions.JsonToObject<ShopManager.SaveData>(json);
+        if (inc != null)
+        {
+            if (inc.LimitedItems != null) sd.LimitedItems = inc.LimitedItems;
+            if (inc.BuyClothesData != null) sd.BuyClothesData = inc.BuyClothesData;
+            if (inc.LotteryStatusList != null) sd.LotteryStatusList = inc.LotteryStatusList;
+            sd.lotterySpecialRemain = inc.lotterySpecialRemain;
+            sd.lotterySpecialAlreadyCount = inc.lotterySpecialAlreadyCount;
+            sd.lotteryCountOneDay = inc.lotteryCountOneDay;
+        }
+        var cat = new Il2CppSystem.Collections.Generic.List<ShopManager.CatalogData>();
+        foreach (var c in Prop(r, "CatelogList").EnumerateArray())
+            cat.Add(new ShopManager.CatalogData(c.GetProperty("ItemId").GetUInt32(), c.GetProperty("BuyCount").GetInt32(),
+                c.GetProperty("Quality").GetInt32(), new BokuMonoDateTime(c.GetProperty("BuyDateTimeTick").GetInt64())));
+        sd.CatelogList = cat;
+        ShopManager.Instance.FromSaveData(sd);
+    }
+
+    /// <summary>Acrescenta/atualiza as flags recebidas que diferem das locais (não apaga nenhuma).</summary>
+    private static void UnionEventFlags(string json)
+    {
+        var efm = EventFlagManager.Instance;
+        var local = new Dictionary<uint, (int flag, long time)>();
+        using (var ld = System.Text.Json.JsonDocument.Parse(StringExtensions.ToJson(new EventFlagSaveData(efm.ToSaveData()))))
+            foreach (var e in ld.RootElement.GetProperty("EventFlagData").EnumerateArray())
+                local[e.GetProperty("FlagId").GetUInt32()] = (e.GetProperty("Flag").GetInt32(), e.GetProperty("FlagHistoryTime").GetInt64());
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        foreach (var e in doc.RootElement.GetProperty("EventFlagData").EnumerateArray())
+        {
+            var id = e.GetProperty("FlagId").GetUInt32();
+            var flag = e.GetProperty("Flag").GetInt32();
+            var time = e.GetProperty("FlagHistoryTime").GetInt64();
+            if (local.TryGetValue(id, out var cur) && cur.flag == flag) continue;
+            efm.SetEventFlag(id, flag, time);
+        }
+    }
+
     private static Part Make(string name, Func<bool> available, Func<string> capture, Action<string> apply) =>
         new() { Name = name, Available = available, Capture = capture, Apply = apply };
 
     private static readonly Dictionary<string, string> Baseline = new();
+    private static int _cursor = -1;
     private static bool _subscribed;
     private float _nextTick;
     public static int Sent, Received;
@@ -143,8 +282,11 @@ public class SharedSync : MonoBehaviour
         try
         {
             if (!Ready() || Time.unscaledTime < _nextTick) return;
-            _nextTick = Time.unscaledTime + 1f;
-            foreach (var p in Parts)
+            // Rodízio: uma parte por tick, para espalhar o custo (com ~19 partes, cada uma é conferida a cada ~5 s;
+            // pets e animais mudam pouco, e o progresso do mundo não tem pressa).
+            _nextTick = Time.unscaledTime + 0.25f;
+            _cursor = (_cursor + 1) % Parts.Count;
+            foreach (var p in new[] { Parts[_cursor] })
             {
                 if (p.Disabled || !p.Available()) continue;
                 string json;

@@ -376,6 +376,8 @@ public class DevBridge : MonoBehaviour
                 if (arg == "cap") return Json(new { ok = true, cap = FarmLab.Cap() });
                 if (arg == "apply") return Json(new { ok = true, apply = FarmLab.ApplyCaptured() });
                 if (arg.StartsWith("saved ")) return Json(new { ok = true, saved = FarmLab.Saved(uint.Parse(arg.Substring(6))) });
+                if (arg.StartsWith("live ")) return Json(new { ok = true, live = FarmLab.LiveKind(arg.Substring(5).Trim()) });
+                if (arg == "free") return Json(new { ok = true, free = FarmLab.Free() });
                 if (arg == "residents") return Json(new { ok = true, residents = FarmLab.Residents() });
                 if (arg == "resident") return Json(new { ok = true, resident = FarmLab.ApplyResident() });
                 if (arg == "install") return Json(new { ok = true, install = FarmLab.InstallCaptured() });

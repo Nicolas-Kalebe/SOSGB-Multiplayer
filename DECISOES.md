@@ -447,3 +447,18 @@ Regras deste arquivo:
 - **Verificado:** autoteste (capturar e reaplicar cada parte, numa instância): as 6 voltam iguais. Em rede: a afeição de um pet mudada na convidada chega ao host (282 → 300 nos dois); parados ~50 s com os pets andando pela casa, o host mandou os pets só 2 vezes.
 - **Consequências:** neste save, moinho e cogumelos estão vazios (`{}`): o caminho existe, mas só foi validado com dados reais nos vasos, pets e cavalo. Protocolo 16 (`SharedState` 33).
 - **Casa (5.5), acrescentado depois:** o jogo não tem móveis soltos na casa; ela cresce por **ampliações** (`ExpansionManager`: casa, armazém, cama, mochila, canteiros, apicultura, cogumelos), reservadas no carpinteiro e concluídas nos dias seguintes. Entraram como a parte `expansion` (autoteste: ida e volta igual, 856 caracteres). Achado: o **tamanho da mochila** vem do nível de ampliação `BagLevel`, que é do mundo, ou seja, compartilhado (corrige a observação da D38).
+
+### D43 — Progresso do mundo, flags de evento e natureza compartilhados
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** usuário (natureza e pets) + IA (o resto)
+- **Pedidos do usuário (2026-10-25):** "os bichinhos de mundo também são compartilhados, então se um pegar no chão some pro outro, o mesmo com tudo coletável da natureza, exemplo os minérios"; "as flores também"; "o sistema de amizade dos animais de estimação deve ser por mundo também, ou seja, compartilhado".
+- **Contexto:** o convidado recarrega o mundo do host na virada do dia. Tudo o que ele mudou no mundo e que não for sincronizado durante o dia se perde (ex.: um evento de coração visto voltaria a acontecer).
+- **Decisão:**
+  - **progresso do mundo** entra no `SharedSync` (D42): prêmios, adega, banho, receitas, missões do Coro, peixes, reforços, lojas (estoque limitado, sorteio, catálogo) e animais à venda. As partes são conferidas em **rodízio** (uma a cada 0,25 s), para espalhar o custo;
+  - **flags de evento** (eventos de história e de coração já vistos): **união**, ou seja, só acrescenta ou atualiza, nunca apaga. Quem vê um evento marca para todos;
+  - **natureza:** minérios, pedras, galhos e mato (objetos "gerais"), **flores** silvestres e **bichinhos/animais selvagens** (`FieldAnimalEntityData`: insetos e outros, que vivem no mapa como objeto "Animal") entram na sincronização de mapa (D40). Quem pega tira para todos. Os dados do bichinho não mudam com o movimento (é o ponto de aparição), então não há excesso de mensagens;
+  - **amizade dos pets, do cavalo e das criações é do mundo:** já era assim (D41/D42), confirmado.
+- **Achados:**
+  - o `FromSaveData` dos **troféus acumula** (cada aplicação soma tudo de novo). A parte foi retirada para não duplicar troféus;
+  - adega, prêmios e loja não se montam pelo `JsonToObject` (classes sem construtor vazio): montados à mão. Na loja, o histórico de compras fica o local;
+  - o histórico de itens (`ItemHistoryManager`) tem um `FromSaveData` de 4 partes e ainda não entrou.
+- **Verificado:** autoteste das 17 partes, duas vezes (ida e volta igual e idempotente). Em rede: uma flag de evento marcada na convidada chega ao host; bichinho pego pela convidada nas montanhas some no host (3 → 2); flor colhida idem (18 → 17).

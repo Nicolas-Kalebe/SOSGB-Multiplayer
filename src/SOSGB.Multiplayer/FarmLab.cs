@@ -25,14 +25,16 @@ public static class FarmLab
 
     /// <summary>Dados completos (do tipo certo) de uma entidade, em JSON.</summary>
     // ToData chamado pela classe BASE não copia os campos do tipo (vêm zerados): converter antes (Cast).
-    public static string DataJson(FieldLayerObjectEntity e) => e.FieldObjectType switch
+    // A classe real decide (flores silvestres se declaram "Crop", mas são FieldFlowerEntity).
+    public static string DataJson(FieldLayerObjectEntity e)
     {
-        FieldDynamicObjectType.Ridge => StringExtensions.ToJson(e.Cast<FieldRidgeEntity>().ToData<FieldRidgeEntityData>()),
-        FieldDynamicObjectType.Crop => StringExtensions.ToJson(e.Cast<FieldCropEntity>().ToData<FieldCropEntityData>()),
-        FieldDynamicObjectType.Tree => StringExtensions.ToJson(e.Cast<FieldTreeEntity>().ToData<FieldTreeEntityData>()),
-        FieldDynamicObjectType.General => StringExtensions.ToJson(e.Cast<FieldGeneralEntity>().ToData<FieldGeneralEntityData>()),
-        _ => StringExtensions.ToJson(e.ToData<FieldLayerObjectEntityData>()),
-    };
+        if (e.TryCast<FieldFlowerEntity>() is { } fl) return StringExtensions.ToJson(fl.ToData<FieldFlowerEntityData>());
+        if (e.TryCast<FieldCropEntity>() is { } cr) return StringExtensions.ToJson(cr.ToData<FieldCropEntityData>());
+        if (e.TryCast<FieldRidgeEntity>() is { } ri) return StringExtensions.ToJson(ri.ToData<FieldRidgeEntityData>());
+        if (e.TryCast<FieldTreeEntity>() is { } tr) return StringExtensions.ToJson(tr.ToData<FieldTreeEntityData>());
+        if (e.TryCast<FieldGeneralEntity>() is { } ge) return StringExtensions.ToJson(ge.ToData<FieldGeneralEntityData>());
+        return StringExtensions.ToJson(e.ToData<FieldLayerObjectEntityData>());
+    }
 
     /// <summary>Serializador oficial do mapa: CreateData + DecodeObjectSaveData (listas tipadas completas).</summary>
     public static object Snapshot(string guid)
@@ -163,6 +165,28 @@ public static class FarmLab
         foreach (var e in Net.FieldState.Entries(sd).Values) counts[e.Type.ToString()] = counts.TryGetValue(e.Type.ToString(), out var c) ? c + 1 : 1;
         var a1 = sm.SaveDataArray; var a2 = sm.SaveDataArray;
         return new { field = (uint)sd.FieldId, lastTicks = sd.LastTicks, counts, sameArrayObject = a1.Pointer == a2.Pointer };
+    }
+
+    /// <summary>Objetos "soltos" (não de grade) do mapa atual: itens no chão, insetos etc., por tipo.</summary>
+    public static object Free()
+    {
+        var counts = new Dictionary<string, int>();
+        var samples = new List<string>();
+        foreach (var f in Cache.FreeObjects)
+        {
+            if (f == null) continue;
+            var t = f.FieldObjectType.ToString() + "/" + f.GetIl2CppType().Name;
+            counts[t] = counts.TryGetValue(t, out var c) ? c + 1 : 1;
+            if (samples.Count < 3) samples.Add($"{t} {f.Guid} {f.Position}");
+        }
+        return new { counts, samples };
+    }
+
+    public static object LiveKind(string kind)
+    {
+        var list = new List<string>();
+        foreach (var e in Net.FieldState.CaptureLive().Values) if (e.Type.ToString() == kind) list.Add(e.Json);
+        return list;
     }
 
     public static object Residents()

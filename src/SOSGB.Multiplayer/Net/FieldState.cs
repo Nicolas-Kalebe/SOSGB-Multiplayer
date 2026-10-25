@@ -20,7 +20,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class FieldState
 {
     /// <summary>Tipo de objeto do mod (o enum do jogo não tem nome para grama e flor). A ordem é a de criação.</summary>
-    public enum Kind { Ridge, Tree, General, Crop, Sprinkler, Egg, Grass, Flower }
+    public enum Kind { Ridge, Tree, General, Crop, Sprinkler, Egg, Grass, Flower, Animal }
 
     public sealed class Entry
     {
@@ -78,6 +78,9 @@ public static class FieldState
         Add(od.EggObjectSaveDatas, Kind.Egg);
         Add(od.GrassObjectSaveDatas, Kind.Grass);
         Add(od.FlowerObjectSaveDatas, Kind.Flower);
+        // Bichinhos/insetos e animais selvagens (WildAnimal): pegar um tira o objeto do mapa (pedido do usuário:
+        // "os bichinhos de mundo também são compartilhados").
+        Add(od.AnimalObjectSaveDatas, Kind.Animal);
         return map;
     }
 
@@ -135,6 +138,7 @@ public static class FieldState
             case Kind.Egg: acc.EggManager.CreateEgg(c, StringExtensions.JsonToObject<FieldEggEntityData>(e.Json)); break;
             case Kind.Grass: acc.GrassManager.CreateGrass(c, StringExtensions.JsonToObject<FieldGrassEntityData>(e.Json)); break;
             case Kind.Flower: acc.FlowerManager.CreateFlower(c, StringExtensions.JsonToObject<FieldFlowerEntityData>(e.Json)); break;
+            case Kind.Animal: acc.AnimalManager.CreateLoadedAnimal(c, StringExtensions.JsonToObject<FieldAnimalEntityData>(e.Json)); break;
         }
     }
 
