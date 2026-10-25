@@ -21,6 +21,7 @@ Patches **Harmony** (HarmonyX) que alteram métodos do jogo. Todos são aplicado
 |---|---|---|---|---|
 | `AppManagerPatch.cs` | `BokuMono.AppManager.OnFocusChanged(bool)` | Ignora a perda de foco, que zeraria o `Time.timeScale` e pararia a música | [D21](../../../DECISOES.md) | `[Game] KeepRunningWhenUnfocused` (padrão `true`) |
 | `MarriageDiagnosticsPatch.cs` | `LikeabilityManager.IsPartner/PartnerCharaId/IsMarried` e afins | **Só diagnóstico** (comando `marrydiag on`): registra quem consulta o casamento (D45) | 6.5 | Só no modo de teste |
+| `PauseMenuPatch.cs` | `UIPausePage.OnDecide` | No multiplayer, "Salvar" (1130) e "Carregar" (1140) mostram aviso em vez de abrir | D48 | Sempre (só age conectado) |
 | `InputInjector.cs` | `PlayerCharacter.GetHumanActionInput` | **Só testes** (postfix): injeta a intenção "usar ferramenta" (Tool/ToolUp), porque o clique sintético do mouse não chega ao sistema de entrada do jogo. Comando `tool` da ponte | Fase 5 | Só no modo de teste |
 | `ClockDiagnosticsPatch.cs` | `DateManager.Pause/Resume`, `GameController.Pause/Resume/PauseTalk/ResumeTalk` | **Só diagnóstico** (postfix): registra chamadas com stack trace | Tarefa 1.1 | Ativo só com `[DevBridge] Enabled` |
 | `../WorldSnapshot.cs` (classes aninhadas) | `SaveDataAccessorWindows.SlotSave/SlotSystemSave/SlotLoad` | Só quando armado: desvia o save para a memória / injeta o snapshot no load | Tarefa 1.5 (base da Fase 3) | — |

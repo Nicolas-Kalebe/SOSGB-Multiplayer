@@ -496,3 +496,9 @@ Regras deste arquivo:
   - **"Os dois juntos":** dá, com uma diferença do jogo sozinho: cada um abre a barraca no próprio jogo e vende para os próprios clientes simulados. O deck compartilhado com trava (D46) impede vender o mesmo item duas vezes, e o dinheiro já é compartilhado (D36). O grupo terá mais clientes que no jogo sozinho.
   - **A opção:** não precisa de menu. Quem vai à barraca vende; quem não vai fica livre. Se quiserem vender juntos, os dois vão à barraca. Dá para acrescentar um aviso "Fulano abriu a barraca do Bazaar" no sistema de avisos.
 - **Próximo passo:** testar num sábado do jogo, com os amigos ou com duas instâncias jogando de verdade (P10).
+
+### D48 — "Salvar" e "Carregar" do menu de pausa no multiplayer
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (ROTEIRO 8.4c)
+- **Contexto:** no multiplayer, "Salvar" mostrava "Não foi possível acessar os dados" (o save fica bloqueado, D23), e "Carregar" trocaria o mundo no meio da sessão.
+- **Decisão:** patch em `UIPausePage.OnDecide`. Conectado, "Salvar" (texto 1130) mostra "No multiplayer o jogo salva sozinho quando todos dormem." e "Carregar" (texto 1140) mostra "Para carregar outro save, saia do multiplayer primeiro (F9 → Desconectar)." Nenhuma das duas telas abre. Jogando sozinho, nada muda.
+- **Verificado:** hospedando, as duas opções mostram o aviso; o menu continua funcionando, fecha com Esc e o personagem anda depois.
