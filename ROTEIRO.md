@@ -132,7 +132,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | # | Tarefa | Tam. |
 |---|---|---|
 | 8.1 ✅ (IMGUI, D27) | Menu no jogo para **Hospedar / Entrar** (talvez reaproveitando a UI de rede que sobrou: `NetworkMenuCategory`) | G |
-| 8.2 🟡 | Nomes dos jogadores, indicadores na tela, lista de quem está online (✅ lista com localização e ping; falta nome sobre o avatar) | M |
+| 8.2 🟡 | Nomes dos jogadores, indicadores na tela, lista de quem está online (✅ lista com localização e ping; ✅ nome acima do avatar) | M |
 | 8.3 | Reativar para convidados: eventos de casado, cerimônia, filhos, ajuda na fazenda (D12a) | GG |
 | 8.4c | Esconder/desabilitar a opção "Salvar" no multiplayer (hoje o jogo mostra "Não foi possível acessar os dados") | P |
 | 8.4b | "Salvar agora" do host com barreira (pausa todos, espera estado limpo) — opcional (D23) | M |

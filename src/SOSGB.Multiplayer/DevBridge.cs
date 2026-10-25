@@ -265,6 +265,10 @@ public class DevBridge : MonoBehaviour
                 }
                 return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status() });
 
+            case "avatarinfo":
+                // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)
+                return Json(new { ok = true, info = AvatarInfoDump() });
+
             case "fieldname":
                 // fieldname <id> — nome traduzido de um mapa (lista de jogadores)
                 return Json(new { ok = true, name = Net.Locations.Name(uint.Parse(arg)) });
@@ -444,6 +448,28 @@ public class DevBridge : MonoBehaviour
         }
         return Json(new { ok = true, size = bytes.Length, results });
     }
+
+    private static object AvatarInfoDump()
+    {
+        var ui = ExternalData.Instance.UserInfo;
+        var infos = new List<object>();
+        foreach (var ai in ui.AvatarInfos)
+            infos.Add(new { ai.MasterId, cat = ai.Category.ToString(), ai.MeshName, color = SafeInt(() => ai.ColorIndex), hair = SafeStr(() => ai.HairId) });
+        var model = GameController.Instance.GetPlayer().Model;
+        var nodes = new List<string>();
+        void Walk(Transform t, int depth)
+        {
+            if (depth > 2) return;
+            var r = t.GetComponent<Renderer>();
+            nodes.Add(new string(' ', depth * 2) + t.name + (r != null ? $" [{r.GetIl2CppType().Name}{(r.enabled && t.gameObject.activeInHierarchy ? "" : " OFF")}]" : "") + (t.gameObject.activeSelf ? "" : " (inativo)"));
+            for (var i = 0; i < t.childCount; i++) Walk(t.GetChild(i), depth + 1);
+        }
+        Walk(model.transform, 0);
+        return new { gender = ui.PlayerGender.ToString(), infos, nodes };
+    }
+
+    private static int SafeInt(Func<int> f) { try { return f(); } catch { return -1; } }
+    private static string SafeStr(Func<string> f) { try { return f(); } catch { return null; } }
 
     // ---------- util ----------
 

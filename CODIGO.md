@@ -188,6 +188,13 @@ Armadilhas das flags de evento:
 - O player usa um **AnimatorOverrideController** carregado depois do modelo, que troca os clips `dummy_fix_mot_*` pelos reais (`fix_mot_Mn_*`; `Mn` = masculino). Um clone com o controller base anima com os dummies e fica numa pose torta.
 - Ao recarregar o mundo (convidado recebendo `WorldData`), o player é recriado e os modelos/materiais antigos são liberados. Um clone feito antes **para de ser desenhado** (o objeto continua existindo).
 
+### Aparência do personagem (investigação, ainda não implementada)
+- `UserInfo.AvatarInfos` é uma lista compacta (~18 itens) de `AvatarInfo { MasterId, Category }`: `Face`, `SkinColor`, `EyeColor`, `HairStyle`, `HairColor`, `Beard`, `BeardColor`, `Mole`, `Freckles`, `MotionType`, `VoiceType`, `Hat`, `Accessories`, `Clothes`, `HorseRidingHat/Clothes`, `BagDesign`, `Glider`. `UserInfo.PlayerGender` (0 = masculino).
+- O modelo é montado a partir de peças (prefabs `avt_M_c_720` = roupa 720 masculina, `avt_P_h_012` = cabelo 012) sobre o esqueleto `Chr_root`, com MagicaCloth para saias e cabelos.
+- **Quem monta é o `AvatarMakeManager`** (`SetAvatarParts(info)`, `SetClothesParts`, `CreateAvatar(AvatarInfo[])`, `CreatePlayerModel`...). Ele atua sobre um **único** modelo (`meshRoot`/`makeModel`/`baseModel`) e tem caches de recursos (`AvatarResourceManager`). Montar um segundo personagem por ele pode descarregar as peças do jogador local.
+- NPCs "genéricos" (`NpcData.NpcType.Mob/NpcTourist`) recebem `List<AvatarInfo>`: possível caminho alternativo, ainda não investigado.
+- **Hoje** o avatar remoto é um clone do modelo do jogador **local** (todos aparecem com a cara de quem está olhando). Paliativo: o nome aparece acima de cada avatar.
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

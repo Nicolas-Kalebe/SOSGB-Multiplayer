@@ -353,6 +353,28 @@ public class PlayerSync : MonoBehaviour
         };
     }
 
+    /// <summary>
+    /// Posição na tela (pixels, origem no canto superior esquerdo, como no IMGUI) da cabeça de cada avatar
+    /// visível, para desenhar o nome acima (MultiplayerUI). Enquanto a aparência própria de cada jogador
+    /// não existe (todos usam o modelo do jogador local), o nome é o que diferencia quem é quem.
+    /// </summary>
+    public static List<(byte id, Vector2 screen)> VisibleHeads()
+    {
+        var list = new List<(byte, Vector2)>();
+        var cam = Camera.main;
+        if (cam == null) return list;
+        foreach (var kv in Remotes)
+        {
+            var a = kv.Value.Avatar;
+            if (a == null || !a.activeSelf) continue;
+            var head = a.transform.position + Vector3.up * 1.75f;
+            var sp = cam.WorldToScreenPoint(head);
+            if (sp.z <= 0) continue; // atrás da câmera
+            list.Add((kv.Key, new Vector2(sp.x, Screen.height - sp.y)));
+        }
+        return list;
+    }
+
     /// <summary>Mapa atual de um jogador remoto (0 = desconhecido). Usado pela lista de jogadores.</summary>
     public static uint RemoteField(byte id) => Remotes.TryGetValue(id, out var rm) && rm.HasState ? rm.Field : 0;
 
