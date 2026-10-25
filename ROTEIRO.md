@@ -124,7 +124,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
 | 7.1 🟡 | **Bazaar** em grupo: barraca, vendas e caixa compartilhados (`BazaarManager`). Feito: deck e peças compartilhados, progresso no SharedSync (D46). Falta: a sessão de venda (D47, ideia do usuário) | GG | Teste do usuário |
-| 7.2 | **Festivais**: todos entram juntos, início por confirmação | G | Teste do usuário |
+| 7.2 🟡 | **Festivais**: todos entram juntos, início por confirmação. Feito: resultados e participação compartilhados (`FestivalExecutor` no SharedSync, D43). Falta testar um festival em grupo | G | Teste do usuário |
 | 7.3 | D9 com **N = todos** (tempo corre em menus) + casos especiais (loja fechando, diálogo na virada do dia) | G | Teste da IA + usuário |
 
 **✔ Pronto quando:** uma estação completa (Bazaars e festivais) é jogada em grupo.

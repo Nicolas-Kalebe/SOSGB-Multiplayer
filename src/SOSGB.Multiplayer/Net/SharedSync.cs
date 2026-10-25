@@ -97,6 +97,13 @@ public class SharedSync : MonoBehaviour
             () => StringExtensions.ToJson(BazaarManager.Instance.ToSaveData()),
             j => BazaarManager.Instance.FromSaveData(StringExtensions.JsonToObject<BazaarManager.CustomData>(j), BazaarManager.Instance.DevelopLevel)),
         // NÃO incluir TrophyRackManager: o FromSaveData dele ACUMULA (cada aplicação soma os troféus de novo; testado).
+        // Festivais (resultados, participação) e informações gerais do mundo (7.2).
+        Make("festival", () => FestivalExecutor.IsInstance,
+            () => StringExtensions.ToJson(FestivalExecutor.Instance.ToSaveData()),
+            j => FestivalExecutor.Instance.FromSaveData(StringExtensions.JsonToObject<FestivalExecutor.SaveData>(j))),
+        Make("generalinfo", () => GeneralInfoManager.IsInstance,
+            () => StringExtensions.ToJson(GeneralInfoManager.Instance.ToSaveData()),
+            j => GeneralInfoManager.Instance.FromSaveData(StringExtensions.JsonToObject<GeneralInfoManager.SaveData>(j))),
         // Histórico de itens / enciclopédia (itens já obtidos, maior qualidade, maior peixe): UNIÃO via AddHistory.
         Make("itemhistory", () => ItemHistoryManager.IsInstance,
             () => StringExtensions.ToJson(ItemHistoryManager.Instance.ToSaveData()),
