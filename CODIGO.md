@@ -78,6 +78,8 @@
 - **Dados de um objeto:** `entidade.ToData<T>()` chamado pela classe base devolve os campos do tipo ZERADOS. Use `entidade.Cast<FieldCropEntity>().ToData<FieldCropEntityData>()` ou o serializador oficial: `FieldSaveManager.CreateData(id, cache)` + `FieldSaveManager.DecodeObjectSaveData(sd)` (listas tipadas: Crop, Ridge, Tree, General, Grass, Flower, InRidge = sprinkler, Item, Egg, Animal). ~1,4 ms + 1 ms para ~140 objetos.
 - **Criar/remover ao vivo (validado na tela):** remover = `entidade.Unregister()`. Criar = a função de carga de cada tipo: `AttributeManager.CreateRidge(cache, dados, null)`, `CropManager.CreateCrop(cache, dados, canteiroPai, árvorePai)`, `TreeManager.CreateTree(cache, dados, canteiroPai, null)`, `GeneralManager.CreateLayerObject(cache, dados)`, `GrassManager.CreateGrass`, `FlowerManager.CreateFlower`, `SprinklerManager.CreateObject`, `EggManager.CreateEgg` (gerenciadores em `FieldManager.Instance.ManagerAccessor`).
 - O enum `FieldDynamicObjectType` do dump não tem nomes para grama e flor.
+- ⚠️ `FieldSaveManager.SaveDataArray` devolve uma **cópia nova** a cada chamada. Para trocar o save de um mapa: pegue o array, troque o elemento e grave com `FieldSaveManager.CopyData(array)`. Ao sair de um mapa, o jogo grava o estado dele ali (`GetData(raiz)` já devolve o novo).
+- Ovos (`Egg`) do celeiro são recriados a partir do estado das galinhas ao entrar; plantas silvestres das montanhas aparecem como `Crop` no mapa carregado e como `Flower` no save.
 
 ## 7. Correio
 

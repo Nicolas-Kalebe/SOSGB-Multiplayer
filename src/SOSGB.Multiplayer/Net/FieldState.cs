@@ -143,12 +143,16 @@ public static class FieldState
     {
         // O save de mapas guarda pelo ID RAIZ (ex.: 1); o mapa carregado tem o ID sazonal (ex.: 2 = mapa 1 no verão).
         var root = Root((uint)sd.FieldId);
-        var arr = FieldManager.Instance.SaveManager.SaveDataArray;
+        var sm = FieldManager.Instance.SaveManager;
+        // SaveDataArray devolve uma CÓPIA a cada chamada: alterar o elemento não muda nada. Gravamos o array
+        // inteiro de volta com CopyData (verificado: GetData passa a devolver o mapa instalado).
+        var arr = sm.SaveDataArray;
         for (var i = 0; i < arr.Length; i++)
         {
             if (arr[i] == null || (uint)arr[i].FieldId != root) continue;
             sd.FieldId = (FieldMasterId)root;
             arr[i] = sd;
+            sm.CopyData(arr);
             return true;
         }
         return false;

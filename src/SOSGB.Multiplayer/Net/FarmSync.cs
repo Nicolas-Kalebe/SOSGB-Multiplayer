@@ -25,6 +25,11 @@ namespace SOSGB.Multiplayer.Net;
 ///    serem engolidas pela nova base).
 ///  - Na virada do dia todos recarregam o mundo do host (que processou o dia no cache dele, já com tudo).
 /// Conflito (dois mexendo no mesmo objeto no mesmo meio segundo): vale a última operação que o host processou.
+///
+/// Mapas NÃO residentes (celeiro com ovos etc.): as operações valem entre quem está no mesmo mapa; quem não está
+/// com ele carregado ignora. Ao SAIR de um mapa não residente em que algo mudou, o jogador manda o mapa inteiro
+/// (FieldSnapshot, o FieldSaveData que o jogo acabou de gravar) e os outros instalam no save de mapas deles —
+/// inclusive o host, que processa o dia com ele (sem isso, um ovo pego pelo convidado voltaria no dia seguinte).
 /// </summary>
 public class FarmSync : MonoBehaviour
 {
@@ -33,6 +38,8 @@ public class FarmSync : MonoBehaviour
     private const byte OpUpsert = 1, OpRemove = 2;
 
     private static uint _baselineField;
+    private static uint _lastRoot;          // mapa (raiz) em que o jogador estava no último tick
+    private static bool _dirtyNonResident;  // mudou algo no mapa não residente atual
     private static Dictionary<string, FieldState.Entry> _baseline;
     private static bool _subscribed;
     private float _nextTick;
@@ -43,7 +50,7 @@ public class FarmSync : MonoBehaviour
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
-        WorldSync.OnWorldReceived += () => _baseline = null;
+        WorldSync.OnWorldReceived += () => { _baseline = null; _dirtyNonResident = false; _lastRoot = 0; };
         NetSession.OnHosting += () => _baseline = null;
         NetSession.OnJoined += () => _baseline = null;
     }
@@ -80,11 +87,17 @@ public class FarmSync : MonoBehaviour
         catch (Exception e) { Plugin.Logger.LogWarning($"[FarmSync] {e.Message}"); }
     }
 
-    /// <summary>Compara o mapa atual (se residente) com a base e manda as diferenças.</summary>
+    /// <summary>Compara o mapa atual com a base e manda as diferenças.</summary>
     private static void Flush()
     {
         var root = FieldState.Root(FieldState.CurrentField);
-        if (!IsResident(root)) { _baseline = null; return; }
+        if (root != _lastRoot)
+        {
+            // Trocou de mapa: se saiu de um não residente em que mexeu, manda o mapa inteiro (já gravado pelo jogo).
+            if (_lastRoot != 0 && _dirtyNonResident && !IsResident(_lastRoot)) SendSnapshot(_lastRoot);
+            _dirtyNonResident = false;
+            _lastRoot = root;
+        }
         var cur = FieldState.CaptureLive();
         if (_baseline == null || _baselineField != root) { _baseline = cur; _baselineField = root; return; }
         var ops = new List<(byte op, FieldState.Entry e, string guid)>();
@@ -94,6 +107,7 @@ public class FarmSync : MonoBehaviour
             if (!cur.ContainsKey(kv.Key)) ops.Add((OpRemove, kv.Value, kv.Key));
         _baseline = cur;
         if (ops.Count == 0) return;
+        if (!IsResident(root)) _dirtyNonResident = true;
         var packed = Pack(root, ops);
         if (NetSession.Current == NetSession.Mode.Host) SendToClients(packed, except: NetSession.LocalId);
         else NetSession.SendGame(MsgType.FieldOps, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
@@ -109,8 +123,50 @@ public class FarmSync : MonoBehaviour
                 NetSession.SendTo(id, MsgType.FieldOps, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
     }
 
+    private static void SendSnapshot(uint root)
+    {
+        var sd = FieldManager.Instance.SaveManager.GetData(root);
+        if (sd == null) return;
+        var packed = LetterSync.Pack(FieldState.ToJson(sd));
+        if (NetSession.Current == NetSession.Mode.Host) SendSnapshotToClients(packed, except: NetSession.LocalId);
+        else NetSession.SendGame(MsgType.FieldSnapshot, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+        Plugin.Logger.LogInfo($"[FarmSync] saí do mapa {root}: mapa inteiro enviado ({packed.Length} bytes)");
+        DevBridge.PushEvent($"fazenda:mapa-enviado:{root}");
+    }
+
+    private static void SendSnapshotToClients(byte[] packed, byte except)
+    {
+        foreach (var id in NetSession.Players.Keys)
+            if (id != NetSession.LocalId && id != except)
+                NetSession.SendTo(id, MsgType.FieldSnapshot, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+    }
+
+    private static void OnSnapshot(byte from, byte[] packed)
+    {
+        if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
+        if (!Ready()) return;
+        var sd = FieldState.FromJson(LetterSync.Unpack(packed));
+        var root = FieldState.Root((uint)sd.FieldId);
+        if (NetSession.Current == NetSession.Mode.Host) SendSnapshotToClients(packed, except: from);
+        if (FieldState.Root(FieldState.CurrentField) == root)
+        {
+            // Estou nesse mapa: as operações ao vivo já me deixaram igual.
+            Plugin.Logger.LogInfo($"[FarmSync] mapa {root} recebido, mas estou nele (ao vivo); ignorado");
+            return;
+        }
+        var ok = FieldState.Install(sd);
+        Plugin.Logger.LogInfo($"[FarmSync] mapa {root} de #{from} {(ok ? "instalado no save de mapas" : "NÃO instalado (mapa desconhecido)")}");
+        DevBridge.PushEvent($"fazenda:mapa-instalado:{root}:{ok}");
+    }
+
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
+        if (type == MsgType.FieldSnapshot)
+        {
+            try { OnSnapshot(from, r.GetBytesWithLength()); }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[FarmSync] mapa recebido: {e.Message}"); }
+            return;
+        }
         if (type != MsgType.FieldOps) return;
         var packed = r.GetBytesWithLength();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
@@ -131,7 +187,7 @@ public class FarmSync : MonoBehaviour
         var isCurrent = FieldState.Root(FieldState.CurrentField) == root;
         if (isCurrent) Flush(); // mudanças locais pendentes saem antes
         var cache = FieldState.CacheFor(root);
-        if (cache == null) { Plugin.Logger.LogWarning($"[FarmSync] mapa {root} não carregado; {ops.Count} mudança(s) ignorada(s)"); return; }
+        if (cache == null) { Plugin.Logger.LogInfo($"[FarmSync] mapa {root} não carregado aqui; {ops.Count} mudança(s) ficam para o mapa inteiro (ao sair)"); return; }
 
         // Remover (inclusive os que serão recriados): filhos antes dos pais.
         foreach (var o in ops.OrderByDescending(o => (int)o.e.Type))

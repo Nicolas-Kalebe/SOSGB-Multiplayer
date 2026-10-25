@@ -89,8 +89,34 @@ def health(port):
         return ("sem-ponte" if alive(pid) else "morto"), None
 
 
+FG_SCRIPT = r"""
+Add-Type @'
+using System; using System.Text; using System.Runtime.InteropServices;
+public class SosgbFg { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra); }
+'@
+$p = 0; [SosgbFg]::GetWindowThreadProcessId([SosgbFg]::GetForegroundWindow(), [ref]$p) | Out-Null
+$name = (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName
+if ($name -in @('SearchHost', 'StartMenuExperienceHost', 'ShellExperienceHost', 'SearchApp')) {
+  [SosgbFg]::keybd_event(0x1B, 0, 0, [UIntPtr]::Zero); [SosgbFg]::keybd_event(0x1B, 0, 2, [UIntPtr]::Zero)
+  Write-Output "fechado: $name"
+}
+"""
+
+
+def free_foreground():
+    """Pesquisa/menu Iniciar do Windows em primeiro plano seguram o foco e impedem o jogo de sair da tela
+    inicial (o StartupGuard não consegue trazer a janela). Fecha com Esc."""
+    out = subprocess.run(["powershell", "-NoProfile", "-Command", FG_SCRIPT], capture_output=True, text=True).stdout.strip()
+    if out:
+        print(f"[instance] {out}", flush=True)
+        time.sleep(1)
+
+
 def launch(port, slot, net, extra_env, tries, ping_timeout, launcher_timeout, game_timeout):
     for attempt in range(1, tries + 1):
+        free_foreground()
         old = saved_pid(port)
         if old and alive(old):
             kill(old)
@@ -138,6 +164,8 @@ def launch(port, slot, net, extra_env, tries, ping_timeout, launcher_timeout, ga
                 break
             if not alive(proc.pid):
                 break
+            if sc == "Launcher" and int(time.time() - t1) % 20 == 0:
+                free_foreground()
             if sc == "Launcher" and time.time() - t1 > launcher_timeout:
                 print(f"[instance {port}] presa na tela inicial (Launcher) por {launcher_timeout:.0f}s; reabrindo", flush=True)
                 break

@@ -310,6 +310,7 @@ public class DevBridge : MonoBehaviour
                 // farm | farm dump <tipo> [n] — objetos do mapa atual por tipo / dados de alguns (investigação da Fase 5)
                 if (arg == "cap") return Json(new { ok = true, cap = FarmLab.Cap() });
                 if (arg == "apply") return Json(new { ok = true, apply = FarmLab.ApplyCaptured() });
+                if (arg.StartsWith("saved ")) return Json(new { ok = true, saved = FarmLab.Saved(uint.Parse(arg.Substring(6))) });
                 if (arg == "residents") return Json(new { ok = true, residents = FarmLab.Residents() });
                 if (arg == "resident") return Json(new { ok = true, resident = FarmLab.ApplyResident() });
                 if (arg == "install") return Json(new { ok = true, install = FarmLab.InstallCaptured() });

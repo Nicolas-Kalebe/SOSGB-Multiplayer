@@ -153,6 +153,18 @@ public static class FarmLab
         };
     }
 
+    /// <summary>Quantos objetos o save de mapas tem para um mapa (raiz), por tipo; e se o array é o mesmo objeto.</summary>
+    public static object Saved(uint root)
+    {
+        var sm = FieldManager.Instance.SaveManager;
+        var sd = sm.GetData(root);
+        if (sd == null) return "sem dados";
+        var counts = new Dictionary<string, int>();
+        foreach (var e in Net.FieldState.Entries(sd).Values) counts[e.Type.ToString()] = counts.TryGetValue(e.Type.ToString(), out var c) ? c + 1 : 1;
+        var a1 = sm.SaveDataArray; var a2 = sm.SaveDataArray;
+        return new { field = (uint)sd.FieldId, lastTicks = sd.LastTicks, counts, sameArrayObject = a1.Pointer == a2.Pointer };
+    }
+
     public static object Residents()
     {
         var list = new List<string>();

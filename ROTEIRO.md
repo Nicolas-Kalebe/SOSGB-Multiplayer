@@ -93,7 +93,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
 | 5.1 ✅ | Interações com o mapa (arar, plantar, regar, colher...) sincronizadas por **diferença de estado** (D40) em vez de ação por ação | G | Teste da IA: duas instâncias, arar e colher de verdade |
-| 5.2 🟡 | Plantações, solo, árvores e sprinklers (`FieldCrop/Ridge/Tree/SprinklerManager`): feito para os mapas residentes (fazenda externa); falta conferir os outros mapas | G | Teste da IA + screenshot |
+| 5.2 ✅ | Plantações, solo, árvores, pedras/galhos e sprinklers em todos os mapas: ao vivo entre quem está no mesmo mapa; mapa inteiro ao sair de um não residente (D40) | G | Teste da IA: duas instâncias (fazenda e montanhas) |
 | 5.3 | **Animais e celeiro** (`AnimalManager`) | G | Teste do usuário |
 | 5.4 | **Moinhos**, apicultura e cogumelos | M | Teste da IA |
 | 5.5 | Casa única compartilhada (D11): móveis e expansões | M | Teste do usuário |
