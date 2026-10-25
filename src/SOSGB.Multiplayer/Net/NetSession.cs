@@ -72,22 +72,68 @@ public static class NetSession
         _net = null;
         _server = null;
         Players.Clear();
+        Delayed.Clear();
         Current = Mode.Offline;
     }
 
-    public static void Poll() => _net?.PollEvents();
+    public static void Poll()
+    {
+        _net?.PollEvents();
+        ProcessDelayed();
+    }
 
     private static void Setup()
     {
         LastError = null;
         _listener = new EventBasedNetListener();
         _net = new NetManager(_listener) { AutoRecycle = true, DisconnectTimeout = 10000 };
+        ApplyNetworkSimulation();
         _listener.ConnectionRequestEvent += OnConnectionRequest;
         _listener.PeerConnectedEvent += OnPeerConnected;
         _listener.PeerDisconnectedEvent += OnPeerDisconnected;
         _listener.NetworkReceiveEvent += OnReceive;
         _listener.NetworkErrorEvent += (ep, err) => { LastError = $"{ep}: {err}"; Plugin.Logger.LogWarning($"[Net] erro {LastError}"); };
     }
+
+    /// <summary>
+    /// Simulação de rede ruim (atraso e perda) para testar no mesmo PC como se fossem dois PCs
+    /// pela internet/LAN virtual. Variáveis de ambiente (por instância):
+    /// SOSGB_NET_LAG_MIN / SOSGB_NET_LAG_MAX (ms) e SOSGB_NET_LOSS (% de perda).
+    /// O simulador embutido do LiteNetLib NÃO funciona no pacote do NuGet (só em build de debug),
+    /// por isso fazemos aqui: os pacotes recebidos esperam numa fila; pacotes não confiáveis
+    /// (Unreliable/Sequenced) podem ser descartados; os confiáveis só atrasam, mantendo a ordem.
+    /// </summary>
+    private static void ApplyNetworkSimulation()
+    {
+        int Env(string n) => int.TryParse(Environment.GetEnvironmentVariable(n), out var v) ? v : 0;
+        _lagMin = Env("SOSGB_NET_LAG_MIN");
+        _lagMax = Math.Max(_lagMin, Env("SOSGB_NET_LAG_MAX"));
+        _loss = Env("SOSGB_NET_LOSS");
+        var on = _lagMax > 0 || _loss > 0;
+        if (on) Plugin.Logger.LogWarning($"[Net] SIMULAÇÃO de rede: atraso {_lagMin}-{_lagMax} ms, perda {_loss}%");
+        Simulation = on ? $"{_lagMin}-{_lagMax}ms/{_loss}%" : null;
+    }
+
+    private static int _lagMin, _lagMax, _loss;
+    private static readonly System.Random Rng = new();
+    private static readonly List<(double at, NetPeer peer, byte[] data, DeliveryMethod method)> Delayed = new();
+    private static double _lastReliableAt;
+    private static double Now => System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency * 1000.0;
+
+    private static void ProcessDelayed()
+    {
+        if (Delayed.Count == 0) return;
+        var now = Now;
+        for (var i = 0; i < Delayed.Count;)
+        {
+            var d = Delayed[i];
+            if (d.at > now) { i++; continue; }
+            Delayed.RemoveAt(i);
+            Process(d.peer, new NetDataReader(d.data), d.method);
+        }
+    }
+
+    public static string Simulation { get; private set; }
 
     // ---------- eventos ----------
 
@@ -139,6 +185,17 @@ public static class NetSession
 
     private static void OnReceive(NetPeer peer, NetPacketReader reader, byte channel, DeliveryMethod method)
     {
+        if (Simulation == null) { Process(peer, reader, method); return; }
+
+        var reliable = method == DeliveryMethod.ReliableOrdered || method == DeliveryMethod.ReliableUnordered || method == DeliveryMethod.ReliableSequenced;
+        if (!reliable && Rng.Next(100) < _loss) return; // perdido
+        var at = Now + Rng.Next(_lagMin, _lagMax + 1);
+        if (reliable) { at = Math.Max(at, _lastReliableAt); _lastReliableAt = at; } // mantém a ordem
+        Delayed.Add((at, peer, reader.GetRemainingBytes(), method));
+    }
+
+    private static void Process(NetPeer peer, NetDataReader reader, DeliveryMethod method)
+    {
         var type = (MsgType)reader.GetByte();
         switch (type)
         {
@@ -176,7 +233,7 @@ public static class NetSession
         }
     }
 
-    private static void HandleHello(NetPeer peer, NetPacketReader reader)
+    private static void HandleHello(NetPeer peer, NetDataReader reader)
     {
         var proto = reader.GetInt();
         var modVersion = reader.GetString();
@@ -216,7 +273,7 @@ public static class NetSession
     }
 
     /// <summary>Mensagens de jogo: o host entrega localmente e retransmite aos outros convidados.</summary>
-    private static void RouteGameMessage(NetPeer from, MsgType type, NetPacketReader reader, DeliveryMethod method)
+    private static void RouteGameMessage(NetPeer from, MsgType type, NetDataReader reader, DeliveryMethod method)
     {
         if (Current == Mode.Host)
         {
@@ -261,6 +318,8 @@ public static class NetSession
         localId = LocalId,
         players = Players.Values.Select(p => new { p.Id, p.Name, ping = p.Peer?.Ping }).ToArray(),
         serverPing = _server?.Ping,
+        simulatedExtraMs = Simulation == null ? 0 : (_lagMin + _lagMax) / 2,
         lastError = LastError,
+        simulation = Simulation,
     };
 }

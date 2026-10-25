@@ -32,7 +32,7 @@ public class NetRunner : MonoBehaviour
 
         _autoStartDone = true;
         if (mode == "host") NetSession.Host(Plugin.NetPort.Value);
-        else if (mode == "join") NetSession.Join(Plugin.NetJoinAddress.Value, Plugin.NetPort.Value);
+        else if (mode == "join") NetSession.Join(Environment.GetEnvironmentVariable("SOSGB_JOIN_ADDRESS") ?? Plugin.NetJoinAddress.Value, Plugin.NetPort.Value);
         Plugin.Logger.LogInfo($"[Net] AutoStart = {mode}");
     }
 

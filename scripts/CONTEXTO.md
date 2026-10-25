@@ -27,6 +27,8 @@ AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principa
 Variáveis de ambiente que sobrescrevem o `.cfg` por instância:
 - `SOSGB_BRIDGE_PORT`: porta da ponte. Use `python scripts/bridge.py --port 47801 state`.
 - `SOSGB_AUTOLOAD_SLOT`: slot carregado automaticamente.
+- `SOSGB_NET_LAG_MIN` / `SOSGB_NET_LAG_MAX` (ms) e `SOSGB_NET_LOSS` (%): **simulam rede ruim** (atraso e perda) para testar "como dois PCs". Exporte antes de `dev-cycle.sh` / `second-instance.sh` para valer nas duas instâncias.
+- `SOSGB_JOIN_ADDRESS`: IP para o `join` (ex.: o IP da LAN `192.168.x.x` em vez de `127.0.0.1`).
 - `SOSGB_NET_AUTOSTART`: `off` | `host` | `join`. Ex.: `NET=host scripts/dev-cycle.sh` e `scripts/second-instance.sh 47801 2 join`
 
 O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recente. O `dev-cycle.sh` fecha **todas** as instâncias.
