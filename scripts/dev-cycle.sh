@@ -5,6 +5,7 @@
 #
 # Uso: scripts/dev-cycle.sh [--no-build]
 #      GAME_PATH="X:/jogo" scripts/dev-cycle.sh
+#      NET=host scripts/dev-cycle.sh   (já abre hospedando; ver tarefa 2.6)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -30,7 +31,7 @@ if [[ "${1:-}" != "--no-build" ]]; then
 fi
 
 # 3. Abre o jogo e espera a ponte
-(cd "$GAME_PATH" && ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
+(cd "$GAME_PATH" && SOSGB_NET_AUTOSTART="${NET:-off}" ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
 $BRIDGE --wait 120 ping >/dev/null
 echo "[dev-cycle] ponte respondendo"
 

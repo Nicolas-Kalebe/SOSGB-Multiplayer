@@ -20,6 +20,8 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<string> PlayerName;
     internal static ConfigEntry<int> NetPort;
+    internal static ConfigEntry<string> NetAutoStart;
+    internal static ConfigEntry<string> NetJoinAddress;
     internal static ConfigEntry<bool> DevBridgeEnabled;
     internal static ConfigEntry<int> DevBridgePort;
     internal static ConfigEntry<int> AutoLoadSlot;
@@ -29,6 +31,7 @@ public class Plugin : BasePlugin
     // Valores efetivos (config ou variável de ambiente; ver tarefa 1.6).
     internal static int BridgePort;
     internal static int EffectiveAutoLoadSlot;
+    internal static string EffectiveNetAutoStart;
     internal static string InstanceTag = "";
 
     private static int? EnvInt(string name) =>
@@ -45,6 +48,12 @@ public class Plugin : BasePlugin
         // Rede (Fase 2). Nome e porta; o menu no jogo vem na Fase 8.
         PlayerName = Config.Bind("Net", "PlayerName", "", "Seu nome no multiplayer (vazio = nome de usuário do Windows).");
         NetPort = Config.Bind("Net", "Port", Net.Protocol.DefaultPort, "Porta UDP do host.");
+        // Tarefa 2.6: até existir menu no jogo (Fase 8), hospedar/entrar é configurado aqui.
+        NetAutoStart = Config.Bind("Net", "AutoStart", "off",
+            new ConfigDescription("Ao carregar um save: 'off' (nada), 'host' (hospedar) ou 'join' (entrar em JoinAddress).",
+                new AcceptableValueList<string>("off", "host", "join")));
+        NetJoinAddress = Config.Bind("Net", "JoinAddress", "127.0.0.1",
+            "IP do host para AutoStart = join (na LAN ou na LAN virtual: Radmin/ZeroTier/Tailscale).");
 
         // D20: ponte de teste desligada por padrão; só o PC de desenvolvimento liga.
         DevBridgeEnabled = Config.Bind("DevBridge", "Enabled", false,
@@ -61,6 +70,7 @@ public class Plugin : BasePlugin
         // Variáveis de ambiente permitem que cada instância tenha a sua porta e o seu slot.
         BridgePort = EnvInt("SOSGB_BRIDGE_PORT") ?? DevBridgePort.Value;
         EffectiveAutoLoadSlot = EnvInt("SOSGB_AUTOLOAD_SLOT") ?? AutoLoadSlot.Value;
+        EffectiveNetAutoStart = System.Environment.GetEnvironmentVariable("SOSGB_NET_AUTOSTART") ?? NetAutoStart.Value;
         InstanceTag = System.Environment.GetEnvironmentVariable("SOSGB_BRIDGE_PORT") != null ? $"-{BridgePort}" : "";
 
         Logger.LogInfo($"{Name} {Version} carregado (instância{(InstanceTag == "" ? " padrão" : InstanceTag)}).");

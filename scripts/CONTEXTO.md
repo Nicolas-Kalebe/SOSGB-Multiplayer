@@ -27,6 +27,7 @@ AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principa
 Variáveis de ambiente que sobrescrevem o `.cfg` por instância:
 - `SOSGB_BRIDGE_PORT`: porta da ponte. Use `python scripts/bridge.py --port 47801 state`.
 - `SOSGB_AUTOLOAD_SLOT`: slot carregado automaticamente.
+- `SOSGB_NET_AUTOSTART`: `off` | `host` | `join`. Ex.: `NET=host scripts/dev-cycle.sh` e `scripts/second-instance.sh 47801 2 join`
 
 O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recente. O `dev-cycle.sh` fecha **todas** as instâncias.
 
