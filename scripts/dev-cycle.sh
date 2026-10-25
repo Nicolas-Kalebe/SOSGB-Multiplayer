@@ -30,23 +30,10 @@ if [[ "${1:-}" != "--no-build" ]]; then
   echo "[dev-cycle] compilado"
 fi
 
-# 3. Abre o jogo e espera a ponte
-(cd "$GAME_PATH" && SOSGB_DEVBRIDGE=1 SOSGB_AUTOLOAD_SLOT="${SOSGB_AUTOLOAD_SLOT:-2}" SOSGB_NET_AUTOSTART="${NET:-off}" ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
-$BRIDGE --wait 120 ping >/dev/null
-echo "[dev-cycle] ponte respondendo"
-
-# 3b. O plugin ativa a própria janela se ela nascer inativa (StartupGuard, D25); o kick externo
-#     (kick-window.ps1) não é mais necessário e fica só como reserva manual.
-
-# 4. Espera entrar na cena Game com relógio (save carregado)
-for _ in $(seq 1 60); do
-  # Só conta como carregado na cena Game (no Launcher o DateManager já existe, com data zerada).
-  if $BRIDGE state 2>/dev/null | grep -q '"scene": "Game"'; then
-    echo "[dev-cycle] save carregado:"
-    $BRIDGE state
-    exit 0
-  fi
-  sleep 2
-done
-echo "[dev-cycle] AVISO: o save não carregou em 120 s (AutoLoadSlot configurado?)"
-exit 1
+# 3. Abre o jogo e espera a cena Game. O instance.py reabre sozinho se travar na tela inicial,
+#    se a ponte não abrir ou se o processo morrer (até 3 tentativas).
+python "$ROOT/scripts/instance.py" launch --port 47800 --slot "${SOSGB_AUTOLOAD_SLOT:-2}" --net "${NET:-off}" || {
+  echo "[dev-cycle] AVISO: o jogo não chegou na cena Game"; exit 1; }
+echo "[dev-cycle] save carregado:"
+$BRIDGE state
+exit 0

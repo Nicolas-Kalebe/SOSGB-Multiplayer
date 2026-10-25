@@ -12,16 +12,8 @@ PORT="${1:-47801}"
 SLOT="${2:-2}"
 NET="${3:-off}"
 
-(cd "$GAME_PATH" && SOSGB_DEVBRIDGE=1 SOSGB_BRIDGE_PORT="$PORT" SOSGB_AUTOLOAD_SLOT="$SLOT" SOSGB_NET_AUTOSTART="$NET" ./SOSGrandBazaar.exe >/dev/null 2>&1 &)
-python "$ROOT/scripts/bridge.py" --port "$PORT" --wait 120 ping >/dev/null
-echo "[second-instance] ponte respondendo na porta $PORT"
-# O plugin ativa a própria janela (StartupGuard, D25).
-for _ in $(seq 1 60); do
-  if python "$ROOT/scripts/bridge.py" --port "$PORT" state 2>/dev/null | grep -q '"scene": "Game"'; then
-    echo "[second-instance] save carregado na porta $PORT"
-    exit 0
-  fi
-  sleep 2
-done
+# O instance.py abre, espera a cena Game e reabre sozinho se a instância travar (tela inicial, queda).
+python "$ROOT/scripts/instance.py" launch --port "$PORT" --slot "$SLOT" --net "$NET" && {
+  echo "[second-instance] save carregado na porta $PORT"; exit 0; }
 echo "[second-instance] AVISO: não chegou na cena Game"
 exit 1

@@ -205,6 +205,18 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.GetPlayer().ActionSleep();
                 return Json(new { ok = true });
 
+            case "wakeup":
+                // wakeup [wake|flag|both] — levanta da cama enquanto espera os outros (D34)
+                return Json(new { ok = true, result = Net.DaySync.WakeUp(string.IsNullOrWhiteSpace(arg) ? "both" : arg.Trim()) });
+
+            case "pfix":
+                // pfix <sleep|move|wake|wait|resume|init> — mexe numa marca de estado (diagnóstico D34)
+                return Json(new { ok = true, result = Net.DaySync.Fix(arg.Trim()), pstate = Net.DaySync.PlayerState() });
+
+            case "pstate":
+                // pstate — estado de sono/controle do jogador local (diagnóstico da D34)
+                return Json(new { ok = true, pstate = Net.DaySync.PlayerState() });
+
             case "nextday":
                 // nextday — dispara a virada do dia do jogo (GameController.StartNextDay), tarefa 3.5
                 GameController.Instance.StartNextDay();

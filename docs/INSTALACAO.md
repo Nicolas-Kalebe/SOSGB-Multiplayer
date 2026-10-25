@@ -45,7 +45,7 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 
 1. **O host** abre o jogo e carrega o save dele. A janelinha "SOSGB Multiplayer" aparece no canto inferior esquerdo (F8 esconde).
 2. **O convidado** abre o jogo e carrega **qualquer save dele**. O jogo recarrega sozinho e ele entra no mundo do host.
-3. Para dormir: cada um vai para a cama. Quem dorme espera os outros ("Dormindo X/Y"). Quando todos dormem, o dia vira para todo mundo.
+3. Para dormir: cada um vai para a cama. Quem dorme espera os outros ("Dormindo X/Y"), e o tempo continua correndo para quem está acordado. Mudou de ideia? Aperte **Backspace** (ou F9 → "Levantar da cama") para levantar. Quando todos dormem, o dia vira para todo mundo.
 
 **Regras desta versão:**
 - **Só o host salva, e só quando todos dormem** ([D23](../DECISOES.md)). Tentar salvar no meio do dia mostra "Não foi possível salvar". É esperado.

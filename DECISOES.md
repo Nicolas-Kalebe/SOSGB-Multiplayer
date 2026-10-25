@@ -345,3 +345,14 @@ Regras deste arquivo:
 - **Consequências:**
   - A pausa por menu (D9, N = 1) continua congelando os outros jogadores, não só o relógio. Isso vale para menus e eventos. Ver pergunta P7.
   - Junto: os perfis e snapshots do **modo de teste** agora vão para `SOSGB-MP\dev`, longe dos perfis reais.
+
+### D34 — Levantar da cama enquanto alguém ainda está acordado
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** usuário pediu ("a opção de levantar da cama se alguém ainda estiver de pé, essa é importante"); a forma foi escolhida pela IA
+- **Contexto:** pela D12, quem deita fica esperando os outros. Sem um jeito de levantar, quem deitou cedo fica preso até todos dormirem.
+- **Decisão:** deitado esperando os outros, o jogador aperta **Backspace** (ou usa o botão "Levantar da cama" no menu F9). O mod desfaz o estado de sono e avisa o host (`SleepReady = false`), e o contador "dormindo X/Y" diminui. Não dá para levantar depois que o host começou a virar o dia (todos já dormiam).
+- **Como desfazer o sono (achado testando):**
+  - só `PlayerCharacter.ActionWakeUp()` faz o personagem levantar, mas **não devolve o controle**: o estado de movimento fica em `ForceCleanMove`;
+  - também é preciso `IsSleep = false` e `IsMoveInputEnabled = true`, além de `GameController.SetWaitChangeDate(false)` (o jogo marca "esperando a virada" ao deitar) e `GameController.Resume()`;
+  - o personagem levanta em cima da cama e sai andando normalmente. Teleportar para o lado da cama não teve efeito e foi tirado.
+- **Verificado:** deitar → levantar → deitar → levantar pela cama de verdade; levantar pela tecla Backspace de verdade; o personagem anda depois. Testado no host com o "jogador acordado fantasma" (`SOSGB_TEST_FAKE_AWAKE=1`, só testes), que segura a virada com uma instância só.
+- **Consequências:** o convidado usa o mesmo caminho (as mesmas chamadas no personagem local + `SleepReady = false`), ainda não testado em rede.

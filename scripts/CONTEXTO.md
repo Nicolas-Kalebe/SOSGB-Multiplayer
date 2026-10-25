@@ -8,6 +8,7 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 |---|---|
 | `bridge.py` | Cliente da ponte: manda um comando e imprime a resposta JSON. `python scripts/bridge.py state` |
 | `dev-cycle.sh` | Ciclo completo: fecha o jogo → compila → abre → ativa a janela → espera o save carregar. `scripts/dev-cycle.sh [--no-build]` |
+| `instance.py` | Abre uma instância de teste e **reabre sozinho** se ela travar na tela inicial (Launcher), se a ponte não abrir ou se o processo morrer (até 3 tentativas). `health --port N` diz se a instância está `ok <cena>`, `sem-ponte` (congelada) ou `morto`. Usado por `dev-cycle.sh` e `second-instance.sh` |
 | `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte. Pular o evento da manhã: `-Keys TAB -Milliseconds 1500` e depois `ENTER` |
 | `two-instances.sh` | **Atalho:** recompila e abre host (47800) + convidado (47801) conectados, esperando o mundo carregar |
 | `click.ps1` | Clique de mouse real numa coordenada da janela do jogo (`-ProcessId -X -Y`) |
@@ -62,6 +63,8 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `like get <npc>` / `like add <npc> <pts>` | Lê ou soma pontos de amizade |
 | `ctx save/load <nome>` | Guarda ou carrega um contexto completo de jogador (6 partes, JSON) |
 | `ctx json <nome> [parte]` | Mostra o JSON de uma parte |
+| `wakeup [both\|wake\|flag]` | Levanta da cama enquanto espera os outros (D34) |
+| `pstate` / `pfix <marca>` | Estado de sono/controle do jogador local / mexe numa marca (diagnóstico da D34) |
 | `ctx fresh` | Aplica no jogador local o perfil "do zero" de um convidado novo (D30), sem rede. Desfazer com `ctx save antes` / `ctx load antes` |
 | `bag [take <slot> <qtd>]` | Lista a mochila / tira itens |
 | `flag get/set <id> [valor]` | Lê ou define uma flag de evento |
@@ -91,3 +94,14 @@ O estado também é gravado a cada 2 s em `<jogo>/BepInEx/sosgb-state.jsonl`.
 - O jogo **fecha e abre sozinho** durante o ciclo. Avise o usuário antes.
 - O `kick-window.ps1` rouba o foco por menos de 1 s e devolve. Ele mira a janela da classe `UnityWndClass`, porque o processo também tem a janela de console do BepInEx.
 - Com a ponte ligada, **o jogo não grava saves no disco** (`[DevBridge] BlockDiskSaves = true`, padrão). Os eventos `save-bloqueado:<slot>` aparecem no log de estado. Mesmo assim, faça um snapshot em `backups/saves/` antes de mudar essa opção (D17).
+
+## Variáveis de ambiente só para testes
+
+| Variável | Efeito |
+|---|---|
+| `SOSGB_DEVBRIDGE=1` | Liga a ponte de teste (e o modo de teste: saves bloqueados, perfis em `SOSGB-MP\dev`) |
+| `SOSGB_BRIDGE_PORT`, `SOSGB_AUTOLOAD_SLOT`, `SOSGB_NET_AUTOSTART`, `SOSGB_PLAYER_NAME`, `SOSGB_PLAYER_GUID`, `SOSGB_JOIN_ADDRESS` | Porta da ponte, slot carregado sozinho, hospedar/entrar, nome, GUID e IP do host desta execução |
+| `SOSGB_NET_LAG_MIN/MAX`, `SOSGB_NET_LOSS` | Simulam rede ruim |
+| `SOSGB_TEST_APPEARANCE` | O convidado usa esta aparência como a "do próprio save" (ex.: testar gênero diferente) |
+| `SOSGB_TEST_FAKE_AWAKE=1` | O host conta um jogador acordado a mais: segura a virada do dia com uma instância só (testes de dormir/levantar, D34) |
+| `SOSGB_FIX_STARTUP=0` | Desliga o `StartupGuard` nesta execução |

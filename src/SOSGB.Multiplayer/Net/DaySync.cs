@@ -78,6 +78,73 @@ public class DaySync : MonoBehaviour
             Evaluate();
     }
 
+    /// <summary>
+    /// Levantar da cama enquanto alguém ainda está acordado (pedido do usuário, D34). Só antes de o host
+    /// começar a virada. Tira o personagem do estado de sono e avisa o host (SleepReady = false).
+    /// mode (testes): "wake" = só ActionWakeUp (NÃO destrava); "flag" = só as marcas; "both" = o certo.
+    /// </summary>
+    /// <summary>Diagnóstico (testes): estado de sono/controle do jogador local.</summary>
+    public static object PlayerState()
+    {
+        var gc = GameController.Instance;
+        var p = gc.GetPlayer();
+        string S(Func<object> f) { try { return f()?.ToString(); } catch (Exception e) { return "erro: " + e.Message; } }
+        return new
+        {
+            waitChangeDate = S(() => gc.IsWaitChangeDate()),
+            gcSleeping = S(() => gc.IsSleeping),
+            isSleep = S(() => p.IsSleep),
+            isSleeping = S(() => p.IsSleeping()),
+            wakeupState = S(() => p.IsWakeupState()),
+            playerState = S(() => p.CurrentUpdatePlayerState),
+            defaultState = S(() => p.CurrentUpdateDefaultState),
+            fixedState = S(() => p.CurrentFixedUpdateState),
+            localSleeping = LocalSleeping,
+            moveInput = S(() => p.IsMoveInputEnabled),
+        };
+    }
+
+    /// <summary>Testes (D34): mexe numa marca de estado do jogador local para achar o que destrava o controle.</summary>
+    public static string Fix(string what)
+    {
+        var gc = GameController.Instance;
+        var p = gc.GetPlayer();
+        switch (what)
+        {
+            case "sleep": p.IsSleep = false; break;
+            case "move": p.IsMoveInputEnabled = true; break;
+            case "wake": p.ActionWakeUp(); break;
+            case "wait": gc.SetWaitChangeDate(false); break;
+            case "resume": gc.Resume(); break;
+            case "init": p.InitializeUpdateState(); break;
+            default: return "use: sleep|move|wake|wait|resume|init";
+        }
+        return "ok";
+    }
+
+    public static string WakeUp(string mode = "both")
+    {
+        if (!LocalSleeping) return "não está dormindo";
+        if (_waitingNewDay) return "o dia já está virando";
+        var gc = GameController.Instance;
+        var p = gc.GetPlayer();
+        // Desfaz o que o jogo fez ao deitar (testado, D34): animação de sono (ActionWakeUp), marca IsSleep
+        // (sem ela o estado de movimento fica em ForceCleanMove e o personagem não anda), "esperando a virada
+        // do dia" (SetWaitChangeDate) e a pausa do GameController. Ele levanta em cima da cama e sai andando.
+        if (mode is "wake" or "both") p.ActionWakeUp();
+        if (mode is "flag" or "both") { p.IsSleep = false; p.IsMoveInputEnabled = true; }
+        if (gc.IsWaitChangeDate()) gc.SetWaitChangeDate(false);
+        gc.Resume();
+        LocalSleeping = false;
+        Plugin.Logger.LogInfo($"[DaySync] jogador local levantou da cama ({mode})");
+        DevBridge.PushEvent("levantou");
+        if (NetSession.Current == NetSession.Mode.Client)
+            NetSession.SendGame(MsgType.SleepReady, w => w.Put(false), DeliveryMethod.ReliableOrdered);
+        else
+            Evaluate();
+        return "ok";
+    }
+
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
         switch (type)
@@ -96,7 +163,8 @@ public class DaySync : MonoBehaviour
     /// <summary>Host: conta quem dorme, anuncia e, se todos dormem, vira o dia.</summary>
     private static void Evaluate()
     {
-        Total = NetSession.Players.Count;
+        // Teste com UMA instância: SOSGB_TEST_FAKE_AWAKE=1 conta um jogador acordado a mais (segura a virada).
+        Total = NetSession.Players.Count + (Plugin.DevMode && Environment.GetEnvironmentVariable("SOSGB_TEST_FAKE_AWAKE") == "1" ? 1 : 0);
         SleepingCount = (LocalSleeping ? 1 : 0) + GuestsSleeping.Count;
         byte s = (byte)SleepingCount, t = (byte)Total;
         NetSession.SendGame(MsgType.SleepStatus, w => { w.Put(s); w.Put(t); }, DeliveryMethod.ReliableOrdered);
