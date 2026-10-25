@@ -356,3 +356,9 @@ Regras deste arquivo:
   - o personagem levanta em cima da cama e sai andando normalmente. Teleportar para o lado da cama não teve efeito e foi tirado.
 - **Verificado:** deitar → levantar → deitar → levantar pela cama de verdade; levantar pela tecla Backspace de verdade; o personagem anda depois. Testado no host com o "jogador acordado fantasma" (`SOSGB_TEST_FAKE_AWAKE=1`, só testes), que segura a virada com uma instância só.
 - **Consequências:** o convidado usa o mesmo caminho (as mesmas chamadas no personagem local + `SleepReady = false`), ainda não testado em rede.
+
+### D35 — Espectar quem está acordado: adiado
+- **Status:** ⏸ Adiado · **Data:** 2026-10-25 · **Decidido por:** IA (o usuário pediu "se não for difícil; se for muito difícil pode deixar quieto")
+- **Contexto:** a câmera do jogo aceita outro alvo (`CameraManager.Instance.FollowingCamera.SetTarget(GameObject)`), mas cada jogo só carrega o **mapa onde o próprio jogador está**. Quem dorme está na casa; quem está acordado normalmente está na fazenda, na cidade etc. (outros mapas), e ali não existe avatar para seguir.
+- **Alternativas:** (a) espectar só no mesmo mapa: fácil, mas inútil (quem está na casa você já vê); (b) carregar o mapa do outro jogador no PC de quem dorme: troca de mapa tira o personagem da cama e mexe no estado de sono e na virada do dia (no host, a virada roda no PC dele). Arriscado e trabalhoso.
+- **Decisão:** não fazer agora. O painel já mostra **onde cada um está** (nome do mapa). Pergunta P8 para o usuário.

@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D35 | **Espectar enquanto dorme: adiado** (só daria no mesmo mapa; outro mapa é arriscado). Pergunta P8 | ⏸ Adiado |
 | D34 | **Levantar da cama** (Backspace ou F9) enquanto alguém ainda está acordado | ✅ Decidido |
 | D33 | **Dormir de verdade**: quem dorme não pausa o grupo, o relógio segue para os acordados; corrige a queda do host ao deitar (`UniTask` nulo) | ✅ Decidido |
 | D32 | **Aparência própria corrigida e ligada** (`[Visual] OwnAppearance`): a trava era um id de peça inexistente e a cópia com o modelo escondido; gênero diferente funciona | ✅ Decidido |
