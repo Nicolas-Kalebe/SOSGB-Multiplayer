@@ -59,8 +59,8 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
 | 3.1 ✅ | **Entrar no mundo do host**: o convidado recebe o snapshot (1.5) e não usa o próprio save; **só o host salva** | G | Teste da IA: convidado entra e vê o mesmo dinheiro e data |
-| 3.2 | **Relógio do host** enviado aos clientes; clientes não avançam o tempo sozinhos | M | Teste da IA: comparar `date` nas 2 instâncias |
-| 3.3 | **Pausa configurável (D9)** com N = 1 | M | Teste da IA: menu numa instância pausa as duas |
+| 3.2 ✅ | **Relógio do host** enviado aos clientes; clientes não avançam o tempo sozinhos | M | Teste da IA: comparar `date` nas 2 instâncias |
+| 3.3 ✅ | **Pausa configurável (D9)** com N = 1 | M | Teste da IA: menu numa instância pausa as duas |
 | 3.4 | **Dormir individual (D12)**: deitar desabilita só o seu personagem; contador "dormindo X/4"; dia vira quando todos dormem | M | Teste da IA: `sleep` em cada instância |
 | 3.5 | **Virada do dia** sincronizada (`OnChangeDate` só no host, resultado para todos) | M | Teste da IA |
 | 3.7 | **Save só na virada do dia (D23)**: bloquear "Salvar" do menu no multiplayer (com aviso), host salva após o dia virar; snapshot periódico em memória para recuperar de queda | M | Teste da IA: `save` pelo menu é recusado; dia vira → save gravado |
@@ -155,7 +155,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 ## Estado atual
 
 - **Fase:** 3 — Mundo e tempo controlados pelo host
-- **Próxima tarefa:** 3.2 (relógio do host enviado aos convidados)
+- **Próxima tarefa:** 3.4 (dormir individual, D12)
 - **Pendente com o usuário:** teste real em 2 PCs (quando houver um amigo)
 - **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
 - **Feito:** 1.2 — save = cabeçalho + JSON (`Obfuscation.Decode(..., General)`), 94 seções
@@ -173,4 +173,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Simulação de "dois PCs"** (o usuário não tinha um amigo para testar): conexão pelo **IP da LAN** (192.168.x), atraso simulado de 80–150 ms e 5% de perda → o movimento chega em 128–205 ms, sem erros. O firewall do Windows tem regra liberando o jogo (perfil Público = perfil da rede atual)
 - ✅ **Fase 2 concluída** (2026-10-24) em simulação. O teste real em 2 PCs fica para quando houver um amigo disponível (não bloqueia a Fase 3)
 - **Feito:** 3.1 — o convidado recebe o mundo do host (`WorldRequest`/`WorldData`, 73 KB) e recarrega. Testado: host com 74.365 G, convidado (disco com 69.365) passa a ter 74.365; conexão e avatares sobrevivem à recarga; convidado nunca grava no disco
+- **Feito:** 3.2/3.3 — `ClockSync`: relógio do host 2×/s com correção se divergir > 30 s; pausa do grupo via patch em `DateManager.IsUpdateEnabled` com regra N (`[Game] PauseWhenPlayersInMenu`, padrão 1). Testado: convidado pausa → host para junto; adiantar o convidado 3 h é corrigido na hora
 - **Última atualização:** 2026-10-24

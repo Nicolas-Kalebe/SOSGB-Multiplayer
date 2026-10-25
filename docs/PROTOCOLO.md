@@ -40,6 +40,7 @@ Mensagens ≥ 10 enviadas por um convidado chegam ao host, que as entrega localm
 
 | # | Nome | Corpo | Entrega | Fase |
 |---|---|---|---|---|
+| 11 | `ClockState` | `long ticks, bool rodando`: relógio do host e pausa efetiva do grupo, 2×/s (host → todos) | Sequenced | 3.2/3.3 |
 | 10 | `PlayerState` | `byte id, uint fieldId, float x, y, z, float rotY, int animStateHash, float animNormTime` — 10×/s. A animação é replicada pelo `fullPathHash` do estado do Animator (`Animator.Play(hash)` no avatar) | Sequenced | 2.4 |
 
 ### Ponto a ponto com o host (≥ 20, **não** são repassadas)
@@ -47,6 +48,7 @@ Mensagens ≥ 10 enviadas por um convidado chegam ao host, que as entrega localm
 | # | Nome | Direção | Corpo | Entrega | Fase |
 |---|---|---|---|---|---|
 | 20 | `WorldRequest` | convidado → host | (vazio). Enviada automaticamente após o `Welcome` | Reliable | 3.1 |
+| 22 | `PauseReport` | convidado → host | `bool pausado`: o convidado entrou ou saiu de menu/evento (na mudança e a cada 1 s) | Reliable | 3.3 |
 | 21 | `WorldData` | host → convidado | `int tamanho, byte[] .sav`: snapshot do mundo (~73 KB, fragmentado pelo LiteNetLib) | Reliable | 3.1 |
 
 Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **20 em diante** ficam só entre o convidado e o host (`Protocol.FirstDirectMsg`).
@@ -56,4 +58,5 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 3 | `ClockState` e `PauseReport` (relógio do host e pausa D9)|
 | 2 | `WorldRequest`/`WorldData` (convidado recebe o mundo do host) e regra de repasse 10–19 × 20+ |

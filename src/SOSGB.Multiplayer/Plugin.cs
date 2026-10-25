@@ -19,6 +19,7 @@ public class Plugin : BasePlugin
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<string> PlayerName;
+    internal static ConfigEntry<int> PauseWhenPlayersInMenu;
     internal static ConfigEntry<int> NetPort;
     internal static ConfigEntry<string> NetAutoStart;
     internal static ConfigEntry<string> NetJoinAddress;
@@ -44,6 +45,10 @@ public class Plugin : BasePlugin
         // D21: o jogo se pausa ao perder o foco; no multiplayer isso congelaria todos.
         KeepRunningWhenUnfocused = Config.Bind("Game", "KeepRunningWhenUnfocused", true,
             "Mantém o jogo rodando quando a janela perde o foco (necessário no multiplayer).");
+
+        // D9: o relógio do grupo pausa quando N jogadores estão em menu/evento (0 = todos).
+        PauseWhenPlayersInMenu = Config.Bind("Game", "PauseWhenPlayersInMenu", 1,
+            "Multiplayer: o tempo para quando este número de jogadores estiver em menu ou evento. 1 = qualquer um pausa todos; 0 = só quando todos estiverem.");
 
         // Rede (Fase 2). Nome e porta; o menu no jogo vem na Fase 8.
         PlayerName = Config.Bind("Net", "PlayerName", "", "Seu nome no multiplayer (vazio = nome de usuário do Windows).");
@@ -81,6 +86,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.NetRunner>();
         AddComponent<Net.PlayerSync>();
         Net.WorldSync.Init();
+        AddComponent<Net.ClockSync>();
         AddComponent<DebugOverlay>();
 
         if (DevBridgeEnabled.Value)

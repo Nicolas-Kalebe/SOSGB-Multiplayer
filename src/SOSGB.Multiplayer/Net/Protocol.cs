@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 2;
+    public const int Version = 3;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -43,6 +43,9 @@ public enum MsgType : byte
     /// <summary>Qualquer → host → outros, 10×/s: [byte id][uint fieldId][float x,y,z][float rotY][int animHash][float animNorm] (Fase 2.4)</summary>
     PlayerState = 10,
 
+    /// <summary>Host → todos, 2×/s: [long ticks][bool rodando] — relógio do host (3.2) e pausa efetiva (3.3)</summary>
+    ClockState = 11,
+
     // ---- 20+: ponto a ponto com o host (NÃO são repassadas aos outros convidados) ----
 
     /// <summary>Convidado → host: pede o mundo atual (sem corpo). Fase 3.1</summary>
@@ -50,4 +53,7 @@ public enum MsgType : byte
 
     /// <summary>Host → convidado: [int tamanho][bytes do .sav] — snapshot do mundo (WorldSnapshot). Fase 3.1</summary>
     WorldData = 21,
+
+    /// <summary>Convidado → host: [bool pausadoLocalmente] — menu/evento aberto no convidado (3.3, D9)</summary>
+    PauseReport = 22,
 }

@@ -178,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     ok = true,
                     commands = new[]
                     {
-                        "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
+                        "ping", "state", "pause", "resume", "addhours <h>", "addmoney <n>", "load <slot 0-2>",
                         "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "field <FieldMasterId>", "log <texto>", "quit",
                     },
                 });
@@ -193,6 +193,11 @@ public class DevBridge : MonoBehaviour
             case "resume":
                 DateManager.Instance.Resume();
                 return Json(new { ok = true, clockRunning = DateManager.Instance.IsPlay() });
+
+            case "addhours":
+                // addhours <h> — adianta o relógio local (teste da correção de hora, 3.2)
+                DateManager.Instance.AddHours(float.Parse(arg, System.Globalization.CultureInfo.InvariantCulture));
+                return Json(new { ok = true, date = GameState.Snapshot()["date"] });
 
             case "addmoney":
                 var before = ExternalData.Instance.UserInfo.PlayerMoney;
@@ -237,7 +242,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status() });
 
             case "warp":
                 // warp <dx> <dz> — teleporta o jogador local (teste de sincronização, 2.4).
