@@ -54,7 +54,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ---
 
-## Fase 3 — Mundo e tempo controlados pelo host
+## Fase 3 — Mundo e tempo controlados pelo host ✅
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
@@ -63,7 +63,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 3.3 ✅ | **Pausa configurável (D9)** com N = 1 | M | Teste da IA: menu numa instância pausa as duas |
 | 3.4 ✅ | **Dormir individual (D12)**: deitar desabilita só o seu personagem; contador "dormindo X/4"; dia vira quando todos dormem | M | Teste da IA: `sleep` em cada instância |
 | 3.5 ✅ | **Virada do dia** sincronizada (`OnChangeDate` só no host, resultado para todos) | M | Teste da IA |
-| 3.7 | **Save só na virada do dia (D23)**: bloquear "Salvar" do menu no multiplayer (com aviso), host salva após o dia virar; snapshot periódico em memória para recuperar de queda | M | Teste da IA: `save` pelo menu é recusado; dia vira → save gravado |
+| 3.7 ✅ | **Save só na virada do dia (D23)**: bloquear "Salvar" do menu no multiplayer (com aviso), host salva após o dia virar; snapshot periódico em memória para recuperar de queda | M | Teste da IA: `save` pelo menu é recusado; dia vira → save gravado |
 | 3.6 ✅ | Guardar os dados do convidado (personagem, mochila etc.) **dentro do save do host**, com reconexão | M | Teste da IA: sair e voltar |
 
 **✔ Pronto quando:** um dia inteiro passa sincronizado, todos dormem, o dia vira e o progresso persiste no save do host.
@@ -134,6 +134,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 8.1 | Menu no jogo para **Hospedar / Entrar** (talvez reaproveitando a UI de rede que sobrou: `NetworkMenuCategory`) | G |
 | 8.2 | Nomes dos jogadores, indicadores na tela, lista de quem está online | M |
 | 8.3 | Reativar para convidados: eventos de casado, cerimônia, filhos, ajuda na fazenda (D12a) | GG |
+| 8.4c | Esconder/desabilitar a opção "Salvar" no multiplayer (hoje o jogo mostra "Não foi possível acessar os dados") | P |
 | 8.4b | "Salvar agora" do host com barreira (pausa todos, espera estado limpo) — opcional (D23) | M |
 | 8.4 | Etiqueta "Para: Jogador X" nas cartas (D10a, opcional) | P |
 | 8.5 | Guia de instalação para os amigos + pacote de release (`DevBridge.Enabled = false`) | M |
@@ -154,8 +155,8 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ## Estado atual
 
-- **Fase:** 3 — Mundo e tempo controlados pelo host
-- **Próxima tarefa:** 3.7 (save só na virada do dia, D23)
+- **Fase:** 4 — Economia (v0.3)
+- **Próxima tarefa:** 4.1 (dinheiro compartilhado)
 - **Pendente com o usuário:** deitar na cama de verdade (menu da cama → animação) para confirmar que o caminho real passa pelo `GameController.StartNextDay` igual ao comando `nextday`
 - **Pendente com o usuário:** teste real em 2 PCs (quando houver um amigo)
 - **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
@@ -177,4 +178,6 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Feito:** 3.2/3.3 — `ClockSync`: relógio do host 2×/s com correção se divergir > 30 s; pausa do grupo via patch em `DateManager.IsUpdateEnabled` com regra N (`[Game] PauseWhenPlayersInMenu`, padrão 1). Testado: convidado pausa → host para junto; adiantar o convidado 3 h é corrigido na hora
 - **Feito:** 3.4/3.5 — `DaySync`: patch em `GameController.StartNextDay` segura a virada de quem deita ("dormindo X/Y" no overlay); quando todos dormem, o host vira o dia (o save automático do jogo = save oficial do D23) e reenvia o mundo a todos. Testado: convidado deita → 1/2 e o dia não vira; host deita → os dois acordam no dia seguinte às 06:00
 - **Feito:** 3.6 — `PlayerProfiles` (D24): o convidado mantém a própria mochila e amizade depois da virada do dia (13 itens / 945 × host 18 / 745); o host grava os perfis em arquivo; reabrir os jogos restaura do arquivo; sair e voltar mantém a última versão
+- **Feito:** 3.7 — no multiplayer o host só grava durante a virada do dia (save manual recusado com aviso; o jogo mostra "Não foi possível salvar"); o convidado nunca grava (com aviso); snapshot de recuperação a cada 15 min em arquivo à parte (`recovery_*.sav`, invisível para quem joga)
+- ✅ **Fase 3 concluída** (2026-10-25), testada com 2 instâncias. Pendências com o usuário: deitar na cama de verdade; confirmar D24 (perfil inicial do convidado)
 - **Última atualização:** 2026-10-24

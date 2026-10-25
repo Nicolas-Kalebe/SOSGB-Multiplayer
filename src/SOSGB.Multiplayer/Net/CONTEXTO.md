@@ -15,6 +15,13 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
 | `NetRunner.cs` | `MonoBehaviour` que chama `NetSession.Poll()` a cada frame (tudo na thread principal) |
 
+## Saves e recuperação (D23)
+
+- **Save oficial:** só na virada do dia, pelo host. O jogo grava o save automático no **slot 0**. Fora da virada, `WorldSnapshot.SlotSavePatch` recusa (`Result.TargetLocked`) e mostra um aviso.
+- **Convidado:** nunca grava.
+- **Perfis dos convidados:** `%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\profiles_<fazenda>_<host>.json`.
+- **Recuperação contra queda do host:** `recovery_<fazenda>_<host>.sav` na mesma pasta, a cada `[Net] RecoverySnapshotMinutes` (15). É um `.sav` válido. **Para restaurar (manual):** faça backup do slot desejado e copie o `recovery_*.sav` por cima de `SaveData<N>.sav`. O cabeçalho `SaveSlotSystem<N>.sav` pode mostrar data/preview antigos. Validar na Fase 8 (tarefa 8.5).
+
 ## Regras
 
 - **Tudo na thread principal.** Nada de threads próprias mexendo no jogo. O LiteNetLib só entrega eventos dentro do `Poll()`.

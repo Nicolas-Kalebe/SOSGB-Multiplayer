@@ -20,6 +20,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<string> PlayerName;
     internal static ConfigEntry<string> PlayerGuid;
+    internal static ConfigEntry<int> RecoverySnapshotMinutes;
     internal static ConfigEntry<int> PauseWhenPlayersInMenu;
     internal static ConfigEntry<int> NetPort;
     internal static ConfigEntry<string> NetAutoStart;
@@ -54,6 +55,9 @@ public class Plugin : BasePlugin
         // Rede (Fase 2). Nome e porta; o menu no jogo vem na Fase 8.
         PlayerName = Config.Bind("Net", "PlayerName", "", "Seu nome no multiplayer (vazio = nome de usuário do Windows).");
         NetPort = Config.Bind("Net", "Port", Net.Protocol.DefaultPort, "Porta UDP do host.");
+        // D23: o save oficial é só na virada do dia; isto é só uma cópia de segurança contra queda do host.
+        RecoverySnapshotMinutes = Config.Bind("Net", "RecoverySnapshotMinutes", 15,
+            "Host: a cada X minutos grava uma cópia de recuperação do mundo (arquivo à parte, não é o save oficial). 0 = desligado.");
         // 3.6: identidade estável do jogador (o host guarda o perfil por ela). Gerada na primeira vez.
         PlayerGuid = Config.Bind("Net", "PlayerGuid", "", "Identificador deste jogador (gerado automaticamente; não edite).");
         var envGuid = System.Environment.GetEnvironmentVariable("SOSGB_PLAYER_GUID");

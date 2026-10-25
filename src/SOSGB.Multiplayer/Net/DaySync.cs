@@ -26,6 +26,9 @@ public class DaySync : MonoBehaviour
     public DaySync(IntPtr ptr) : base(ptr) { }
 
     public static bool LocalSleeping { get; private set; }
+
+    /// <summary>Host: a virada do dia está em andamento (único momento em que o save oficial é permitido, D23).</summary>
+    public static bool InDayChange => _waitingNewDay;
     public static int SleepingCount { get; private set; }
     public static int Total { get; private set; }
 

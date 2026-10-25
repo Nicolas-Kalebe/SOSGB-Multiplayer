@@ -178,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     ok = true,
                     commands = new[]
                     {
-                        "ping", "state", "pause", "resume", "addhours <h>", "sleep", "nextday", "addmoney <n>", "load <slot 0-2>",
+                        "ping", "state", "pause", "resume", "addhours <h>", "sleep", "nextday", "save", "addmoney <n>", "load <slot 0-2>",
                         "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "field <FieldMasterId>", "log <texto>", "quit",
                     },
                 });
@@ -208,6 +208,17 @@ public class DevBridge : MonoBehaviour
                 // nextday — dispara a virada do dia do jogo (GameController.StartNextDay), tarefa 3.5
                 GameController.Instance.StartNextDay();
                 return Json(new { ok = true });
+
+            case "recovery":
+                // recovery — força um snapshot de recuperação agora (teste da 3.7)
+                Net.PlayerProfiles.ForceRecovery();
+                return Json(new { ok = true });
+
+            case "save":
+                // save — pede um save "manual" ao jogo (teste da regra do D23, tarefa 3.7)
+                SaveLoadManager.Instance.Save(ExternalData.Instance.UserInfo.Slot, (FieldMasterId)FieldManager.Instance.CurrentFieldId,
+                    (Action<int, SaveLoadResult>)((s, r) => PushEvent($"save-manual:{s}:{r}")));
+                return Json(new { ok = true, started = true });
 
             case "addmoney":
                 var before = ExternalData.Instance.UserInfo.PlayerMoney;

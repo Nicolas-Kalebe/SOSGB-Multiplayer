@@ -16,6 +16,7 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 | `PngWriter.cs` | Codificador PNG próprio, porque o `EncodeToPNG` da Unity quebra no interop |
 | `PlayerContext.cs` | Troca de contexto por jogador (D3/D13): snapshots em JSON dos managers do jogo |
 | `WorldSnapshot.cs` | Snapshot do mundo via pipeline de save do jogo (patches em `SaveDataAccessorWindows`) |
+| `Notice.cs` | Aviso curto na tela (via overlay) |
 | `FocusGuard.cs` | Mantém `runInBackground` (D21) |
 | [`Net/`](Net/CONTEXTO.md) | Camada de rede (LiteNetLib) |
 | [`Patches/`](Patches/CONTEXTO.md) | Patches Harmony nos métodos do jogo |

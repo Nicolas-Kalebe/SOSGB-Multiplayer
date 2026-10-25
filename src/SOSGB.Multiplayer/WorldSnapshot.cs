@@ -53,6 +53,23 @@ public static class WorldSnapshot
 
     public static bool Capturing => _captureArmed;
 
+    /// <summary>
+    /// D23 — recuperação contra queda: o host captura o mundo periodicamente e grava num arquivo À PARTE
+    /// (nunca no slot oficial): %APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\recovery_*.sav.
+    /// O arquivo é um .sav válido (bytes do próprio jogo). Restaurar é manual (ver Net/CONTEXTO.md).
+    /// </summary>
+    public static void CaptureRecovery(string path)
+    {
+        if (_captureArmed) return;
+        Capture(ExternalData.Instance.UserInfo.Slot, ok =>
+        {
+            if (!ok || Captured == null) return;
+            File.WriteAllBytes(path, Captured);
+            Plugin.Logger.LogInfo($"[WorldSnapshot] snapshot de recuperação gravado ({Captured.Length} bytes): {path}");
+            DevBridge.PushEvent($"recuperacao:{Captured.Length}");
+        });
+    }
+
     public static void Load(int slot)
     {
         if (Captured == null) throw new InvalidOperationException("nenhum snapshot capturado");
@@ -77,8 +94,21 @@ public static class WorldSnapshot
         {
             if (!_captureArmed)
             {
+                // D23: no multiplayer, o save oficial só acontece na virada do dia, feito pelo host.
+                if (Net.NetSession.Current == Net.NetSession.Mode.Host && !Net.DaySync.InDayChange)
+                {
+                    Plugin.Logger.LogWarning($"[WorldSnapshot] save manual do slot {slot} RECUSADO (multiplayer: só ao dormir, D23)");
+                    DevBridge.PushEvent($"save-recusado-d23:{slot}");
+                    Notice.Show("Multiplayer: o jogo só salva quando todos dormem.");
+                    __result = Result.TargetLocked;
+                    return false;
+                }
+                if (Net.NetSession.Current == Net.NetSession.Mode.Host)
+                    DevBridge.PushEvent($"save-permitido-d23:{slot}");
                 if (!SavesBlocked) return true;
-                Plugin.Logger.LogWarning($"[WorldSnapshot] save do slot {slot} BLOQUEADO (DevBridge.BlockDiskSaves)");
+                if (Net.NetSession.Current == Net.NetSession.Mode.Client)
+                    Notice.Show("Multiplayer: quem salva é o host, quando todos dormem.");
+                Plugin.Logger.LogWarning($"[WorldSnapshot] save do slot {slot} BLOQUEADO (DevBridge.BlockDiskSaves ou convidado)");
                 DevBridge.PushEvent($"save-bloqueado:{slot}");
                 __result = Result.Succeess;
                 return false;

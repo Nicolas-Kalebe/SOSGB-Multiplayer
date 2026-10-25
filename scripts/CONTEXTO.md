@@ -45,6 +45,8 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `addhours <h>` | Adianta o relógio local (`DateManager.AddHours`) |
 | `sleep` | `PlayerCharacter.ActionSleep()` (sozinho não vira o dia) |
 | `nextday` | `GameController.StartNextDay()`: "deitar". No multiplayer passa pelo `DaySync` |
+| `save` | Pede um save "manual" (testa a regra do D23) |
+| `recovery` | Força o snapshot de recuperação do host agora |
 | `addmoney <n>` | `GameController.AddMoney(n)` |
 | `load <0-2>` | Carrega um slot e entra na cena Game |
 | `screenshot [nome]` | Salva `<jogo>/BepInEx/screenshots/<nome>.png` (esperar ~2 s antes de abrir) |

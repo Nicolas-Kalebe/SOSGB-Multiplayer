@@ -80,14 +80,38 @@ public class PlayerProfiles : MonoBehaviour
         NetSession.OnHosting += LoadStore;
     }
 
+    private float _nextRecovery = -1;
+
     private void Update()
     {
         try
         {
+            if (NetSession.Current == NetSession.Mode.Host) RecoveryTick();
             if (NetSession.Current == NetSession.Mode.Client) ClientTick();
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[Profiles] {e.Message}"); }
     }
+
+    /// <summary>Host: snapshot de recuperação a cada [Net] RecoverySnapshotMinutes (0 = desligado), D23.</summary>
+    private void RecoveryTick()
+    {
+        var minutes = Plugin.RecoverySnapshotMinutes.Value;
+        if (minutes <= 0 || DaySync.InDayChange || !WorldReadyHost()) return;
+        if (_forceRecovery) { _forceRecovery = false; _nextRecovery = 0; }
+        if (_nextRecovery < 0) { _nextRecovery = Time.unscaledTime + minutes * 60f; return; }
+        if (Time.unscaledTime < _nextRecovery) return;
+        _nextRecovery = Time.unscaledTime + minutes * 60f;
+        SaveStore(); // perfis dos convidados junto
+        WorldSnapshot.CaptureRecovery(Path.Combine(Path.GetDirectoryName(StorePath()),
+            Path.GetFileName(StorePath()).Replace("profiles_", "recovery_").Replace(".json", ".sav")));
+    }
+
+    public static void ForceRecovery() => _forceRecovery = true;
+    private static bool _forceRecovery;
+
+    private static bool WorldReadyHost() =>
+        SceneManager.IsInstance && SceneManager.Instance.CurrentSceneMode == SceneMode.Game
+        && GameController.IsInstance && GameController.Instance.GetPlayerTransform() != null;
 
     // ---------- convidado ----------
 

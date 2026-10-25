@@ -81,6 +81,7 @@ public class DebugOverlay : MonoBehaviour
             // D12: contador "dormindo X/Y" enquanto alguém dorme no multiplayer.
             if (Net.NetSession.Current != Net.NetSession.Mode.Offline && (Net.DaySync.LocalSleeping || Net.DaySync.SleepingCount > 0))
                 text += $"\nDormindo {Net.DaySync.SleepingCount}/{Net.DaySync.Total}" + (Net.DaySync.LocalSleeping ? " - esperando os outros" : "");
+            if (Notice.Current != null) text += $"\n{Notice.Current}";
             return text;
         }
         catch (Exception e)
