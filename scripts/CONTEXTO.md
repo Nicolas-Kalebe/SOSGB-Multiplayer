@@ -68,6 +68,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `pstate` / `pfix <marca>` | Estado de sono/controle do jogador local / mexe numa marca (diagnóstico da D34) |
 | `storage [put <item> <qtd> \| take <espaço> <qtd>]` | Armazém da casa: lista, guarda ou tira (teste da D37) |
 | `farm [near \| data <guid> \| rm <guid> \| re <guid> \| mk <Tipo> <json> \| cap \| apply \| resident \| residents \| install \| snap \| bench]` | Laboratório da fazenda: objetos do mapa, remover/recriar, capturar/aplicar estado, mapas residentes, custo (D40) |
+| `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
 | `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local |
 | `animal [barns \| get <guid> \| set <guid> <campo> <valor> \| poke <guid> <campo> <valor>]` | Animais e celeiros (D41): lista, JSON, mudar como se viesse da rede (`set`) ou como ação local (`poke`) |
 | `equip <Tipo>` / `tool [quadros]` | Põe a ferramenta na mão (`Hoe`, `WateringPot`...) / usa pelo caminho real do jogo (injeta a intenção, D40) |

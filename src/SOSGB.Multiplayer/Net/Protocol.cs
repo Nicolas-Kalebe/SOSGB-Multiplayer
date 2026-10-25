@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 16;
+    public const int Version = 17;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -57,6 +57,9 @@ public enum MsgType : byte
 
     /// <summary>Host → todos: [long total] — carteira compartilhada oficial (4.1, D36). Só vale vindo do host.</summary>
     MoneyState = 15,
+
+    /// <summary>Host → todos: [string "charaId=nome;…"] — NPCs noivos/casados e com quem (romance exclusivo, 6.4, D44)</summary>
+    RomanceClaims = 17,
 
     /// <summary>Host → todos: [byte id ou 255] — quem está com o armazém da casa aberto (4.2, D37). Só vale vindo do host.</summary>
     StorageHolder = 16,

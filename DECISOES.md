@@ -113,7 +113,7 @@ Regras deste arquivo:
 - **Consequências:** troca de contexto também para `BagItemStorage`, `BagToolStorage` e `ToolManager.SaveData`. O armazém da casa (`HouseStorage`) continua compartilhado.
 
 ### D14 — NPC fala com um jogador por vez
-- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Status:** ⏸ Revisar (pergunta P9): o motivo técnico (troca de contexto no host) deixou de existir, porque cada jogo conversa com a própria cópia do NPC · **Data:** 2026-10-24 · **Decidido por:** usuário
 - **Decisão:** enquanto um jogador conversa, dá presente ou está em evento com um NPC, esse NPC fica "ocupado" para os outros.
 - **Motivo:** escolha do usuário. Também garante que a troca de contexto da amizade (D3) nunca rode para dois jogadores no mesmo NPC ao mesmo tempo.
 - **Consequências:** o host mantém uma trava NPC → jogador e libera ao fim do diálogo ou evento.
@@ -462,3 +462,9 @@ Regras deste arquivo:
   - adega, prêmios e loja não se montam pelo `JsonToObject` (classes sem construtor vazio): montados à mão. Na loja, o histórico de compras fica o local;
   - o histórico de itens (`ItemHistoryManager`) tem um `FromSaveData` de 4 partes e ainda não entrou.
 - **Verificado:** autoteste das 17 partes, duas vezes (ida e volta igual e idempotente). Em rede: uma flag de evento marcada na convidada chega ao host; bichinho pego pela convidada nas montanhas some no host (3 → 2); flor colhida idem (18 → 17).
+
+### D44 — Romance exclusivo implementado (registro no host + bloqueio no jogo)
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (implementa a D5, decidida pelo usuário)
+- **Decisão:** `Net/RomanceSync`. O host monta, a cada 2 s, o registro NPC → jogador comprometido (noivado `FianceCharaId` ou casamento `PartnerCharaId`), a partir do próprio `LikeabilityManager` e da parte `likeability` dos perfis guardados dos convidados, e manda a todos quando muda (`RomanceClaims`). Em todos os jogos, patches em `LikeabilityManager.CheckMarryable` (pode oferecer o item de compromisso?) e `SetFiance` recusam um NPC comprometido com **outro** jogador e mostram "Esse coração já tem dono: está comprometido(a) com X." O convidado manda o perfil na hora em que o próprio noivado ou casamento muda.
+- **Verificado (duas instâncias):** a convidada fica noiva do NPC 101 → o host tenta o 101 e é bloqueado (com o aviso); o host fica noivo do 102 → a convidada é bloqueada no 102.
+- **Consequências:** o "namoro" antes do noivado (se existir no jogo como estado separado) não reserva o NPC; a reserva começa no noivado. Protocolo 17 (`RomanceClaims` 17).

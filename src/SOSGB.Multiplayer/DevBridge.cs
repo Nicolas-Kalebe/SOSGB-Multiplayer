@@ -228,6 +228,18 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, rows });
             }
 
+            case "romance":
+            {
+                // romance | romance fiance <npc> | romance check <npc> <item> — romance exclusivo (D44)
+                var ra = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var lmR = LikeabilityManager.Instance;
+                if (ra.Length >= 2 && ra[0] == "fiance") lmR.SetFiance(uint.Parse(ra[1]));
+                if (ra.Length >= 2 && ra[0] == "reset") lmR.ResetPartner();
+                object check = null;
+                if (ra.Length >= 3 && ra[0] == "check") check = lmR.CheckMarryable(uint.Parse(ra[1]), uint.Parse(ra[2]), false);
+                return Json(new { ok = true, fiance = lmR.FianceCharaId, partner = lmR.PartnerCharaId, check, status = Net.RomanceSync.Status() });
+            }
+
             case "shared":
             {
                 // shared | shared test | shared json <parte> | shared poke <parte> — estado compartilhado genérico (D42)
@@ -456,7 +468,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

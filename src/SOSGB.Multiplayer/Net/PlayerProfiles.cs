@@ -263,6 +263,20 @@ public class PlayerProfiles : MonoBehaviour
         DevBridge.PushEvent($"perfis-gravados:{Stored.Count}");
     }
 
+    /// <summary>Host: perfis guardados (guid → JSON das partes). Usado pelo registro de romance (D44).</summary>
+    public static IEnumerable<KeyValuePair<string, string>> StoredProfiles() => Stored.ToList();
+
+    /// <summary>Host: nome do jogador dono de um GUID (se estiver online).</summary>
+    public static string NameOfGuid(string guid)
+    {
+        foreach (var kv in GuidOf)
+            if (kv.Value == guid && NetSession.Players.TryGetValue(kv.Key, out var p)) return p.Name;
+        return null;
+    }
+
+    /// <summary>Host: GUID de um jogador online.</summary>
+    public static string GuidOfPlayer(byte id) => GuidOf.TryGetValue(id, out var g) ? g : null;
+
     /// <summary>No convidado: o mundo do host já foi carregado e o perfil aplicado.</summary>
     public static bool WorldApplied => _firstWorldDone && !_worldLoading;
 

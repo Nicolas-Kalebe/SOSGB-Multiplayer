@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D44 | **Romance exclusivo**: registro NPC → jogador no host; `CheckMarryable`/`SetFiance` recusam NPC comprometido com outro | ✅ Decidido |
 | D43 | **Progresso do mundo, flags de evento (união) e natureza** (minérios, flores, bichinhos) compartilhados; amizade dos pets do mundo | ✅ Decidido |
 | D42 | **Estado compartilhado genérico**: gerenciadores com ToSaveData/FromSaveData (moinho, apicultura, cogumelos, vasos, pets, cavalo, ampliações da casa) | ✅ Decidido |
 | D41 | **Animais e celeiros**: estado de cuidados de cada animal e ovos/ração de cada celeiro sincronizados (mesclando, sem mexer na posição) | ✅ Decidido |
