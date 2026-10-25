@@ -76,6 +76,9 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `bazaar [open]` | Estado do Bazaar e do relógio (aberto hoje, horário, na barraca, relógio parado...) / abre o menu da barraca (D47). Para testar: chegar ao Bazaar andando pela cidade (o `field 10001` direto pula a chegada) |
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
 | `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor> \| reapply <parte>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local, reaplicar o próprio estado (teste de duplicação) |
+| `shared set <parte> <caminho.com.pontos> <valor>` | Muda um valor do JSON da parte (índices de lista como números) e aplica como se viesse de outro jogador; responde o valor lido de volta (prova que a mudança chega, D54) |
+| `shared roundtrip bazaar [raw]` | JSON → `BazaarSaveData` (montado à mão; `raw` = `JsonToObject` puro) → JSON, para ver o que se perde |
+| `jsoncmp [parte]` | Tamanho do JSON de cada parte no `ToJson` do jogo × `JsonUtility` da Unity (com a parte: os dois JSONs). Unity maior = a parte perde dados (D54) |
 | `objcount` | GameObjects ativos na cena, por nome. Comparar antes/depois de um `shared reapply` acha estado que duplica objetos (D52) |
 | `pets [old \| apply \| addcopy]` | Pets e cavalo: parâmetros × personagens na cena / reaplica pelo caminho antigo (duplica, D52) / pelo atual / simula um pet novo vindo de outro jogador |
 | `animal [barns \| get <guid> \| set <guid> <campo> <valor> \| poke <guid> <campo> <valor>]` | Animais e celeiros (D41): lista, JSON, mudar como se viesse da rede (`set`) ou como ação local (`poke`) |

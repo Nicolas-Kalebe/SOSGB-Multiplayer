@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D54 | **Partes que não chegavam**: Bazaar montado à mão; moinho, cogumelos e festivais pelo `JsonUtility` | ✅ Decidido |
 | D53 | **Pular logos de abertura** (`[Game] SkipIntroLogos`); ~24 s a menos por abertura | ✅ Decidido |
 | D52 | **Pets/cavalo aplicados animal por animal** (o `FromSaveData` do controlador duplicava os pets) | ✅ Decidido |
 | D51 | **Bazaar: uma barraca por vez** (trava); "juntos" = repor a barraca do dono (a fazer) | 🟡 Parte feita |

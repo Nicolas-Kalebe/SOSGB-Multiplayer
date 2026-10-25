@@ -42,15 +42,17 @@ public class SharedSync : MonoBehaviour
 
     private static readonly List<Part> Parts = new()
     {
+        // Moinho, cogumelos e festivais guardam o estado em campos PRIVADOS [SerializeField]: o ToJson do jogo
+        // (Newtonsoft) devolvia "{}" ou só parte (D54). Estes vão pelo JsonUtility da Unity, o mesmo formato do save.
         Make("windmill", () => WindmillCraftingManager.IsInstance,
-            () => StringExtensions.ToJson(WindmillCraftingManager.Instance.ToSaveData()),
-            j => WindmillCraftingManager.Instance.FromSaveData(StringExtensions.JsonToObject<WindmillCraftingManager.SaveData>(j))),
+            () => JsonUtility.ToJson(WindmillCraftingManager.Instance.ToSaveData()),
+            j => WindmillCraftingManager.Instance.FromSaveData(FromUnityJson<WindmillCraftingManager.SaveData>(j))),
         Make("beekeeping", () => BeekeepingManager.IsInstance,
             () => StringExtensions.ToJson(BeekeepingManager.Instance.ToSaveData()),
             j => BeekeepingManager.Instance.FromSaveData(StringExtensions.JsonToObject<BeekeepingManager.SaveData>(j))),
         Make("mushroom", () => MushroomFarmingManager.IsInstance,
-            () => StringExtensions.ToJson(MushroomFarmingManager.Instance.ToSaveData()),
-            j => MushroomFarmingManager.Instance.FromSaveData(StringExtensions.JsonToObject<MushroomFarmingData>(j))),
+            () => JsonUtility.ToJson(MushroomFarmingManager.Instance.ToSaveData()),
+            j => MushroomFarmingManager.Instance.FromSaveData(FromUnityJson<MushroomFarmingData>(j))),
         Make("flowerpot", () => FlowerPotManager.IsInstance,
             () => StringExtensions.ToJson(FlowerPotManager.Instance.ToSaveData()),
             j => FlowerPotManager.Instance.FromSaveData(StringExtensions.JsonToObject<FlowerPotManager.SaveData>(j))),
@@ -94,7 +96,7 @@ public class SharedSync : MonoBehaviour
         // Bazaar (7.1, D46): progresso (nível, reputação, vendas), tendências e decoração da barraca.
         Make("bazaar", () => BazaarManager.IsInstance,
             () => StringExtensions.ToJson(BazaarManager.Instance.ToBazaarSaveData()),
-            j => BazaarManager.Instance.FromBazaarSaveData(StringExtensions.JsonToObject<BazaarManager.BazaarSaveData>(j))),
+            ApplyBazaar),
         Make("bazaartrend", () => BazaarManager.IsInstance,
             () => StringExtensions.ToJson(BazaarManager.Instance.ToTrendSaveData()),
             j => BazaarManager.Instance.FromSaveData(StringExtensions.JsonToObject<BazaarManager.TrendData>(j))),
@@ -104,8 +106,8 @@ public class SharedSync : MonoBehaviour
         // NÃO incluir TrophyRackManager: o FromSaveData dele ACUMULA (cada aplicação soma os troféus de novo; testado).
         // Festivais (resultados, participação) e informações gerais do mundo (7.2).
         Make("festival", () => FestivalExecutor.IsInstance,
-            () => StringExtensions.ToJson(FestivalExecutor.Instance.ToSaveData()),
-            j => FestivalExecutor.Instance.FromSaveData(StringExtensions.JsonToObject<FestivalExecutor.SaveData>(j))),
+            () => JsonUtility.ToJson(FestivalExecutor.Instance.ToSaveData()),
+            j => FestivalExecutor.Instance.FromSaveData(FromUnityJson<FestivalExecutor.SaveData>(j))),
         Make("generalinfo", () => GeneralInfoManager.IsInstance,
             () => StringExtensions.ToJson(GeneralInfoManager.Instance.ToSaveData()),
             j => GeneralInfoManager.Instance.FromSaveData(StringExtensions.JsonToObject<GeneralInfoManager.SaveData>(j))),
@@ -200,6 +202,71 @@ public class SharedSync : MonoBehaviour
         var ratio = gc.PlayerMaxHP > 0 ? Math.Clamp(gc.PlayerHP / gc.PlayerMaxHP, 0f, 1f) : 1f;
         gc.PlayerMaxHP = max;
         gc.PlayerHP = max * ratio;
+    }
+
+    /// <summary>
+    /// Bazaar (progresso: nível, vendas, reputação, recorde): o JsonToObject do jogo devolve NULO para o
+    /// BazaarSaveData inteiro, porque SaleItemCount, BazaarMaxSaleData e BazaarSaleData não têm construtor vazio (até a
+    /// D52 a parte se desligava na 1ª mudança). Essas listas são montadas à mão. Os avisos de interface
+    /// (showSideInfoType, IsShowNotificationDialog) ficam os deste jogo.
+    /// </summary>
+    private static void ApplyBazaar(string json)
+    {
+        var bm = BazaarManager.Instance;
+        var local = JsonNode.Parse(StringExtensions.ToJson(bm.ToBazaarSaveData()))!.AsObject();
+        var node = JsonNode.Parse(json)!.AsObject();
+        foreach (var k in new[] { "showSideInfoType", "IsShowNotificationDialog" })
+            node[k] = local[k] == null ? null : JsonNode.Parse(local[k]!.ToJsonString());
+        bm.FromBazaarSaveData(BuildBazaar(node.ToJsonString()));
+    }
+
+    public static BazaarManager.BazaarSaveData BuildBazaar(string json)
+    {
+        var node = JsonNode.Parse(json)!.AsObject();
+        var sales = node["SaleItemCountList"] as JsonArray;
+        var maxInfo = node["maxPriceInfo"] as JsonObject;
+        node.Remove("SaleItemCountList");
+        node.Remove("maxPriceInfo");
+        var sd = StringExtensions.JsonToObject<BazaarManager.BazaarSaveData>(node.ToJsonString())
+                 ?? throw new Exception("JsonToObject devolveu nulo (bazaar sem as listas)");
+        sd.SaleItemCountList = new Il2CppSystem.Collections.Generic.List<BazaarManager.SaleItemCount>();
+        if (sales != null)
+            foreach (var e in sales)
+                sd.SaleItemCountList.Add(new BazaarManager.SaleItemCount(e!["Category"]!.GetValue<short>(), e["SaleCount"]!.GetValue<int>()));
+        if (maxInfo != null) sd.maxPriceInfo = BuildMaxPriceInfo(maxInfo);
+        return sd;
+    }
+
+    private static BazaarManager.MaxPriceInfo BuildMaxPriceInfo(JsonObject m)
+    {
+        var items = m["itemDic"] as JsonArray;
+        var custom = m["customData"];
+        m.Remove("itemDic");
+        m.Remove("customData");
+        var mi = StringExtensions.JsonToObject<BazaarManager.MaxPriceInfo>(m.ToJsonString())
+                 ?? throw new Exception("JsonToObject devolveu nulo (recorde do bazaar)");
+        if (custom != null) mi.customData = StringExtensions.JsonToObject<BazaarManager.CustomData>(custom.ToJsonString());
+        mi.itemDic = new Il2CppSystem.Collections.Generic.List<BazaarManager.BazaarMaxSaleData>();
+        if (items == null) return mi;
+        foreach (var e in items)
+        {
+            var s = e!["bazaarSaleData"]!;
+            // BazaarSaleData só tem construtores que pedem a tabela de preço: criamos o objeto sem construtor
+            // (todos os campos são números) e preenchemos.
+            var sale = new BazaarManager.BazaarSaleData(Il2CppInterop.Runtime.IL2CPP.il2cpp_object_new(
+                Il2CppInterop.Runtime.Il2CppClassPointerStore<BazaarManager.BazaarSaleData>.NativeClassPtr))
+            {
+                Id = s["Id"]!.GetValue<uint>(),
+                Quality = s["Quality"]!.GetValue<int>(),
+                Freshness = s["Freshness"]!.GetValue<int>(),
+                TotalNum = s["TotalNum"]!.GetValue<int>(),
+                BaseProfit = s["BaseProfit"]!.GetValue<int>(),
+                HtProfit = s["HtProfit"]!.GetValue<int>(),
+                CustomProfit = s["CustomProfit"]!.GetValue<int>(),
+            };
+            mi.itemDic.Add(new BazaarManager.BazaarMaxSaleData(sale, e["isBrand"]!.GetValue<bool>(), e["isTrend"]!.GetValue<bool>()));
+        }
+        return mi;
     }
 
     /// <summary>Adega: SaveData só tem construtor com os 4 valores.</summary>
@@ -309,6 +376,10 @@ public class SharedSync : MonoBehaviour
             efm.SetEventFlag(id, flag, time);
         }
     }
+
+    private static T FromUnityJson<T>(string json) where T : Il2CppSystem.Object =>
+        JsonUtility.FromJson(json, Il2CppInterop.Runtime.Il2CppType.Of<T>())?.Cast<T>()
+        ?? throw new Exception($"JsonUtility devolveu nulo ({typeof(T).Name})");
 
     private static Part Make(string name, Func<bool> available, Func<string> capture, Action<string> apply) =>
         new() { Name = name, Available = available, Capture = capture, Apply = apply };

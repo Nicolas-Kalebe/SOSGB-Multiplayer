@@ -546,7 +546,7 @@ Regras deste arquivo:
 - **Alternativas:** (a) continuar com o `FromSaveData` do controlador e apagar os personagens duplicados depois (frágil: depende de achar e destruir objetos do jogo); (b) aplicar no parâmetro de cada animal, como a AnimalSync faz com os animais da fazenda (D41).
 - **Decisão:** (b). `SharedSync.ApplyPets` / `ApplyHorse`: para cada animal do JSON (por `Guid`), `FindParameter(guid).FromSaveData(dados do animal)`, mantendo os campos de movimento locais (mesclagem da D42). Animal que ainda não existe neste jogo (comprado no jogo de outro jogador) é criado com `new PetAnimalParameter()` + `FromSaveData` + `AddParameter`. O mesmo vale para o cavalo (`RideableAnimalController`). A lista `DomesticatedList` do cavalo não é mais aplicada ao vivo (chega na virada do dia).
 - **Verificado:** reaplicar pelo caminho novo mantém 2 personagens. Mudar a amizade de um pet (`shared poke pets <guid> FriendPoint 310`) muda o valor sem criar personagens. Um pet novo vindo de fora (`pets addcopy`) aparece **uma vez** (3 pets, 3 personagens).
-- **Varredura das outras partes (`shared reapply` + `objcount`, em casa):** nenhuma outra parte cria objetos ao reaplicar. A parte `bazaar` deu erro (`NullReferenceException` em `BazaarManager.FromBazaarSaveData`) com o jogador em casa (investigando).
+- **Varredura das outras partes (`shared reapply` + `objcount`, em casa):** nenhuma outra parte cria objetos ao reaplicar. A parte `bazaar` deu erro (`NullReferenceException` em `BazaarManager.FromBazaarSaveData`): corrigido na [D54](#d54--estado-compartilhado-que-não-chegava-bazaar-montado-à-mão-moinho-cogumelos-e-festivais-pelo-jsonutility).
 - **Consequências:** remover um pet (vendido/doado) não é aplicado ao vivo; chega na virada do dia (mundo novo do host). Observação: o `RemoveParameter` do próprio jogo não tira o personagem da cena na hora.
 
 ### D53 — Pular as logos de abertura
@@ -557,3 +557,17 @@ Regras deste arquivo:
 - **Motivo:** um plugin a menos para os amigos instalarem, e não depende de uma DLL de terceiros.
 - **Medido:** abrir até o save carregado levou 82 s sem pular e 58 s pulando (~24 s a menos por abertura).
 - **Consequências:** se alguém também instalar o Skip Splash, os dois patches fazem a mesma coisa (sem conflito).
+
+### D54 — Estado compartilhado que não chegava: Bazaar montado à mão; moinho, cogumelos e festivais pelo JsonUtility
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (achado na varredura da D52)
+- **Contexto:** três defeitos silenciosos na SharedSync (D42/D43), que o autoteste não pegava porque ele só confere se reaplicar o próprio estado deixa tudo igual:
+  1. **Bazaar (nível, vendas, reputação, recorde):** o `JsonToObject` do jogo devolve **nulo** para o `BazaarSaveData` inteiro, porque `SaleItemCount`, `BazaarMaxSaleData` e `BazaarSaleData` não têm construtor vazio. O `FromBazaarSaveData(null)` dava `NullReferenceException` e a parte se desligava na primeira mudança. Efeito: se o convidado vendesse no Bazaar, o progresso dele se perderia na virada do dia.
+  2. **Moinho e cogumelos:** os `SaveData` guardam tudo em campos **privados** `[SerializeField]`. O `StringExtensions.ToJson` do jogo (Newtonsoft) ignora esses campos e devolvia `{}`: nada era enviado (receitas, o que está no moinho, troncos de cogumelo).
+  3. **Festivais:** as competições (classificação, recordes, exposições) também ficam em campos privados (`m_...`) e não iam.
+- **Como foi achado:** comando `jsoncmp` (tamanho do JSON do jogo × `JsonUtility` da Unity para cada parte) e `shared roundtrip bazaar` (JSON → objeto → JSON).
+- **Decisão:**
+  - Bazaar: `SharedSync.BuildBazaar` tira as listas do JSON, usa o `JsonToObject` no resto e monta as listas à mão (`new SaleItemCount(categoria, qtd)`; `BazaarSaleData` é criado **sem construtor** com `IL2CPP.il2cpp_object_new` e preenchido, porque os construtores pedem a tabela de preço). Os avisos de interface (`showSideInfoType`, `IsShowNotificationDialog`) ficam os de cada jogo.
+  - Moinho, cogumelos e festivais: captura com `JsonUtility.ToJson` e aplica com `JsonUtility.FromJson` (o formato do próprio save). Precisou da referência `interop/UnityEngine.JSONSerializeModule.dll`.
+  - As outras partes ficam como estão: o `jsoncmp` mostrou o mesmo conteúdo nos dois serializadores (pets, cavalo, vasos e ampliações só diferem na formatação ou em propriedades calculadas). A loja perde só um contador do sorteio de itens (`LotteryStatusList`), sem importância.
+- **Verificado (uma instância):** ida e volta do Bazaar sem nenhuma diferença; reaplicar não cria objetos; mudança simulada vinda de outro jogador chega (`shared set windmill WindmillTotalDataList.1.takeOutItemList.0.Stack 5` → 5; `shared set mushroom MushroomLogDatas.0.GrowthLevel 1` → 1).
+- **Consequências:** teste de duas instâncias ainda a fazer (vender no Bazaar como convidado e ver o progresso no host). Para partes novas, conferir sempre com `jsoncmp` e `shared set`, não só com `shared test`.

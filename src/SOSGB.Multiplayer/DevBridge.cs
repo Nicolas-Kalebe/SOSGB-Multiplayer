@@ -359,9 +359,79 @@ public class DevBridge : MonoBehaviour
                     return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], root.ToJsonString(), markSynced: false) });
                 }
                 // shared reapply <parte> — reaplica o próprio estado (teste de duplicação: comparar com "objcount" antes e depois)
+                // shared set <parte> <caminho.com.pontos> <valor> — muda um valor do JSON da parte (índices de lista como
+                // números) e aplica como se viesse de outro jogador; responde o valor lido de volta do jogo.
+                if (sa2.Length >= 4 && sa2[0] == "set")
+                {
+                    var rootS = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;
+                    System.Text.Json.Nodes.JsonNode Step(System.Text.Json.Nodes.JsonNode n, string k) =>
+                        n is System.Text.Json.Nodes.JsonArray ar ? ar[int.Parse(k)]! : n[k]!;
+                    var keysS = sa2[2].Split('.');
+                    var parentS = rootS;
+                    for (var i = 0; i < keysS.Length - 1; i++) parentS = Step(parentS, keysS[i]);
+                    var lastS = keysS[^1];
+                    System.Text.Json.Nodes.JsonNode valS = long.TryParse(sa2[3], out var lv) ? lv : sa2[3];
+                    if (parentS is System.Text.Json.Nodes.JsonArray pa2) pa2[int.Parse(lastS)] = valS; else parentS[lastS] = valS;
+                    var resS = Net.SharedSync.ApplyPart(sa2[1], rootS.ToJsonString(), markSynced: true);
+                    var backS = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;
+                    for (var i = 0; i < keysS.Length; i++) backS = Step(backS, keysS[i]);
+                    return Json(new { ok = true, result = resS, agora = backS.ToJsonString() });
+                }
+                // shared roundtrip bazaar [raw] — JSON → SaveData (montado à mão; "raw" = JsonToObject puro do jogo) → JSON: o que se perde
+                if (sa2.Length >= 2 && sa2[0] == "roundtrip" && sa2[1] == "bazaar")
+                {
+                    var js0 = Net.SharedSync.CaptureJson("bazaar");
+                    var sd0 = sa2.Length >= 3 && sa2[2] == "raw" ? StringExtensions.JsonToObject<BazaarManager.BazaarSaveData>(js0) : Net.SharedSync.BuildBazaar(js0);
+                    return Json(new { ok = true, nulo = sd0 == null, original = js0, volta = sd0 == null ? null : StringExtensions.ToJson(sd0) });
+                }
                 if (sa2.Length >= 2 && sa2[0] == "reapply") return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], Net.SharedSync.CaptureJson(sa2[1]), markSynced: true) });
                 if (sa2.Length >= 2 && sa2[0] == "json") { var js = Net.SharedSync.CaptureJson(sa2[1]) ?? ""; return Json(new { ok = true, length = js.Length, head = js.Substring(0, Math.Min(900, js.Length)) }); }
                 return Json(new { ok = true, status = Net.SharedSync.Status() });
+            }
+
+            case "jsoncmp":
+            {
+                // Tamanho do JSON de cada SaveData compartilhado: ToJson do jogo (Newtonsoft: campos/propriedades públicos)
+                // × JsonUtility da Unity (campos [SerializeField] privados, formato do save). Unity maior = a parte perde dados.
+                var objs = new Dictionary<string, Func<Il2CppSystem.Object>>
+                {
+                    ["windmill"] = () => WindmillCraftingManager.Instance.ToSaveData(),
+                    ["beekeeping"] = () => BeekeepingManager.Instance.ToSaveData(),
+                    ["mushroom"] = () => MushroomFarmingManager.Instance.ToSaveData(),
+                    ["flowerpot"] = () => FlowerPotManager.Instance.ToSaveData(),
+                    ["expansion"] = () => ExpansionManager.Instance.ToSaveData(),
+                    ["awards"] = () => AwardManager.Instance.ToSaveData(),
+                    ["basement"] = () => BasementManager.Instance.ToSaveData(),
+                    ["bath"] = () => BathManager.Instance.ToSaveData(),
+                    ["cooking"] = () => CookingManager.Instance.ToSaveData(),
+                    ["coromission"] = () => CoroMissionManager.Instance.ToSaveData(),
+                    ["fish"] = () => FishManager.Instance.ToSaveData(),
+                    ["reinforce"] = () => ReinForceManager.Instance.ToSaveData(),
+                    ["shop"] = () => ShopManager.Instance.ToSaveData(),
+                    ["shopanimal"] = () => ShopAnimalInfoManager.Instance.ToSaveData(),
+                    ["bazaar"] = () => BazaarManager.Instance.ToBazaarSaveData(),
+                    ["bazaartrend"] = () => BazaarManager.Instance.ToTrendSaveData(),
+                    ["bazaarcustom"] = () => BazaarManager.Instance.ToSaveData(),
+                    ["festival"] = () => FestivalExecutor.Instance.ToSaveData(),
+                    ["generalinfo"] = () => GeneralInfoManager.Instance.ToSaveData(),
+                    ["pets"] = () => BokuMono.Animal.PetAnimalController.Instance.ToSaveData(),
+                    ["horse"] = () => BokuMono.Animal.RideableAnimalController.Instance.ToSaveData(),
+                };
+                var only = arg.Trim();
+                var res = new Dictionary<string, object>();
+                foreach (var kv in objs)
+                {
+                    if (only.Length > 0 && kv.Key != only) continue;
+                    try
+                    {
+                        var o = kv.Value();
+                        var a = StringExtensions.ToJson(o);
+                        var u = JsonUtility.ToJson(o);
+                        res[kv.Key] = only.Length > 0 ? new { jogo = a, unity = u } : $"jogo={a.Length} unity={u.Length}";
+                    }
+                    catch (Exception e) { res[kv.Key] = "erro: " + e.Message.Split('\n')[0]; }
+                }
+                return Json(new { ok = true, res });
             }
 
             case "objcount":
