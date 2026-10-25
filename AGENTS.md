@@ -55,6 +55,7 @@ Idioma da documentação: **português do Brasil** (termos técnicos e identific
 | `DECISOES.md` | Registro completo das decisões, com contexto |
 | `CODIGO.md` | Mapa das classes do jogo relevantes para o mod |
 | `src/` | Código do mod (ver `src/CONTEXTO.md`) |
+| `scripts/` | Testes automáticos via ponte de teste (ver `scripts/CONTEXTO.md`) |
 | `tools/` | Ferramentas externas (ver `tools/CONTEXTO.md`) |
 | `dump/` | Classes do jogo extraídas, **não distribuir** (ver `dump/CONTEXTO.md`) |
 | `backups/` | Backups dos saves e procedimento de restauração (ver `backups/CONTEXTO.md`) |

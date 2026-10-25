@@ -185,3 +185,13 @@ Regras deste arquivo:
   - só escuta em loopback, nunca em rede;
   - testes de "sensação" de jogo continuam com o usuário;
   - usar sempre um slot de teste, nunca o save principal, e fazer snapshot antes (D17).
+
+### D21 — O jogo não pausa ao perder o foco
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** IA (o usuário reportou o problema durante os testes)
+- **Contexto:** testando a ponte (D20), o jogo travava quando a janela saía de foco: a música parava e o carregamento ficava parado. O diagnóstico em runtime mostrou `Time.timeScale = 0` sem foco, causado por `BokuMono.AppManager.OnFocusChanged(false)`. No multiplayer isso congelaria todo mundo quando o host desse alt-tab, e impediria rodar duas instâncias no mesmo PC.
+- **Decisão:**
+  - patch Harmony `AppManagerPatch`: pula `OnFocusChanged(false)`;
+  - componente `FocusGuard`: mantém `Application.runInBackground = true`;
+  - configurável em `[Game] KeepRunningWhenUnfocused`, com padrão `true`, porque é necessário para o multiplayer.
+- **Verificado em runtime:** sem foco, `timeScale` fica em 1 e o relógio continua andando (06:34 → 06:40 em 5 s).
+- **Pendência conhecida:** quando o jogo é **aberto por script** (sem foco desde o início), a tela Launcher não avança até a janela receber uma ativação real do Windows (alt-tab). Mensagens `WM_ACTIVATE` não resolvem, e `AppManager.IsSuspended` continua `false`. A solução é o `scripts/kick-window.ps1`, que ativa a janela `UnityWndClass` e devolve o foco. Para o jogador, que abre o jogo com clique duplo, isso não acontece.

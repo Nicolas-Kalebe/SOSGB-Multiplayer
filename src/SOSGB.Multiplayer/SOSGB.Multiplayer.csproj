@@ -16,7 +16,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <Version>0.0.1</Version>
+    <Version>0.0.3</Version>
 
     <GamePath Condition="'$(GamePath)' == ''">L:\Games\STORY OF SEASONS Grand Bazaar</GamePath>
     <BepInExPath>$(GamePath)\BepInEx</BepInExPath>
@@ -37,6 +37,10 @@
     <Reference Include="$(BepInExPath)\interop\UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="$(BepInExPath)\interop\UnityEngine.IMGUIModule.dll" Private="false" />
     <Reference Include="$(BepInExPath)\interop\UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UnityEngine.ScreenCaptureModule.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UnityEngine.ImageConversionModule.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\Il2CppSystem.dll" Private="false" />
+    <Reference Include="$(BepInExPath)\interop\UniTask.dll" Private="false" />
     <Reference Include="$(BepInExPath)\interop\UnityEngine.TextRenderingModule.dll" Private="false" />
   </ItemGroup>
 

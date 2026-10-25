@@ -102,3 +102,23 @@ A rede foi removida, mas sobrou a estrutura:
 - `ScheduleBedChecker`, `ScheduleChairChecker`: ocupação de cama e cadeira.
 
 **Para o mod:** Plano B = nenhuma mudança. Vários cônjuges na casa (v1.0+) = patch na checagem de `Married` / `PartnerCharaId` para considerar o parceiro de qualquer jogador.
+
+## 13. Confirmado em runtime (2026-10-24)
+
+| API | Resultado |
+|---|---|
+| `ExternalData.Instance.UserInfo.PlayerMoney` | ✅ lê o dinheiro |
+| `DateManager.Instance.Now` / `IsPlay()` / `Pause()` / `Resume()` | ✅ lê e controla o relógio |
+| `FieldManager.Instance.CurrentFieldId` | ✅ (fazenda/casa inicial = `100010`) |
+| `GameController.Instance.GetPlayerTransform()`, `IsPlayingEvent`, `IsSleeping`, `AddMoney(uint, bool)` | ✅ |
+| `SceneManager.Instance.CurrentSceneMode` | ✅ Launcher (10) → Title (13) → Game (14) |
+| `SaveLoadManager.Instance.IsLoadedSaveDataAll` + `LoadSlot(slot, cb)` + `SceneManager.LoadScene(SceneMode.Game)` | ✅ **carrega um save sem passar pela UI** |
+| `AppManager.OnFocusChanged(bool)` | ✅ é quem zera o `Time.timeScale` sem foco (ver D21) |
+
+**Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
+
+### Peculiaridades do Il2CppInterop neste jogo
+- `ScreenCapture.CaptureScreenshot(string)` → `MissingMethodException` (marshalling de string). Use `CaptureScreenshotAsTexture()`.
+- `ImageConversion.EncodeToPNG` → `InvalidOperationException` (`BlittableArrayWrapper.Unmarshal`). Use `GetPixels32()` + um codificador próprio (`PngWriter`).
+- As constantes de `SceneMode` (`Game`, `Title`...) viram campos estáticos, sem `const`, e não podem ser usadas em `switch`.
+- Delegates `System.Action<T>` convertem sozinhos para `Il2CppSystem.Action<T>` com um cast explícito.

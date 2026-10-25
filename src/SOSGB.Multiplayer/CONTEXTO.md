@@ -11,10 +11,15 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 | `SOSGB.Multiplayer.csproj` | Referências ao BepInEx e ao interop do jogo (via `GamePath`). Copia a DLL para `BepInEx/plugins` após o build |
 | `Plugin.cs` | Ponto de entrada (`BasePlugin.Load`). Registra os componentes |
 | `DebugOverlay.cs` | Janela de diagnóstico (F8): dinheiro, relógio (com estado ▶/⏸), mapa atual e posição do player |
+| `GameState.cs` | Foto do estado do jogo (usada pelo overlay e pela ponte) |
+| `DevBridge.cs` | Ponte de teste para IA (D20): comandos em 127.0.0.1, log `sosgb-state.jsonl`, screenshots, auto-load |
+| `PngWriter.cs` | Codificador PNG próprio, porque o `EncodeToPNG` da Unity quebra no interop |
+| `FocusGuard.cs` | Mantém `runInBackground` (D21) |
+| [`Patches/`](Patches/CONTEXTO.md) | Patches Harmony nos métodos do jogo |
 
-## Estado atual (v0.0.1)
+## Estado atual (v0.0.3)
 
-Fase de **validação**: só lê o estado do jogo, sem alterar nada e sem rede. Objetivo: confirmar que os singletons mapeados em [`CODIGO.md`](../../CODIGO.md) funcionam em runtime:
+Fase de **validação**, ainda sem rede. Lê o estado do jogo, a ponte de teste executa comandos, e há um patch (D21). Objetivo: confirmar que os singletons mapeados em [`CODIGO.md`](../../CODIGO.md) funcionam em runtime:
 - `ExternalData.Instance.UserInfo.PlayerMoney`
 - `DateManager.Instance.Now` / `IsPlay()`
 - `FieldManager.Instance.CurrentFieldId`

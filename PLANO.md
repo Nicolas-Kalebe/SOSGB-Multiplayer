@@ -35,6 +35,7 @@
 | D18 | **Repo público** no GitHub; `.gitignore` bloqueia dump, arquivos do jogo, saves e binários de ferramentas | ✅ Decidido |
 | D19 | **Stack**: BepInEx 6 IL2CPP be.791 + plugin `net6.0` em `src/`; primeira etapa só lê o estado do jogo (`DebugOverlay`) | ✅ Decidido |
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
+| D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 
 ---
 
@@ -162,8 +163,10 @@ Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
 - [x] Criar `src/SOSGB.Multiplayer` (plugin `net6.0`)
 - [x] Plugin carrega no jogo (2026-10-24): BepInEx inicializou, `DebugOverlay` registrado e a janela apareceu
 - [x] Usuário conferiu de olho: a janela aparece e os valores parecem corretos
-- [ ] **Retomar aqui → Ponte de teste (D20):** log de estado, servidor de comandos em loopback, screenshot, auto-load de slot
-- [ ] Com a ponte: confirmar sozinho dinheiro e hora, ⏸ em menus/diálogos e testes de `ToSaveData`/`FromSaveData` e `DateManager.Pause`
+- [x] Ponte de teste (D20): log de estado, comandos em 127.0.0.1:47800, screenshot (PNG próprio), auto-load de slot, `scripts/dev-cycle.sh`
+- [x] Confirmado em runtime pela IA: auto-load do slot 3, dinheiro (69.365 G), data/hora, `DateManager.Pause()`/`Resume()`, `GameController.AddMoney`
+- [x] Primeiro patch Harmony (D21): jogo não pausa sem foco
+- [ ] **Retomar aqui:** verificar se o relógio vira ⏸ em menus/diálogos; testar `LikeabilityManager.ToSaveData()`/`FromSaveData()` (base dos corações individuais); confirmar o formato do save
 - [ ] Plugin "olá mundo": mostrar na tela o dinheiro (`UserInfo.PlayerMoney`), a hora (`DateManager.Now`) e o mapa atual
 - [ ] Hook em `SaveDataManager.Encode<T>` para confirmar o formato do save
 - [ ] Testar `LikeabilityManager.ToSaveData()` / `FromSaveData()` (base da troca de contexto)

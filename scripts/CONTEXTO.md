@@ -1,0 +1,44 @@
+# CONTEXTO — `scripts/`
+
+> 🤖 **AUTODOCUMENTAÇÃO OBRIGATÓRIA.** Este projeto se documenta sozinho: registre toda decisão com contexto em [`DECISOES.md`](../DECISOES.md), mantenha um `CONTEXTO.md` em cada pasta e abra todo `.md` com este aviso. Regras completas em [`AGENTS.md`](../AGENTS.md).
+
+Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usando a ponte de teste do plugin ([D20](../DECISOES.md)).
+
+| Script | O que faz |
+|---|---|
+| `bridge.py` | Cliente da ponte: manda um comando e imprime a resposta JSON. `python scripts/bridge.py state` |
+| `dev-cycle.sh` | Ciclo completo: fecha o jogo → compila → abre → ativa a janela → espera o save carregar. `scripts/dev-cycle.sh [--no-build]` |
+| `kick-window.ps1` | Dá uma ativação real à janela do jogo e devolve o foco para a janela anterior. Necessário porque, aberto por script, o Launcher trava até um alt-tab ([D21](../DECISOES.md)) |
+
+## Pré-requisitos
+
+No arquivo `<jogo>/BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg`:
+
+```ini
+[DevBridge]
+Enabled = true
+Port = 47800
+AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principal.
+```
+
+## Comandos da ponte
+
+| Comando | Efeito |
+|---|---|
+| `ping` | Testa a conexão |
+| `help` | Lista os comandos |
+| `state` | Cena, dinheiro, data/hora, relógio rodando, foco, `timeScale`, mapa, evento, dormindo, posição |
+| `pause` / `resume` | `DateManager.Pause()` / `Resume()` |
+| `addmoney <n>` | `GameController.AddMoney(n)` |
+| `load <0-2>` | Carrega um slot e entra na cena Game |
+| `screenshot [nome]` | Salva `<jogo>/BepInEx/screenshots/<nome>.png` (esperar ~2 s antes de abrir) |
+| `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
+| `quit` | Fecha o jogo |
+
+O estado também é gravado a cada 2 s em `<jogo>/BepInEx/sosgb-state.jsonl`.
+
+## Cuidados
+
+- O jogo **fecha e abre sozinho** durante o ciclo. Avise o usuário antes.
+- O `kick-window.ps1` rouba o foco por menos de 1 s e devolve. Ele mira a janela da classe `UnityWndClass`, porque o processo também tem a janela de console do BepInEx.
+- Antes de testes que alteram o save (dinheiro, itens), faça um snapshot em `backups/saves/` (D17).
