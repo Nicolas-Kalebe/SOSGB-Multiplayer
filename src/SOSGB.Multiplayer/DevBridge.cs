@@ -201,7 +201,8 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, date = GameState.Snapshot()["date"] });
 
             case "sleep":
-                // sleep — faz o jogador local dormir (PlayerCharacter.ActionSleep), tarefas 3.4/3.5
+                // sleep — chama PlayerCharacter.ActionSleep. NÃO CONFIÁVEL: fora do fluxo da cama o personagem pode
+                // ficar preso andando até a cama (ForceCleanMove). Para testar dormir, use scripts/bed.sh (D33).
                 GameController.Instance.GetPlayer().ActionSleep();
                 return Json(new { ok = true });
 
@@ -237,6 +238,12 @@ public class DevBridge : MonoBehaviour
                 var before = ExternalData.Instance.UserInfo.PlayerMoney;
                 GameController.Instance.AddMoney(uint.Parse(arg), true);
                 return Json(new { ok = true, before, after = ExternalData.Instance.UserInfo.PlayerMoney });
+
+            case "spendmoney":
+                // spendmoney <n> — gasta pelo caminho do jogo (SpendMoney), teste da carteira compartilhada (4.1)
+                var beforeSpend = ExternalData.Instance.UserInfo.PlayerMoney;
+                GameController.Instance.SpendMoney(uint.Parse(arg), true, null);
+                return Json(new { ok = true, before = beforeSpend, after = ExternalData.Instance.UserInfo.PlayerMoney });
 
             case "load":
                 LoadSlot(int.Parse(arg));
@@ -276,7 +283,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

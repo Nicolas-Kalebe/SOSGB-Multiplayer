@@ -12,7 +12,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "com.nicolaskalebe.sosgb.multiplayer";
     public const string Name = "SOSGB Multiplayer";
-    public const string Version = "0.3.1";
+    public const string Version = "0.4.0-dev";
 
     internal static ManualLogSource Logger;
 
@@ -129,6 +129,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.PlayerProfiles>();
         AddComponent<Net.NotifySync>();
         AddComponent<Net.AppearanceSync>();
+        AddComponent<Net.MoneySync>();
         AddComponent<MultiplayerUI>();
         // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
         if (DevMode) AddComponent<DebugOverlay>();

@@ -36,6 +36,7 @@
 
 - `UserInfo.PlayerMoney` (uint).
 - `GameController.AddMoney(uint, bool)`, `SpendMoney(uint, bool, Action)`, `IsEnoughMoney(int)`.
+- No multiplayer o mod **observa** `PlayerMoney` em vez de interceptar essas funções (D36): pega qualquer caminho de ganho/gasto.
 
 ## 4. Inventário, armazém e ferramentas
 
@@ -179,6 +180,7 @@ Armadilhas das flags de evento:
 - Trocar de mapa nesse teste **não** disparou save automático.
 
 ### Dormir e virar o dia (tarefas 3.4/3.5)
+- ⚠️ Chamar `PlayerCharacter.ActionSleep()` fora da cama deixa o personagem preso em `ForceCleanMove` (andando até um destino que não existe), sem volta nem com `InitializeUpdateState`. O fluxo real é: interagir com a cama → diálogo → "Hora de dormir!" → `ActionSleep` → `GameController.StartNextDay`.
 - `GameController.StartNextDay()` (público, `UniTask`) vira o dia **na hora** (data → dia seguinte, 06:00). Ordem observada: `StartNextDay` → `PreChangeDate` → save automático.
 - `PlayerCharacter.ActionSleep()` sozinho **não** vira o dia (só a ação/animação). O fluxo real começa na cama: `FieldPlayerBed.Access()` abre um menu de escolhas.
 - **O save automático da virada do dia vai para o slot 0**, mesmo com `UserInfo.Slot = 2`: o slot 0 é o **slot de save automático** do jogo (o slot 0 e o slot 1 do usuário têm o mesmo dinheiro). `UserInfo.Slot` é gravado no save (`"Slot": 2`).

@@ -362,3 +362,17 @@ Regras deste arquivo:
 - **Contexto:** a câmera do jogo aceita outro alvo (`CameraManager.Instance.FollowingCamera.SetTarget(GameObject)`), mas cada jogo só carrega o **mapa onde o próprio jogador está**. Quem dorme está na casa; quem está acordado normalmente está na fazenda, na cidade etc. (outros mapas), e ali não existe avatar para seguir.
 - **Alternativas:** (a) espectar só no mesmo mapa: fácil, mas inútil (quem está na casa você já vê); (b) carregar o mapa do outro jogador no PC de quem dorme: troca de mapa tira o personagem da cama e mexe no estado de sono e na virada do dia (no host, a virada roda no PC dele). Arriscado e trabalhoso.
 - **Decisão:** não fazer agora. O painel já mostra **onde cada um está** (nome do mapa). Pergunta P8 para o usuário.
+
+### D36 — Carteira compartilhada observando o valor (não interceptando funções)
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (implementa a D4, decidida pelo usuário)
+- **Contexto:** a D4 previa interceptar `GameController.AddMoney`/`SpendMoney`. Mas o dinheiro também muda por outros caminhos (vendas do Bazaar, prêmios, eventos), e cada um precisaria de um patch.
+- **Decisão:** cada jogo **observa** o próprio `UserInfo.PlayerMoney` a cada quadro:
+  - convidado: se o valor mudou por conta própria, manda a **diferença** ao host (`MoneyDelta`). A mudança local vale na hora (a loja não espera a rede);
+  - host: aplica a diferença na carteira oficial (nunca abaixo de 0) e manda o **total** a todos (`MoneyState`), também quando o próprio host ganha ou gasta, quando alguém entra e a cada 5 s;
+  - convidado ao receber o total: adota o total **mais** qualquer mudança local que ainda não tinha saído (evita perder uma compra feita no mesmo quadro);
+  - depois de carregar um mundo (entrada, virada do dia), a base é zerada: o valor do snapshot não conta como diferença.
+- **Verificado (duas instâncias):** convidada +500, host +1000, convidada −300, os dois gastando juntos (−200 e −100): os dois ficaram sempre com o mesmo valor. Depois da virada do dia o valor continua igual nos dois.
+- **Consequências:**
+  - Lojas, vendas e prêmios entram sem código extra (4.5 sai junto; falta o teste numa loja de verdade).
+  - Limite conhecido: se dois jogadores gastam ao mesmo tempo mais do que existe, o host corta em 0 e uma das compras sai "de graça". Aceito entre amigos.
+  - Protocolo 10 (`MoneyState` 15, `MoneyDelta` 26).
