@@ -63,6 +63,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 3.3 | **Pausa configurável (D9)** com N = 1 | M | Teste da IA: menu numa instância pausa as duas |
 | 3.4 | **Dormir individual (D12)**: deitar desabilita só o seu personagem; contador "dormindo X/4"; dia vira quando todos dormem | M | Teste da IA: `sleep` em cada instância |
 | 3.5 | **Virada do dia** sincronizada (`OnChangeDate` só no host, resultado para todos) | M | Teste da IA |
+| 3.7 | **Save só na virada do dia (D23)**: bloquear "Salvar" do menu no multiplayer (com aviso), host salva após o dia virar; snapshot periódico em memória para recuperar de queda | M | Teste da IA: `save` pelo menu é recusado; dia vira → save gravado |
 | 3.6 | Guardar os dados do convidado (personagem, mochila etc.) **dentro do save do host**, com reconexão | M | Teste da IA: sair e voltar |
 
 **✔ Pronto quando:** um dia inteiro passa sincronizado, todos dormem, o dia vira e o progresso persiste no save do host.
@@ -133,6 +134,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 8.1 | Menu no jogo para **Hospedar / Entrar** (talvez reaproveitando a UI de rede que sobrou: `NetworkMenuCategory`) | G |
 | 8.2 | Nomes dos jogadores, indicadores na tela, lista de quem está online | M |
 | 8.3 | Reativar para convidados: eventos de casado, cerimônia, filhos, ajuda na fazenda (D12a) | GG |
+| 8.4b | "Salvar agora" do host com barreira (pausa todos, espera estado limpo) — opcional (D23) | M |
 | 8.4 | Etiqueta "Para: Jogador X" nas cartas (D10a, opcional) | P |
 | 8.5 | Guia de instalação para os amigos + pacote de release (`DevBridge.Enabled = false`) | M |
 | 8.6 | Checklist de release e versão 1.0 | P |

@@ -205,3 +205,21 @@ Regras deste arquivo:
   - **`git push` somente quando o usuário pedir explicitamente.**
 - **Motivo:** o usuário quer controlar o que vai para o repositório público.
 - **Consequências:** IAs nunca fazem push por conta própria. Ao terminar uma tarefa, fazem commit e atualizam o "Estado atual" do `ROTEIRO.md`.
+
+### D23 — No multiplayer, o save oficial acontece só na virada do dia
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário (proposto por ele, analisado pela IA)
+- **Contexto:** o jogo permite salvar a qualquer momento. O usuário gosta disso, mas desconfiou que, no multiplayer, poderia gerar bugs.
+- **Análise (por que salvar no meio do dia é perigoso no multiplayer):**
+  1. ações "em trânsito" na rede (ex.: colheita pedida ao host) podem sumir ou duplicar se o save sair no meio;
+  2. os dados individuais (D3/D13) ficam em contextos separados, e o host precisaria coletar todos de forma consistente no mesmo instante;
+  3. jogadores podem estar em conversa, evento, loja ou com NPC travado (D14), o que gera um save que o jogo não espera;
+  4. o save original supõe um único jogador parado num menu.
+
+  Na virada do dia todos estão dormindo (D12), sem menus nem eventos e sem nada em trânsito: é o único momento naturalmente consistente. É também o que o Stardew faz.
+- **Alternativas:** (a) manter o save livre; (b) save só na virada do dia; (c) save livre com "barreira" (pausar todos e esperar estado limpo).
+- **Decisão:**
+  - **jogando sozinho (sem rede):** nada muda, o save continua livre;
+  - **no multiplayer:** save oficial **só na virada do dia**, feito **pelo host** (os convidados nunca gravam, D2). O "Salvar" do menu fica bloqueado com um aviso;
+  - **proteção contra queda:** o host guarda periodicamente um snapshot do mundo **em memória** (`WorldSnapshot`, tarefa 1.5) só para recuperação, sem ser o save oficial;
+  - **depois (Fase 8, opcional):** "salvar agora" do host com barreira (opção c).
+- **Consequências:** pode-se perder até um dia de jogo se o host travar sem o snapshot de recuperação. Entra na Fase 3 (tarefas 3.5/3.6).
