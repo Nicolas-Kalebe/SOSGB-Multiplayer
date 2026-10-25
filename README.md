@@ -15,6 +15,7 @@ Mod de **multiplayer co-op** para **STORY OF SEASONS: Grand Bazaar** (PC), no es
 | Arquivo | Conteúdo |
 |---|---|
 | [`CONTEXTO.md`](CONTEXTO.md) | Visão geral e estrutura do projeto |
+| [`ROTEIRO.md`](ROTEIRO.md) | O que vai ser feito e em que ordem |
 | [`PLANO.md`](PLANO.md) | Arquitetura, checklist, riscos e roadmap |
 | [`DECISOES.md`](DECISOES.md) | Todas as decisões, com contexto |
 | [`CODIGO.md`](CODIGO.md) | Mapa das classes do jogo usadas pelo mod |

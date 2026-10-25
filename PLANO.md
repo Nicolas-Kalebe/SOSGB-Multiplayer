@@ -36,6 +36,7 @@
 | D19 | **Stack**: BepInEx 6 IL2CPP be.791 + plugin `net6.0` em `src/`; primeira etapa só lê o estado do jogo (`DebugOverlay`) | ✅ Decidido |
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
+| D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
 
 ---
 
@@ -139,6 +140,8 @@ Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
 ---
 
 ## 6. Roadmap
+
+> **O planejamento detalhado e oficial está em [`ROTEIRO.md`](ROTEIRO.md)** (fases, ordem, critérios de pronto). A tabela abaixo é só o resumo original por versão.
 
 | Versão | Conteúdo | Estimativa |
 |---|---|---|

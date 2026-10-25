@@ -12,7 +12,7 @@ Mod de multiplayer co-op para **STORY OF SEASONS: Grand Bazaar** (Marvelous, 202
 ## Estado atual (2026-10-24)
 
 - **Fase:** validação em runtime. Plugin v0.0.3 em `src/`, com ponte de teste (D20) para a IA testar sozinha e o jogo sem pausa ao perder o foco (D21).
-- **Próximo passo:** ver `PLANO.md` §7.
+- **Próximo passo:** ver "Estado atual" no `ROTEIRO.md`.
 
 ## Jogo
 
@@ -35,6 +35,7 @@ Mod de multiplayer co-op para **STORY OF SEASONS: Grand Bazaar** (Marvelous, 202
 | [`.gitignore`](.gitignore) | Bloqueia arquivos do jogo, saves e dump |
 | [`AGENTS.md`](AGENTS.md) | Regras para IAs (autodocumentação) |
 | [`CLAUDE.md`](CLAUDE.md) | Ponte para o Claude Code |
+| [`ROTEIRO.md`](ROTEIRO.md) | **Planejamento oficial**: o que fazer e em que ordem |
 | [`PLANO.md`](PLANO.md) | Plano: decisões (resumo), arquitetura, checklist, riscos, roadmap |
 | [`DECISOES.md`](DECISOES.md) | Decisões completas com contexto |
 | [`CODIGO.md`](CODIGO.md) | Mapa das classes do jogo |

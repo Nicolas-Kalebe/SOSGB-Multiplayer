@@ -195,3 +195,13 @@ Regras deste arquivo:
   - configurável em `[Game] KeepRunningWhenUnfocused`, com padrão `true`, porque é necessário para o multiplayer.
 - **Verificado em runtime:** sem foco, `timeScale` fica em 1 e o relógio continua andando (06:34 → 06:40 em 5 s).
 - **Pendência conhecida:** quando o jogo é **aberto por script** (sem foco desde o início), a tela Launcher não avança até a janela receber uma ativação real do Windows (alt-tab). Mensagens `WM_ACTIVATE` não resolvem, e `AppManager.IsSuspended` continua `false`. A solução é o `scripts/kick-window.ps1`, que ativa a janela `UnityWndClass` e devolve o foco. Para o jogador, que abre o jogo com clique duplo, isso não acontece.
+
+### D22 — Roteiro por fases e política de commit/push
+- **Status:** ✅ Decidido · **Data:** 2026-10-24 · **Decidido por:** usuário
+- **Contexto:** o usuário pediu um roteiro com o que vai ser feito e em que ordem, e definiu a regra de git: "sempre comitar. Subir para o GitHub só quando eu pedir".
+- **Decisão:**
+  - o planejamento oficial passa a ser o [`ROTEIRO.md`](ROTEIRO.md), com 9 fases (0–8) em ordem, critério de pronto e forma de teste para cada uma. O roadmap resumido do `PLANO.md` aponta para ele;
+  - **commit local a cada tarefa concluída**;
+  - **`git push` somente quando o usuário pedir explicitamente.**
+- **Motivo:** o usuário quer controlar o que vai para o repositório público.
+- **Consequências:** IAs nunca fazem push por conta própria. Ao terminar uma tarefa, fazem commit e atualizam o "Estado atual" do `ROTEIRO.md`.
