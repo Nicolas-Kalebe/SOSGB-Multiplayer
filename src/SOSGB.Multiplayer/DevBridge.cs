@@ -596,6 +596,111 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, result = r0, shelves = bmC.ShopShelfs?.Length ?? -1 });
             }
 
+            case "exhibit":
+            {
+                // exhibit | exhibit put <espaçoDeck> <espaçoBalcão> | exhibit select <espaçoBalcão> <espaçoDeck> | exhibit refresh
+                // Prateleiras do Bazaar (ExhibitionShelfManager) × deck: experimentos para "ajudar a repor" (D56)
+                var ex = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var invE = InventoryManager.Instance;
+                var bmE = BazaarManager.Instance;
+                string RE(Func<object> f) { try { return f()?.ToString() ?? "ok"; } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                string result = null;
+                if (ex.Length >= 3 && ex[0] == "put")
+                    result = RE(() =>
+                    {
+                        var item = invE.DeckStorage.PutOut(int.Parse(ex[1]));
+                        if (item == null) return "deck vazio nesse espaço";
+                        var okPut = invE.ExhibitionShelf.PutIn(item, int.Parse(ex[2]), out var rem);
+                        if (rem != null && rem.ItemId != 0 && rem.Stack > 0) invE.DeckStorage.PutIn(rem, out _, false);
+                        bmE.ReExhibit();
+                        return $"putIn={okPut}";
+                    });
+                if (ex.Length >= 3 && ex[0] == "select")
+                    result = RE(() => { bmE.ActionAccessShopShelf(int.Parse(ex[1])); bmE.SelectExhibit(int.Parse(ex[2])); return "ok"; });
+                if (ex.Length >= 1 && ex[0] == "refresh") result = RE(() => { bmE.ReExhibit(); return "ok"; });
+                if (ex.Length >= 2 && ex[0] == "sell") result = RE(() => { bmE.Sell(int.Parse(ex[1]), false); return "ok"; });
+                if (ex.Length >= 2 && ex[0] == "access") result = RE(() => { bmE.ActionAccessShopShelf(int.Parse(ex[1])); return "ok"; });
+                if (ex.Length >= 2 && ex[0] == "state") result = RE(() => bmE.GetShopShelfAccessState(int.Parse(ex[1])));
+                if (ex.Length >= 1 && ex[0] == "where")
+                    result = RE(() =>
+                    {
+                        var shW = bmE.ShopShelfs[bmE.GetCurrentShelfIndex()];
+                        var pl = GameController.Instance.GetPlayer().transform.position;
+                        var sb = new System.Text.StringBuilder($"vendedor {pl.x:0.0},{pl.z:0.0} | ");
+                        var its = shW.GetShopItems();
+                        for (var k = 0; k < its.Length; k++)
+                        {
+                            var h = its[k].GetHelpTarget().position; var n = its[k].GetNpcTarget().position; var s0 = its[k].transform.position;
+                            sb.Append($"[{k}] item {s0.x:0.0},{s0.z:0.0} ajudante {h.x:0.0},{h.z:0.0} cliente {n.x:0.0},{n.z:0.0}; ");
+                        }
+                        return sb.ToString();
+                    });
+                if (ex.Length >= 1 && ex[0] == "near")
+                    result = RE(() =>
+                    {
+                        // espaço do balcão atual mais perto do vendedor (pelo ponto onde um ajudante atenderia)
+                        var shW = bmE.ShopShelfs[bmE.GetCurrentShelfIndex()];
+                        var pl = GameController.Instance.GetPlayer().transform.position;
+                        var its = shW.GetShopItems();
+                        int best = -1; float bd = float.MaxValue;
+                        for (var k = 0; k < its.Length; k++)
+                        {
+                            var h = its[k].GetHelpTarget().position;
+                            var d = (new Vector2(h.x, h.z) - new Vector2(pl.x, pl.z)).sqrMagnitude;
+                            if (d < bd) { bd = d; best = k; }
+                        }
+                        return best;
+                    });
+                if (ex.Length >= 2 && ex[0] == "goto")
+                    result = RE(() =>
+                    {
+                        // leva o vendedor para trás do espaço k (mesmo x do item, z do vendedor) e aperta a ação
+                        var shW = bmE.ShopShelfs[bmE.GetCurrentShelfIndex()];
+                        var it = shW.GetShopItems()[int.Parse(ex[1])].transform.position;
+                        var pc = GameController.Instance.GetPlayer();
+                        var pp = pc.transform.position;
+                        pc.transform.position = new Vector3(it.x, pp.y, pp.z);
+                        if (ex.Length >= 3 && ex[2] == "act") pc.Action();
+                        return $"vendedor em {it.x:0.0},{pp.z:0.0}";
+                    });
+                var standby = new List<int>();
+                var locked = new List<int>();
+                for (var si = 0; si < 12; si++)
+                {
+                    try { if (bmE.IsBuyStandby(si)) standby.Add(si); } catch { }
+                    try { if (bmE.IsShelfLocked(si)) locked.Add(si); } catch { }
+                }
+                List<string> List(StorageManager sm)
+                {
+                    var l = new List<string>();
+                    var datas = sm.ItemDatas;
+                    for (var i = 0; i < datas.Length; i++) { var d = datas[i]; l.Add(d == null || d.ItemId == 0 ? "-" : $"{d.ItemId}x{d.Stack}"); }
+                    return l;
+                }
+                return Json(new { ok = true, result, standby, locked, shelf = List(invE.ExhibitionShelf), deck = List(invE.DeckStorage), money = ExternalData.Instance.UserInfo.PlayerMoney });
+            }
+
+            case "bzui":
+            {
+                // bzui dir <Up|Down|Left|Right> | south | north | east | west | minideck — aperta "botões" da tela do Bazaar
+                // direto na UIBazaarMainPage (as teclas sintéticas não chegam a ela). D56
+                var page = UnityEngine.Object.FindObjectOfType<UIBazaarMainPage>();
+                if (page == null) return Json(new { ok = false, error = "tela do Bazaar não está aberta" });
+                var bu = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                string RB(Action f) { try { f(); return "ok"; } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                var rb = bu[0] switch
+                {
+                    "dir" => RB(() => page.InputDirection(Enum.Parse<UIDirection>(bu[1]))),
+                    "south" => RB(() => page.OnSouth()),
+                    "north" => RB(() => page.OnNorth()),
+                    "east" => RB(() => page.OnEast()),
+                    "west" => RB(() => page.OnWest()),
+                    "minideck" => RB(() => page.OpenMiniDeck()),
+                    _ => "?",
+                };
+                return Json(new { ok = true, result = rb, inputEnable = page.IsInputEnable(), miniDeck = page.IsMiniDeck() });
+            }
+
             case "objcount":
             {
                 // Quantos GameObjects ativos há na cena, por nome (teste de duplicação ao reaplicar estado)

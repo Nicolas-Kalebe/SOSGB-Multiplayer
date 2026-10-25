@@ -84,6 +84,8 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `shelves` | Barracas do Bazaar (`BazaarShopShelf`): ativas, posição, itens; e o estado da barraca fechada/aberta |
 | `findobj <nome> [on\|off]` | Acha objetos pelo nome, inclusive inativos; liga/desliga o 1º |
 | `bmcall tent on\|off \| parts \| rootshelves \| shelfset <espaço> <item> <qtd> \| initshelf` | Rotinas da barraca: abrir/fechar o visual, carregar as peças, pôr um item no visual do balcão (teste do espelhamento) |
+| `exhibit [put <deck> <balcão> \| sell <n> \| access <n> \| state <n> \| near \| where \| refresh]` | Balcões do Bazaar × deck: pôr item por código, vender, espaço mais perto do vendedor, posições (D56) |
+| `bzui dir <Up\|Down\|Left\|Right> \| south \| north \| east \| west \| minideck` | "Botões" da tela do Bazaar (só aceitos com o mini deck aberto) |
 | `objcount` | GameObjects ativos na cena, por nome. Comparar antes/depois de um `shared reapply` acha estado que duplica objetos (D52) |
 | `pets [old \| apply \| addcopy]` | Pets e cavalo: parâmetros × personagens na cena / reaplica pelo caminho antigo (duplica, D52) / pelo atual / simula um pet novo vindo de outro jogador |
 | `animal [barns \| get <guid> \| set <guid> <campo> <valor> \| poke <guid> <campo> <valor>]` | Animais e celeiros (D41): lista, JSON, mudar como se viesse da rede (`set`) ou como ação local (`poke`) |

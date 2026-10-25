@@ -588,3 +588,22 @@ Regras deste arquivo:
   - Protocolo 20: `BazaarVisitors` (18) e `BazaarShelves` (19), repassadas pelo host.
 - **Verificado (duas instâncias, host vende):** a convidada assumiu os 25–28 clientes do host com diferença de posição de 0,1–0,2; a barraca aparece aberta com o host atrás do balcão e os clientes na frente; item posto no balcão do host aparece no da convidada; ao fim do turno (tela de resultados fechada), a convidada devolveu os clientes (voltaram a `WanderField`) e a barraca voltou a fechada.
 - **Etapa 2 (a fazer, pedido do usuário "o outro player não ajuda na barraca?"):** quem assiste poder **ajudar**: repor itens nos balcões do dono e tocar o sino. Ver D56.
+
+### D56 — Bazaar: o ajudante entra na barraca e usa os botões do jogo (etapa 2 do "juntos")
+- **Status:** 🟡 Decidido, em implementação · **Data:** 2026-10-25 · **Decidido por:** usuário ("o outro player não ajuda na barraca?"; escolheu "dentro da barraca, botões do jogo" em vez de teclas do mod fora da barraca)
+- **Contexto:** com a D55 todos veem os clientes e a barraca de quem vende, mas só o dono pode agir.
+- **Alternativas:** (a) ajudante fora da barraca, com teclas do mod (atender o cliente mais próximo, repor automático): mais rápido de fazer, menos parecido com o jogo; (b) ajudante dentro da barraca, como vendedor, com os mesmos botões (Enter no item para atender, Tab para repor, Shift para o sino). Escolhida: (b).
+- **Como a barraca funciona (descoberto em runtime, com o registro `Patches/BazaarDiagnosticsPatch`, só no modo de teste):**
+  - A venda **não é automática**: o cliente reserva um espaço e espera com "!!" (`IsBuyStandby`); o vendedor anda até o item e aperta **Enter** (dica do usuário). O jogo chama `ActionAccessShopShelf(espaço)` → `Sell(espaço)` → `AddBazaarResultData(item, 1)`; o item sai do balcão. O dinheiro do turno só entra no fim (tela de resultados).
+  - O vendedor anda livremente atrás do balcão (A/D) e o destaque azul fica no espaço mais próximo. Os índices dos espaços são do **balcão atual** (o jogo atualiza todo quadro com `UpdateCurrentShopShelf(id do ponto de venda)`).
+  - Os itens dos balcões ficam no `ExhibitionShelfManager` (armazém de 12 espaços: balcão×4 + espaço; `InventoryManager.ExhibitionShelf`). Pôr por código: `DeckStorage.PutOut` + `ExhibitionShelf.PutIn(item, espaço)` + `BazaarManager.ReExhibit()` (testado: aparece com preço e os clientes compram).
+  - Tab com o vendedor num espaço vazio abre o "mini deck" (`UIBazaarMainPage.OpenMiniDeck`) para escolher o item. Ainda falta ver a escolha (`SelectExhibit`).
+  - O sino é Shift segurado (atrai clientes; `PlayerActionAtraction`).
+- **Plano:**
+  - Com alguém vendendo, o menu da barraca deixa de ser bloqueado para os outros (D51 muda): "Abrir loja" vira **ajudar**. O jogo do ajudante entra no modo loja normal (câmera, botões), mas em **modo ajudante**:
+    - os clientes são as cópias do dono (D55); os clientes próprios ficam parados e escondidos;
+    - os balcões (dados e visual) espelham os do dono;
+    - Enter num espaço (`ActionAccessShopShelf`) e a escolha no mini deck (`SelectExhibit`) não agem no jogo do ajudante: viram pedidos ao dono, que executa no jogo dele (balcão certo via `UpdateCurrentShopShelf`), e o resultado volta pelo espelhamento;
+    - o sino do ajudante pede o sino ao dono;
+    - o ajudante não grava progresso do Bazaar (só o dono), e não vê tela de resultados própria.
+  - O dinheiro das vendas entra no fim do turno no jogo do dono e é compartilhado (D36).
