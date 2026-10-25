@@ -47,6 +47,8 @@
 - **Telas:** `UIManager` NÃO é singleton com `Instance` (use `FindObjectOfType<UIManager>()`). Tela de menu atual: `UIManager.UIMenuKey` + `IsMenu` (armazém = `UILoadKey.HouceStorage`, 102). Fechar: `CloseMenu(null, null, false, null, false)` funciona; `ForceBackUIMain` deu `KeyNotFoundException` com tela aberta fora do histórico.
 - **No save, as listas `itemDatas` têm tamanho fixo** (mochila 32, armazém 312, peças do Bazaar 200, deck 24): espaço vazio = entrada com `ItemId` 0 e o resto zerado. Para esvaziar, zere as entradas, **não** a lista (D30).
 - Upgrade de ferramenta: `BagToolStorageManager.GradeUpTool(...)` troca o id do item. `ToolManager.SaveData.WateringPotInnerCapacity`.
+- **Upgrade de ferramenta é imediato** (`ToolManager.GradeUpTool(tipo, item, cb)`); não há estado de "ferramenta no ferreiro". `UserInfo.ToolSaveDatas`: um bloco cifrado (~38 bytes) por tipo de ferramenta (`ToolManager.SetToolSaveData()` / `FromSaveData(ToolSaveData[])`).
+- **Vigor:** `GameController.PlayerHP` / `PlayerMaxHP` (em `UserInfo.PlayerHP/PlayerMaxHP`).
 - **Níveis de ferramenta:** id = tipo×100 + nível (ex.: 704, 603, 102). A cadeia está em `MasterDataManager.Instance.ToolMaster.list` (`ToolMasterData.UpgradeToolId` aponta para o próximo nível). O nível básico é o que ninguém aponta (ex.: 700, 600, 100, 500); ferramentas sem cadeia (1000, 1100, 1200) não têm upgrade.
 
 ## 5. Amizade e casamento

@@ -390,3 +390,16 @@ Regras deste arquivo:
   - Com a regra D9 atual (N = 1), quem está com o armazém aberto também congela os outros. Ver P7.
   - Outros armazéns compartilhados (moinhos, peças do Bazaar, deck) ainda não sincronizam. Ficam para quando forem usados (Fases 5 e 7).
   - Protocolo 11 (`StorageHolder` 16, `StorageData` 27, `StorageUse` 28).
+
+### D38 — Upgrades e estado das ferramentas, mochila e vigor máximo por jogador
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (ROTEIRO 4.4, seguindo a D13: ferramentas individuais)
+- **Contexto / achados no código do jogo:**
+  - o upgrade de ferramenta é **imediato** (`ToolManager.GradeUpTool` / `BagToolStorageManager.GradeUpTool` trocam o item na hora; não existe "ferramenta no ferreiro por N dias"). A ferramenta melhorada fica na mochila de ferramentas do jogador, que já é do perfil (D24). O dinheiro (D36) e os materiais (mochila do perfil ou armazém, D37) já sincronizam;
+  - o tamanho da mochila fica na própria lista de espaços dela (`BagItemSaveData.itemDatas`), que também é do perfil: upgrade de mochila já é individual;
+  - porém dois dados individuais ficavam no mundo e o convidado herdava os do host a cada virada: `UserInfo.ToolSaveDatas` (um bloco cifrado de ~38 bytes por tipo de ferramenta) e o **vigor máximo** (`GameController.PlayerMaxHP`);
+  - `ReinForceData` (reforços de canteiros) e `ExpansionData` (ampliações) são da fazenda: continuam do mundo.
+- **Decisão:** duas partes novas no perfil:
+  - `tooldata`: `ToolManager.SetToolSaveData()` / `FromSaveData(ToolSaveData[])`. Cada item vira um JSON numa lista, porque o `ToJson` do jogo não aceita o array IL2CPP direto;
+  - `stamina`: o vigor máximo. Ao aplicar, o vigor atual fica **na mesma proporção** do que o mundo trouxe, respeitando a recuperação da noite que o jogo calculou.
+- **Verificado:** captura e aplicação das duas partes numa instância (`ctx save`/`ctx load`).
+- **Consequências:** no "começar do zero" (D30), essas duas partes vêm do host como estão (o vigor máximo do novo jogador é o do host). Ajustar se o usuário achar que deveria começar menor.
