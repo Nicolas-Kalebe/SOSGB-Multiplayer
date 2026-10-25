@@ -109,6 +109,8 @@
 
 - `BazaarManager`: `Sell(idx, bonus)`, `CalcSalePrice(...)`, `IsOpenDay/IsOpenTime`, `IsBazaarTimeStop`. `BazaarSaveData` (`DevelopLevel`, `TotalSalePrice`, `Reputation`…). Clientes NPC: `NPCBazaarVisitorAgent`.
 
+- **Sessão de venda (medido, D47):** sábado; ao entrar no mapa do Bazaar (10002) aparece o aviso dos turnos (Esc fecha). Turnos: manhã 10:00–13:59, tarde 15:00–18:59. Menu da barraca: Ver estoque / Redecorar / Abrir loja (`RequestOpenShopDialog`). Durante a venda: `IsInShop` = true, `ProcedureMask` = `HeldMapOpen`, **relógio normal**. No fim do turno: `ProcedureMask` = `Result` e tela de resultados. Passagem da cidade (20001) para o Bazaar: área de transição no canto sudoeste (−88; −38).
+
 ## 11. 🎯 Restos de multiplayer no código
 
 A rede foi removida, mas sobrou a estrutura:

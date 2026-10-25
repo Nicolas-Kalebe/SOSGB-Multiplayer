@@ -71,7 +71,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `itemhist <id> \| itemhist add <id> <qualidade>` | Histórico de itens/enciclopédia: consultar / registrar (D43) |
 | `stamina [max <n> \| buff <id> [segundos] \| ids]` | Vigor (máximo compartilhado) e bônus de comida (individuais), D49 |
 | `gates` | Portões e áreas de transição da cena atual (destino e posição) |
-| `bazaar [open]` | Estado do Bazaar e do relógio (aberto hoje, horário, na barraca, relógio parado...) / pede a abertura da barraca (D47) |
+| `bazaar [open]` | Estado do Bazaar e do relógio (aberto hoje, horário, na barraca, relógio parado...) / abre o menu da barraca (D47). Para testar: chegar ao Bazaar andando pela cidade (o `field 10001` direto pula a chegada) |
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
 | `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local |
 | `animal [barns \| get <guid> \| set <guid> <campo> <valor> \| poke <guid> <campo> <valor>]` | Animais e celeiros (D41): lista, JSON, mudar como se viesse da rede (`set`) ou como ação local (`poke`) |

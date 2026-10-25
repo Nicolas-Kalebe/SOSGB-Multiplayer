@@ -488,15 +488,24 @@ Regras deste arquivo:
 - **Ideia do usuário para a sessão de venda (2026-10-25):** "ou os dois juntos, ou um faz e o outro fica livre pra trabalhar e comprar itens, e quando acabar o Bazaar pular o tempo pro que não tava; mas dá a opção: quer trabalhar junto ou não?" → em investigação (D47).
 - Protocolo 18 (mensagens de armazém com o número do armazém).
 
-### D47 — Sessão de venda do Bazaar em grupo: proposta (ideia do usuário)
-- **Status:** 📝 Proposta, falta testar num sábado do jogo com o usuário · **Data:** 2026-10-25 · **Decidido por:** usuário (ideia) + IA (viabilidade)
+### D47 — Sessão de venda do Bazaar em grupo (ideia do usuário)
+- **Status:** ✅ Decidido (medido num sábado do jogo; falta a venda em grupo de verdade com os amigos) · **Data:** 2026-10-25 · **Decidido por:** usuário (ideia) + IA (viabilidade)
 - **Ideia do usuário:** "ou os dois juntos, ou um faz e o outro fica livre pra trabalhar e comprar itens, e quando acabar o Bazaar pular o tempo pro que não tava; mas dá a opção: quer trabalhar junto ou não?"
 - **O que se sabe do jogo (investigação):** o Bazaar abre aos sábados; a barraca pode ser aberta a partir das 10:00 (`IsEnableOpenMyShopTime`); o mapa do Bazaar fica num estado próprio (`ProcedureMask = HeldMap`) e o relógio pode parar (`IsBazaarTimeStop`); a sessão termina com a tela de resultado (`ShowResultPage`). Os clientes NPC são simulados em cada jogo (`NPCBazaarVisitorAgent`). Dirigir o minijogo por automação não deu (a entrada pelo comando de troca de mapa deixa o jogador preso numa tela), então o comportamento do relógio durante a venda ainda não foi medido.
 - **Viabilidade (proposta):**
   - **"Um vende, os outros ficam livres":** dá. Quem está vendendo não pausa o grupo (como quem dorme, D33) e, durante a venda, o relógio dele não é corrigido pelo do host. No fim, os relógios se alinham pelo **mais adiantado**: se a venda terminou "mais tarde", quem estava livre pula para essa hora; se o host vendeu, o pulo chega aos outros sozinho pela correção de relógio que já existe.
   - **"Os dois juntos":** dá, com uma diferença do jogo sozinho: cada um abre a barraca no próprio jogo e vende para os próprios clientes simulados. O deck compartilhado com trava (D46) impede vender o mesmo item duas vezes, e o dinheiro já é compartilhado (D36). O grupo terá mais clientes que no jogo sozinho.
   - **A opção:** não precisa de menu. Quem vai à barraca vende; quem não vai fica livre. Se quiserem vender juntos, os dois vão à barraca. Dá para acrescentar um aviso "Fulano abriu a barraca do Bazaar" no sistema de avisos.
-- **Próximo passo:** testar num sábado do jogo, com os amigos ou com duas instâncias jogando de verdade (P10).
+- **Medido num sábado do jogo (2026-10-25), chegando ao Bazaar andando pela cidade:**
+  - o aviso "Hoje é o bazar... Turno da manhã 10:00–13:59, turno da tarde 15:00–18:59" aparece ao entrar (é ele que deixava o personagem "preso" no teste anterior: só precisa de Esc);
+  - abrindo a loja (menu da barraca: Ver estoque / Redecorar / **Abrir loja**), o jogo leva o jogador para a barraca dele e começa o turno (`ProcedureMask = HeldMapOpen`);
+  - **o relógio continua correndo normalmente durante a venda** (1 minuto do jogo por segundo, `IsBazaarTimeStop` falso). Só para por instantes: na faixa "Começar o turno" e na tela de resultados;
+  - o turno acaba sozinho na hora certa (14:00), com a tela "Resultados do Turno da Manhã".
+- **Conclusão:** **não é preciso pular o tempo**. O relógio do grupo é um só (o do host) e a venda não o congela: enquanto um vende das 10h às 14h, os outros vivem as mesmas 10h às 14h livres (trabalhar, comprar). As duas formas da ideia do usuário funcionam sem menu de escolha:
+  - **um vende, os outros ficam livres:** basta só um abrir a loja;
+  - **juntos:** cada um abre a loja no próprio jogo (clientes simulados em cada um), com o deck compartilhado (D46, com trava) e o dinheiro em comum (D36).
+  - A tela de resultados e a faixa de início contam como "menu" pela regra D9 atual (N = 1), então param os outros por alguns segundos (ver P7).
+- **Feito junto:** aviso "Fulano abriu a barraca do Bazaar!" no sistema de avisos do jogo (`NotifySync`, código 5).
 
 ### D48 — "Salvar" e "Carregar" do menu de pausa no multiplayer
 - **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (ROTEIRO 8.4c)

@@ -10,7 +10,7 @@ namespace SOSGB.Multiplayer.Net;
 /// <summary>
 /// Avisos de multiplayer no sistema de avisos do jogo (GameNotify, D26):
 ///  - entrou / saiu do mundo; conexão perdida;
-///  - foi dormir; desmaiou (cansaço ou sono); entrou em um evento.
+///  - foi dormir; desmaiou (cansaço ou sono); entrou em um evento; abriu a barraca do Bazaar (D47).
 /// Cada jogador detecta os PRÓPRIOS acontecimentos (por leitura de estado, sem patch) e avisa os
 /// outros com PlayerEvent; entrar/sair vem da própria sessão de rede.
 /// </summary>
@@ -18,10 +18,10 @@ public class NotifySync : MonoBehaviour
 {
     public NotifySync(IntPtr ptr) : base(ptr) { }
 
-    public enum EventCode : byte { Slept = 1, Fainted = 2, SleepyFainted = 3, EventStarted = 4 }
+    public enum EventCode : byte { Slept = 1, Fainted = 2, SleepyFainted = 3, EventStarted = 4, BazaarOpened = 5 }
 
     private static bool _subscribed;
-    private bool _wasFaint, _wasSleepyFaint, _wasInEvent, _wasSleeping;
+    private bool _wasFaint, _wasSleepyFaint, _wasInEvent, _wasSleeping, _wasInShop;
     private float _nextPoll;
     private static bool _pendingJoinNotice;
 
@@ -58,6 +58,7 @@ public class NotifySync : MonoBehaviour
             Edge(ref _wasSleepyFaint, p.IsSleepyFaint, EventCode.SleepyFainted);
             Edge(ref _wasInEvent, gc.IsPlayingEvent, EventCode.EventStarted);
             Edge(ref _wasSleeping, DaySync.LocalSleeping, EventCode.Slept);
+            Edge(ref _wasInShop, BazaarManager.IsInstance && BazaarManager.Instance.IsInShop, EventCode.BazaarOpened);
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[NotifySync] {e.Message}"); }
     }
@@ -89,6 +90,7 @@ public class NotifySync : MonoBehaviour
             case EventCode.Fainted: GameNotify.Show($"{name} desmaiou de cansaço!"); break;
             case EventCode.SleepyFainted: GameNotify.Show($"{name} desmaiou de sono!"); break;
             case EventCode.EventStarted: GameNotify.Show($"{name} entrou em um evento."); break;
+            case EventCode.BazaarOpened: GameNotify.Show($"{name} abriu a barraca do Bazaar!"); break;
         }
     }
 }
