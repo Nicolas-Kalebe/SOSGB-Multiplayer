@@ -34,6 +34,7 @@
 | D17 | **Backup**: saves em 2 discos + jogo original inteiro em `L:\Backups\SOSGB`, verificados por SHA-256 (restauração em `backups/CONTEXTO.md`) | ✅ Decidido |
 | D18 | **Repo público** no GitHub; `.gitignore` bloqueia dump, arquivos do jogo, saves e binários de ferramentas | ✅ Decidido |
 | D19 | **Stack**: BepInEx 6 IL2CPP be.791 + plugin `net6.0` em `src/`; primeira etapa só lê o estado do jogo (`DebugOverlay`) | ✅ Decidido |
+| D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 
 ---
 
@@ -159,6 +160,10 @@ Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
 - [x] Backup dos saves (2 discos) e do jogo original, verificado por SHA-256 (D17)
 - [x] Instalar **BepInEx 6 IL2CPP be.791** na pasta do jogo (reversível: ver `backups/CONTEXTO.md`)
 - [x] Criar `src/SOSGB.Multiplayer` (plugin `net6.0`)
+- [x] Plugin carrega no jogo (2026-10-24): BepInEx inicializou, `DebugOverlay` registrado e a janela apareceu
+- [x] Usuário conferiu de olho: a janela aparece e os valores parecem corretos
+- [ ] **Retomar aqui → Ponte de teste (D20):** log de estado, servidor de comandos em loopback, screenshot, auto-load de slot
+- [ ] Com a ponte: confirmar sozinho dinheiro e hora, ⏸ em menus/diálogos e testes de `ToSaveData`/`FromSaveData` e `DateManager.Pause`
 - [ ] Plugin "olá mundo": mostrar na tela o dinheiro (`UserInfo.PlayerMoney`), a hora (`DateManager.Now`) e o mapa atual
 - [ ] Hook em `SaveDataManager.Encode<T>` para confirmar o formato do save
 - [ ] Testar `LikeabilityManager.ToSaveData()` / `FromSaveData()` (base da troca de contexto)

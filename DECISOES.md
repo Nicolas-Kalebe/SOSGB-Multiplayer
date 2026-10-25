@@ -169,3 +169,19 @@ Regras deste arquivo:
 - **Alternativas:** MelonLoader (descartado: o BepInEx 6 tem suporte melhor a IL2CPP e Unity 6, e HarmonyX integrado); BepInEx 5 (descartado: não suporta IL2CPP).
 - **Motivo:** o bleeding edge é a única linha do BepInEx com suporte a IL2CPP metadata v31 / Unity 6. Começar só com leitura isola problemas de acesso antes de mexer em comportamento.
 - **Consequências:** compilar exige o jogo com o BepInEx já executado uma vez. Se o jogo atualizar, é preciso rodar de novo para regenerar o interop.
+
+### D20 — Ponte de teste para a IA testar sozinha
+- **Status:** ✅ Decidido (implementação pendente) · **Data:** 2026-10-24 · **Decidido por:** usuário (sugerido pela IA)
+- **Contexto:** o usuário perguntou se a IA poderia testar o jogo sozinha, com logs ou com controle do PC. No Claude Code a IA não tem controle de mouse e teclado, e simular teclas é frágil, porque o jogo usa o `Unity.InputSystem`, que costuma ignorar input simulado. Ela consegue abrir e fechar o jogo, ler arquivos e ver imagens.
+- **Alternativas:** (a) MCP de terceiros com controle de tela e mouse; (b) screenshot pelo PowerShell + teclas simuladas; (c) "ponte de teste" dentro do próprio plugin.
+- **Decisão:** (c). Um componente **só de desenvolvimento** no plugin, desligado por padrão na versão para jogar:
+  1. **Log de estado:** grava periodicamente em `BepInEx/sosgb-state.jsonl` (dinheiro, data/hora, pausado, mapa, posição, evento ativo, menu aberto);
+  2. **Comandos:** servidor TCP/HTTP **só em `127.0.0.1`** (porta configurável, ex.: 47800), com comandos como `state`, `load <slot>`, `pause`/`resume`, `addmoney <n>`, `field <id>`, `screenshot`, `log <msg>`. A execução acontece na thread principal da Unity (fila consumida no `Update`);
+  3. **Screenshot:** `ScreenCapture.CaptureScreenshot` em `BepInEx/screenshots/`;
+  4. **Auto-load:** opção de configuração para carregar um slot automaticamente ao abrir, pulando a tela de título.
+- **Motivo:** fala direto com o código do jogo, então é confiável e rápido. Fecha o ciclo editar → compilar → abrir → testar → ler resultado sem depender do usuário. Também permite testar o multiplayer com **duas instâncias do jogo no mesmo PC** (host + convidado em `localhost`).
+- **Consequências:**
+  - liga e desliga pelo `BepInEx/config` (`DevBridge.Enabled`), com padrão desligado em release;
+  - só escuta em loopback, nunca em rede;
+  - testes de "sensação" de jogo continuam com o usuário;
+  - usar sempre um slot de teste, nunca o save principal, e fazer snapshot antes (D17).
