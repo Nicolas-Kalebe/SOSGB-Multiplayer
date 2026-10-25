@@ -212,6 +212,37 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.GetPlayer().Action();
                 return Json(new { ok = true });
 
+            case "toolmaster":
+            {
+                // toolmaster <de> <até> — entradas da tabela de ferramentas e se o ID existe como ITEM (investigação D30)
+                var tm = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                uint from = uint.Parse(tm[0]), to = uint.Parse(tm[1]);
+                var rows = new List<string>();
+                var mdmT = MasterDataManager.Instance;
+                foreach (var t in mdmT.ToolMaster.list)
+                {
+                    if (t.Id < from || t.Id > to) continue;
+                    var isItem = mdmT.ItemMaster.TryGetData(t.Id, out var im);
+                    rows.Add($"{t.Id}: nível {t.ToolLevel} cat {t.Category} sobe→{t.UpgradeToolId} preço {t.Price} item={(isItem ? "sim" : "NÃO")}");
+                }
+                return Json(new { ok = true, rows });
+            }
+
+            case "equip":
+            {
+                // equip <TipoDeFerramenta|idDoItem> — põe a ferramenta na mão (testes da Fase 5). Ex.: equip Hoe
+                uint toolId;
+                if (!uint.TryParse(arg.Trim(), out toolId))
+                {
+                    var tt = Enum.Parse<BokuMono.Data.ToolType>(arg.Trim(), true);
+                    var item = InventoryManager.Instance.BagToolStorage.GetToolItem(tt);
+                    if (item == null) return Json(new { ok = false, error = $"sem ferramenta do tipo {tt}" });
+                    toolId = item.ItemId;
+                }
+                ToolManager.Instance.ChangeTool(toolId, true);
+                return Json(new { ok = true, equipped = toolId, current = ToolManager.Instance.CurrentToolId, water = ToolManager.Instance.WateringPotInnerCapacity });
+            }
+
             case "tool":
                 // tool [quadros] — usa a ferramenta da mão pelo caminho real do jogo (injeta a intenção, ver InputInjector)
                 Patches.InputInjector.PressTool(string.IsNullOrWhiteSpace(arg) ? 3 : int.Parse(arg));

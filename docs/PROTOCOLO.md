@@ -64,6 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 13 | `FieldOps` (30, convidado ↔ host: operações por objeto num mapa residente, gzip). D40 |
 | 12 | `LetterData` (29, convidado ↔ host: estado do correio em JSON gzip). D39 |
 | 11 | `StorageHolder` (16, host → todos: quem está com o armazém), `StorageData` (27, armazém inteiro em JSON gzip), `StorageUse` (28, convidado abriu/fechou a tela). D37 |
 | 10 | `MoneyState` (15, host → todos: total da carteira) e `MoneyDelta` (26, convidado → host: diferença). D36 |

@@ -17,7 +17,7 @@ namespace SOSGB.Multiplayer.Net;
 ///   likeability → corações/contadores zerados, sem namoro/noivado (tetos de nível do mundo mantidos);
 ///   talk        → ninguém conhecido (falas de "primeiro encontro" voltam; TalkCond sem histórico);
 ///   bag         → mochila vazia (mesmo número de espaços);
-///   tools       → mesmas ferramentas do host, mas no NÍVEL BÁSICO (cadeia de UpgradeToolId);
+///   tools       → mesmas ferramentas do host, mas no NÍVEL BÁSICO (cadeia de UpgradeToolId, só itens válidos);
 ///   toolstate   → regador vazio;
 ///   appearance  → o visual do personagem do save do próprio convidado (só aparência, não progresso).
 /// </summary>
@@ -115,12 +115,16 @@ public static class FreshProfile
         var o = JsonNode.Parse(json)!.AsObject();
         if (o["itemDatas"] is not JsonArray arr) return json;
         var previous = PreviousGrades();
+        var items = MasterDataManager.Instance.ItemMaster;
         foreach (var e in arr)
         {
             if (e?["ItemId"] is not JsonValue idv || !idv.TryGetValue<uint>(out var id)) continue;
+            // Desce a cadeia só enquanto o nível de baixo EXISTE COMO ITEM. Na tabela de ferramentas há entradas
+            // internas (200, 500, 600, 700, nível 1) que não são itens: viravam espaços vazios na barra (achado
+            // no teste em rede da Fase 5). O básico de verdade é 201, 501, 601, 701 (e 100 para o machado).
             var basic = id;
             var guard = 0;
-            while (previous.TryGetValue(basic, out var lower) && guard++ < 10) basic = lower;
+            while (previous.TryGetValue(basic, out var lower) && items.TryGetData(lower, out _) && guard++ < 10) basic = lower;
             e["ItemId"] = basic;
         }
         return o.ToJsonString();

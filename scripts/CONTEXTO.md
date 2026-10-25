@@ -67,6 +67,9 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `wakeup [both\|wake\|flag]` | Levanta da cama enquanto espera os outros (D34) |
 | `pstate` / `pfix <marca>` | Estado de sono/controle do jogador local / mexe numa marca (diagnóstico da D34) |
 | `storage [put <item> <qtd> \| take <espaço> <qtd>]` | Armazém da casa: lista, guarda ou tira (teste da D37) |
+| `farm [near \| data <guid> \| rm <guid> \| re <guid> \| mk <Tipo> <json> \| cap \| apply \| resident \| residents \| install \| snap \| bench]` | Laboratório da fazenda: objetos do mapa, remover/recriar, capturar/aplicar estado, mapas residentes, custo (D40) |
+| `equip <Tipo>` / `tool [quadros]` | Põe a ferramenta na mão (`Hoe`, `WateringPot`...) / usa pelo caminho real do jogo (injeta a intenção, D40) |
+| `toolmaster <de> <até>` | Tabela de ferramentas: nível, cadeia de upgrade e se o ID existe como item |
 | `mail [add <id> \| take \| json]` | Correio: carta nova na caixa, pegar as cartas, diagnóstico do JSON (D39) |
 | `addmoney <n>` / `spendmoney <n>` | Ganha / gasta pelo caminho do jogo (teste da D36) |
 | `ctx fresh` | Aplica no jogador local o perfil "do zero" de um convidado novo (D30), sem rede. Desfazer com `ctx save antes` / `ctx load antes` |

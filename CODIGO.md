@@ -49,6 +49,8 @@
 - Upgrade de ferramenta: `BagToolStorageManager.GradeUpTool(...)` troca o id do item. `ToolManager.SaveData.WateringPotInnerCapacity`.
 - **Upgrade de ferramenta é imediato** (`ToolManager.GradeUpTool(tipo, item, cb)`); não há estado de "ferramenta no ferreiro". `UserInfo.ToolSaveDatas`: um bloco cifrado (~38 bytes) por tipo de ferramenta (`ToolManager.SetToolSaveData()` / `FromSaveData(ToolSaveData[])`).
 - **Vigor:** `GameController.PlayerHP` / `PlayerMaxHP` (em `UserInfo.PlayerHP/PlayerMaxHP`).
+- ⚠️ **Entradas de ferramenta que NÃO são itens:** 200, 300, 400, 500, 600, 700, 800, 900 (nível 1 na tabela, sem item). Na mochila viram espaço vazio. O básico real: 100 (machado), 201, 501, 601, 701.
+- **Usar ferramenta por código:** a entrada do jogador passa por `PlayerCharacter.GetHumanActionInput()` → `HumanActionInputFlags` (`Tool` = apertou, `ToolUp` = soltou, `Action` = Enter/interagir). Equipar: `ToolManager.ChangeTool(itemId)`; achar a ferramenta do tipo: `BagToolStorage.GetToolItem(ToolType)`.
 - **Níveis de ferramenta:** id = tipo×100 + nível (ex.: 704, 603, 102). A cadeia está em `MasterDataManager.Instance.ToolMaster.list` (`ToolMasterData.UpgradeToolId` aponta para o próximo nível). O nível básico é o que ninguém aponta (ex.: 700, 600, 100, 500); ferramentas sem cadeia (1000, 1100, 1200) não têm upgrade.
 
 ## 5. Amizade e casamento

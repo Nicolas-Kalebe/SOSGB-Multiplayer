@@ -92,8 +92,8 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
-| 5.1 | Modelo **ação → host → resultado** para interações com o mapa (arar, plantar, regar, colher) | G | Teste da IA |
-| 5.2 | Plantações, solo, árvores e sprinklers (`FieldCrop/Ridge/Tree/SprinklerManager`) | G | Teste da IA + screenshot |
+| 5.1 ✅ | Interações com o mapa (arar, plantar, regar, colher...) sincronizadas por **diferença de estado** (D40) em vez de ação por ação | G | Teste da IA: duas instâncias, arar e colher de verdade |
+| 5.2 🟡 | Plantações, solo, árvores e sprinklers (`FieldCrop/Ridge/Tree/SprinklerManager`): feito para os mapas residentes (fazenda externa); falta conferir os outros mapas | G | Teste da IA + screenshot |
 | 5.3 | **Animais e celeiro** (`AnimalManager`) | G | Teste do usuário |
 | 5.4 | **Moinhos**, apicultura e cogumelos | M | Teste da IA |
 | 5.5 | Casa única compartilhada (D11): móveis e expansões | M | Teste do usuário |
@@ -162,5 +162,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Fase:** 4 — Economia (v0.3) concluída pela IA (falta o teste numa loja de verdade); próxima: 5 — Fazenda. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
 - **Pacote de teste para amigos:** v0.3.1 (`Downloads\SOSGB-Multiplayer-v0.3.1-amiga.zip`, fora do repositório; protocolo 9). A v0.3 derrubava o host ao deitar (D33) e foi apagada.
 - **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P3 log da amiga, P5 memória, P7 pausa por menu). P2 e P6 feitas pela IA (D33). P1 e P4 respondidas: convidado começa do zero (D30, feito) e aparência (D31 → corrigida na D32).
-- **Próxima tarefa sugerida:** Fase 5 (fazenda). Espectar ficou adiado (D35, P8).
+- **Próxima tarefa sugerida:** 5.3 (animais) e conferir mapas não residentes (celeiro etc.). Espectar ficou adiado (D35, P8).
 - **Última atualização:** 2026-10-25

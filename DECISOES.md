@@ -295,7 +295,7 @@ Regras deste arquivo:
   - **corações:** todos os contadores de `LikeabilityDatas`/`YesterdayLikeabilityDataList` zerados, sem noivado/casamento e sem a lista de "já conversou". Os **tetos de coração** (`LikeabilityLevelCapDatas`) ficam, porque vêm do progresso do mundo;
   - **conversas:** todas as listas zeradas, inclusive as de `TalkCond` (as falas de "primeiro encontro" voltam);
   - **mochila:** vazia. Ela tem espaços **fixos** (ex.: 32, os vazios com `ItemId` 0); esvaziar a lista quebraria a mochila. Por isso cada espaço vira vazio e o tamanho é mantido;
-  - **ferramentas:** as **mesmas do host**, mas no **nível básico**, descendo a cadeia de `ToolMasterData.UpgradeToolId` (ex.: 704→700, 603→600, 102→100, 503→500). Sem ferramentas o convidado não consegue jogar, e o jogo não tem uma lista "ferramentas iniciais" fácil de ler;
+  - **ferramentas:** as **mesmas do host**, mas no **nível básico**, descendo a cadeia de `ToolMasterData.UpgradeToolId` até o primeiro nível que existe como item (ex.: 704→701, 603→601, 102→100, 503→501; corrigido na [D40](#d40--fazenda-ao-vivo-operações-por-objeto-nos-mapas-residentes): 700/600/500 não são itens). Sem ferramentas o convidado não consegue jogar, e o jogo não tem uma lista "ferramentas iniciais" fácil de ler;
   - **regador:** vazio;
   - **aparência:** a do personagem do save do próprio convidado. É o único dado aproveitado: é "o boneco" dele, não progresso.
 - **Verificado:** comando de teste `ctx fresh` (uma instância só): corações zerados, mochila vazia com 32 espaços, ferramentas no nível básico, regador vazio. O jogo seguiu normal (relógio, personagem, evento da manhã).
@@ -411,3 +411,20 @@ Regras deste arquivo:
 - **Achado:** o `JsonToObject` do jogo devolve **nulo** para `LetterManager.SaveData` (a carta, `InBagLetterData`, não tem construtor vazio). O mod monta o `SaveData` à mão a partir do JSON, com os construtores do jogo. Verificado: ida e volta do JSON idêntica (16.939 caracteres).
 - **Verificado (duas instâncias):** carta nova chega na caixa do host → aparece na da convidada; a convidada pega → some da caixa do host e os dois ficam com as mesmas cartas (133). Sem mensagens repetidas.
 - **Consequências:** a etiqueta "Para: jogador X" (D10a, opção c) continua como melhoria opcional (ROTEIRO 8.4).
+
+### D40 — Fazenda ao vivo: operações por objeto nos mapas residentes
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (ROTEIRO 5.1/5.2)
+- **Contexto / achados (laboratório `farm`, uma instância):**
+  - cada mapa carregado é um `FieldCache` com objetos por GUID (terra arada, plantas, árvores, pedras/mato, grama, flores, sprinklers, ovos);
+  - o jogo mantém alguns mapas **sempre na memória** ("residentes", `FieldManager.fieldCacheDict`; hoje o mapa 1, a área externa com a fazenda) e processa o dia neles direto. Mexer no cache residente com o jogador em outro mapa funciona: os objetos aparecem quando ele volta;
+  - remover (`Unregister`) e criar com as funções de carga do jogo (`CreateCrop(cache, dados, pai)` etc.) funciona ao vivo, na tela. O serializador oficial (`CreateData` + `DecodeObjectSaveData`) dá os dados completos de tudo em ~2,5 ms.
+- **Alternativas:** (a) "ação → host → resultado" (patch em cada ação: arar, plantar, regar, colher, quebrar...), com dezenas de caminhos; (b) **comparar o estado** e mandar as diferenças.
+- **Decisão:** (b). Quem está num mapa residente compara, a cada 0,5 s, os objetos com a última versão sincronizada e manda operações (`FieldOps`): criar/alterar = dados completos, remover = GUID. Convidado → host; o host aplica e repassa. Todos aplicam no cache daquele mapa, **estejam onde estiverem**. Antes de aplicar no mapa atual, as mudanças locais pendentes saem primeiro. Partes "escravas" de objetos grandes (árvores) vêm junto com o mestre. Na virada do dia, todos recarregam o mundo do host (que já tem tudo).
+- **Verificado (duas instâncias):** remoções pela ponte nos dois sentidos; convidada fora do mapa recebe no cache residente e vê ao voltar; **ações reais**: o host ara com a enxada (canteiros 38 → 39 nos dois) e colhe uma soja com Enter (plantas 38 → 37 nos dois; 92 bytes).
+- **Achado no teste — bug da D30 corrigido:** na tabela de ferramentas existem entradas internas de nível 1 (200, 500, 600, 700) que **não são itens**. O "começar do zero" descia até elas, e o convidado ficava com vara, regador, foice e enxada como **espaços vazios** na barra. Agora a descida para no primeiro nível que existe como item (701, 601, 201, 501; machado 100). Verificado na tela: as 8 ferramentas aparecem.
+- **Consequências / limites:**
+  - Mapas **não residentes** (celeiro, galinheiro, outros) ainda não sincronizam ao vivo. Conferir quais têm objetos que importam (Fase 5.3).
+  - Animais e itens soltos no chão ficam de fora por enquanto (5.3).
+  - Conflito (dois mexendo no mesmo objeto no mesmo meio segundo): vale a última operação que o host processou.
+  - Protocolo 13 (`FieldOps` 30).
+  - Para testar ações reais sem mouse: `Patches/InputInjector` (só modo de teste) injeta a intenção "usar ferramenta" (comando `tool`), e `equip <tipo>` põe a ferramenta na mão. O clique sintético não chega ao jogo.
