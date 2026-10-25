@@ -155,33 +155,8 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ## Estado atual
 
-- **Fase:** 4 — Economia (v0.3)
-- **Próxima tarefa:** 4.1 (dinheiro compartilhado)
-- **Pendente com o usuário:** deitar na cama de verdade (menu da cama → animação) para confirmar que o caminho real passa pelo `GameController.StartNextDay` igual ao comando `nextday`
-- **Em andamento (usuário):** primeiro teste real com uma amiga, usando o pacote v0.1 + `docs/INSTALACAO.md` (rascunho da 8.5)
-- **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
-- **Feito:** 1.2 — save = cabeçalho + JSON (`Obfuscation.Decode(..., General)`), 94 seções
-- **Feito:** 1.3 — troca de contexto da amizade funciona **via JSON** (`ToSaveData` é raso)
-- **Feito:** 1.4 — 6 partes por jogador (amizade, conversas, flags, mochila, ferramentas, regador), ~57 KB
-- **Feito:** 1.5 — snapshot do mundo pelo pipeline de save do próprio jogo (73 KB), sem tocar no disco
-- **Feito:** 1.6 — duas instâncias no mesmo PC (`scripts/second-instance.sh`)
-- **Feito:** 1.7 — overlay no canto inferior esquerdo
-- ✅ **Fase 1 concluída** (2026-10-24): nenhuma surpresa que mude o plano
-- **Feito:** 2.1 — LiteNetLib 2.1.4: host/convidado, aperto de mão com versão, IDs 0–3 (testado com 2 instâncias)
-- **Feito:** 2.2 — `docs/PROTOCOLO.md`
-- **Feito:** 2.3/2.4 — avatar remoto (clone visual do modelo do player) com posição, rotação e animação (hash do estado do Animator), 10×/s. **Confirmado por screenshot**: a instância B mostra o avatar do host ao lado da cama
-- **Feito:** 2.5 — avatar some quando o jogador vai para outro mapa e volta quando retorna (testado: casa 100010 ↔ 10002)
-- **Feito:** 2.6 — `[Net] AutoStart = off|host|join` + `JoinAddress` (testado: A hospeda e B entra sozinho)
-- **Simulação de "dois PCs"** (o usuário não tinha um amigo para testar): conexão pelo **IP da LAN** (192.168.x), atraso simulado de 80–150 ms e 5% de perda → o movimento chega em 128–205 ms, sem erros. O firewall do Windows tem regra liberando o jogo (perfil Público = perfil da rede atual)
-- ✅ **Fase 2 concluída** (2026-10-24) em simulação. O teste real em 2 PCs fica para quando houver um amigo disponível (não bloqueia a Fase 3)
-- **Feito:** 3.1 — o convidado recebe o mundo do host (`WorldRequest`/`WorldData`, 73 KB) e recarrega. Testado: host com 74.365 G, convidado (disco com 69.365) passa a ter 74.365; conexão e avatares sobrevivem à recarga; convidado nunca grava no disco
-- **Feito:** 3.2/3.3 — `ClockSync`: relógio do host 2×/s com correção se divergir > 30 s; pausa do grupo via patch em `DateManager.IsUpdateEnabled` com regra N (`[Game] PauseWhenPlayersInMenu`, padrão 1). Testado: convidado pausa → host para junto; adiantar o convidado 3 h é corrigido na hora
-- **Feito:** 3.4/3.5 — `DaySync`: patch em `GameController.StartNextDay` segura a virada de quem deita ("dormindo X/Y" no overlay); quando todos dormem, o host vira o dia (o save automático do jogo = save oficial do D23) e reenvia o mundo a todos. Testado: convidado deita → 1/2 e o dia não vira; host deita → os dois acordam no dia seguinte às 06:00
-- **Feito:** 3.6 — `PlayerProfiles` (D24): o convidado mantém a própria mochila e amizade depois da virada do dia (13 itens / 945 × host 18 / 745); o host grava os perfis em arquivo; reabrir os jogos restaura do arquivo; sair e voltar mantém a última versão
-- **Feito:** 3.7 — no multiplayer o host só grava durante a virada do dia (save manual recusado com aviso; o jogo mostra "Não foi possível salvar"); o convidado nunca grava (com aviso); snapshot de recuperação a cada 15 min em arquivo à parte (`recovery_*.sav`, invisível para quem joga)
-- **Corrigido (bugs do 1º teste real com a amiga):** (1) o convidado não via o host → avatares recriados quando o mundo recarrega; (2) avatar sem animação ("voando") → sincroniza as 12 camadas + parâmetros do Animator e usa o override controller real. Verificado andando com o teclado (`scripts/press-keys.ps1`) e por screenshot
-- **Aparência própria (D28) → EXPERIMENTAL e desligada (D29):** funciona com peças padrão, mas trava (personagem invisível) com peças não carregadas e não troca gênero. Por enquanto: modelo do jogador local + nome em cima
-- **Feito (antecipado da Fase 8):** avisos no sistema do jogo (D26); interface de hospedar/entrar + lista de jogadores com localização (D27)
-- **Corrigido (D25):** o jogo não precisa mais de clique/alt-tab para sair da tela inicial (`StartupGuard`)
-- ✅ **Fase 3 concluída** (2026-10-25), testada com 2 instâncias. Pendências com o usuário: deitar na cama de verdade; confirmar D24 (perfil inicial do convidado)
-- **Última atualização:** 2026-10-24
+- **Fase:** 4 — Economia (v0.3), ainda não iniciada. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
+- **Pacote de teste para amigos:** v0.2 (`Downloads\SOSGB-Multiplayer-v0.2-amiga.zip`, fora do repositório).
+- **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P1 perfil inicial, P2 cama de verdade, P3 log da amiga, P4 aparência × jogabilidade, P5 memória).
+- **Próxima tarefa sugerida:** 4.1 (dinheiro compartilhado), salvo se o usuário preferir continuar a aparência (P4).
+- **Última atualização:** 2026-10-25
