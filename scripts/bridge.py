@@ -28,6 +28,8 @@ def send(port: int, command: str, timeout: float = 70.0) -> dict:
 
 
 def main() -> int:
+    # O console do Windows usa cp1252; JSON do jogo pode ter qualquer caractere.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--port", type=int, default=47800)
     ap.add_argument("--wait", type=float, default=0, help="segundos esperando a ponte aceitar conexão")

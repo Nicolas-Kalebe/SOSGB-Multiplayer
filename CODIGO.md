@@ -123,6 +123,15 @@ A rede foi removida, mas sobrou a estrutura:
 - **A confirmar:** diálogo com NPC e cutscene provavelmente passam pela mesma trava (testar na Fase 3/6 com um NPC real).
 - Ponte: o comando `menu <UILoadKey>` abre menus, mas o `closemenu` (`UIManager.CloseMenu`) falha com `KeyNotFoundException`, porque o menu aberto por fora não é registrado no `UIMenuManager`. Depois de testar menus, reinicie com `dev-cycle.sh`.
 
+### Formato do save (tarefa 1.2) ✅
+- `.sav` = `BokuMono.Utility.Obfuscation.Encode(json, Deflate.General)`, aberto com **`Obfuscation.Decode(bytes, Deflate.General)`** (a rotina do próprio jogo; comando `decodesave` da ponte).
+- Resultado: **31 caracteres de cabeçalho binário + JSON puro**, com chaves iguais aos nomes dos campos C#.
+- `SaveData{N}.sav` → `{"HeaderData":{"Version":10500},"UserData":{...}}`, ~630 KB de JSON (~75 KB no disco), **94 seções**. As maiores: `BingoData` (314 KB), `FieldSaveDatas` (162 KB), `HouseStorageSaveData` (56 KB).
+- `LikeabilityData` = `{FianceCharaId, PartnerCharaId, LikeabilityDatas:[{CharaId, Value:{Point, PresentCount, FestivalPresentCount, TotalPresentCount, TalkCount, CapDayTick}}], YesterdayLikeabilityDataList, LikeabilityLevelCapDatas, NonLikeabilityCharaTalkedList}`.
+- `SaveSlotSystem{N}.sav` → opções do slot (`OptionGamePlay`...). `SaveSystem.sav` → configurações gerais.
+- **Para o mod:** o snapshot que o convidado recebe pode ser esse mesmo JSON (comprimido para a rede). Dados por jogador podem ser guardados como seções extras num arquivo do mod ao lado do save.
+- Os arquivos decodificados ficam em `<jogo>/BepInEx/savedump/` (dados pessoais, **fora do repositório**).
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

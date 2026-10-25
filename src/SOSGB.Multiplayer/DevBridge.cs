@@ -178,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "log <texto>", "quit",
                     },
                 });
 
@@ -221,6 +221,9 @@ public class DevBridge : MonoBehaviour
                 UnityEngine.Object.FindObjectOfType<UIManager>().CloseMenu(null, null, false, null, false);
                 return Json(new { ok = true });
 
+            case "decodesave":
+                return DecodeSave(arg);
+
             case "log":
                 Plugin.Logger.LogInfo($"[DevBridge] {arg}");
                 Events.Enqueue(arg);
@@ -249,6 +252,33 @@ public class DevBridge : MonoBehaviour
             if (result == SaveLoadResult.Succeess)
                 SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
         }));
+    }
+
+    /// <summary>
+    /// Tarefa 1.2: tenta decodificar um .sav com a própria rotina do jogo (BokuMono.Utility.Obfuscation)
+    /// e grava o resultado em BepInEx/savedump/ (fora do repositório: são dados do usuário).
+    /// </summary>
+    private static string DecodeSave(string path)
+    {
+        var bytes = File.ReadAllBytes(path.Trim('"'));
+        var outDir = Path.Combine(Paths.BepInExRootPath, "savedump");
+        Directory.CreateDirectory(outDir);
+        var results = new Dictionary<string, object>();
+        foreach (var mode in new[] { BokuMono.Utility.Obfuscation.Deflate.Original, BokuMono.Utility.Obfuscation.Deflate.General })
+        {
+            try
+            {
+                var text = BokuMono.Utility.Obfuscation.Decode(bytes, mode);
+                var outPath = Path.Combine(outDir, Path.GetFileNameWithoutExtension(path.Trim('"')) + $".{mode}.txt");
+                File.WriteAllText(outPath, text ?? "");
+                results[mode.ToString()] = new { length = text?.Length ?? 0, head = text == null ? null : text.Substring(0, Math.Min(300, text.Length)), outPath };
+            }
+            catch (Exception e)
+            {
+                results[mode.ToString()] = new { error = e.GetType().Name + ": " + e.Message.Split('\n')[0] };
+            }
+        }
+        return Json(new { ok = true, size = bytes.Length, results });
     }
 
     // ---------- util ----------
