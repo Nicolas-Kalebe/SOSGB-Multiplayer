@@ -358,8 +358,61 @@ public class DevBridge : MonoBehaviour
                     if (!found) return Json(new { ok = false, error = "guid não encontrado" });
                     return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], root.ToJsonString(), markSynced: false) });
                 }
+                // shared reapply <parte> — reaplica o próprio estado (teste de duplicação: comparar com "objcount" antes e depois)
+                if (sa2.Length >= 2 && sa2[0] == "reapply") return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], Net.SharedSync.CaptureJson(sa2[1]), markSynced: true) });
                 if (sa2.Length >= 2 && sa2[0] == "json") { var js = Net.SharedSync.CaptureJson(sa2[1]) ?? ""; return Json(new { ok = true, length = js.Length, head = js.Substring(0, Math.Min(900, js.Length)) }); }
                 return Json(new { ok = true, status = Net.SharedSync.Status() });
+            }
+
+            case "objcount":
+            {
+                // Quantos GameObjects ativos há na cena, por nome (teste de duplicação ao reaplicar estado)
+                var counts = new Dictionary<string, int>();
+                foreach (var go in UnityEngine.Object.FindObjectsOfType<GameObject>())
+                {
+                    var n = go.name;
+                    counts[n] = counts.TryGetValue(n, out var c0) ? c0 + 1 : 1;
+                }
+                return Json(new { ok = true, total = counts.Values.Sum(), counts });
+            }
+
+            case "pets":
+            {
+                // pets | pets old | pets apply — pets e cavalo: parâmetros × personagens na cena (bug dos pets em dobro).
+                // "old" reaplica pelo caminho antigo (FromSaveData do controlador); "apply" pelo caminho atual da SharedSync.
+                var pa = arg.Trim();
+                var pc = BokuMono.Animal.PetAnimalController.Instance;
+                var rc = BokuMono.Animal.RideableAnimalController.Instance;
+                if (pa == "old")
+                {
+                    pc.FromSaveData(StringExtensions.JsonToObject<BokuMono.Animal.PetAnimalController.SaveData>(StringExtensions.ToJson(pc.ToSaveData())));
+                    rc.FromSaveData(StringExtensions.JsonToObject<BokuMono.Animal.RideableAnimalController.SaveData>(StringExtensions.ToJson(rc.ToSaveData())));
+                }
+                string applied = null;
+                if (pa == "addcopy")
+                {
+                    // Simula "pet comprado no jogo de outro jogador": aplica o estado com uma cópia do 1º pet (Guid novo).
+                    var root = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson("pets"))!;
+                    var list = root["PetParams"]!.AsArray();
+                    var copy = System.Text.Json.Nodes.JsonNode.Parse(list[0]!.ToJsonString())!;
+                    copy["Guid"] = Guid.NewGuid().ToString();
+                    copy["Name"] = "Copia";
+                    list.Add(copy);
+                    applied = Net.SharedSync.ApplyPart("pets", root.ToJsonString(), markSynced: true);
+                }
+                if (pa == "apply")
+                    applied = Net.SharedSync.ApplyPart("pets", Net.SharedSync.CaptureJson("pets"), markSynced: true) + " / "
+                            + Net.SharedSync.ApplyPart("horse", Net.SharedSync.CaptureJson("horse"), markSynced: true);
+                var names = new List<string>();
+                foreach (var c in UnityEngine.Object.FindObjectsOfType<PetAnimalCharaecter>()) names.Add("pet:" + c.name);
+                foreach (var c in UnityEngine.Object.FindObjectsOfType<RideableAnimalCharaecter>()) names.Add("cavalo:" + c.name);
+                return Json(new
+                {
+                    ok = true, applied,
+                    petParams = pc.PetCount, petContainers = pc.PetContainers?.Length ?? -1,
+                    horseParams = rc.ToSaveData().Parameters?.Count ?? -1,
+                    characters = names,
+                });
             }
 
             case "animal":

@@ -75,7 +75,9 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `gates` | Portões e áreas de transição da cena atual (destino e posição) |
 | `bazaar [open]` | Estado do Bazaar e do relógio (aberto hoje, horário, na barraca, relógio parado...) / abre o menu da barraca (D47). Para testar: chegar ao Bazaar andando pela cidade (o `field 10001` direto pula a chegada) |
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
-| `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local |
+| `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor> \| reapply <parte>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local, reaplicar o próprio estado (teste de duplicação) |
+| `objcount` | GameObjects ativos na cena, por nome. Comparar antes/depois de um `shared reapply` acha estado que duplica objetos (D52) |
+| `pets [old \| apply \| addcopy]` | Pets e cavalo: parâmetros × personagens na cena / reaplica pelo caminho antigo (duplica, D52) / pelo atual / simula um pet novo vindo de outro jogador |
 | `animal [barns \| get <guid> \| set <guid> <campo> <valor> \| poke <guid> <campo> <valor>]` | Animais e celeiros (D41): lista, JSON, mudar como se viesse da rede (`set`) ou como ação local (`poke`) |
 | `equip <Tipo>` / `tool [quadros]` | Põe a ferramenta na mão (`Hoe`, `WateringPot`...) / usa pelo caminho real do jogo (injeta a intenção, D40) |
 | `toolmaster <de> <até>` | Tabela de ferramentas: nível, cadeia de upgrade e se o ID existe como item |

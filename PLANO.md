@@ -37,6 +37,8 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D53 | **Pular logos de abertura** (`[Game] SkipIntroLogos`); ~24 s a menos por abertura | ✅ Decidido |
+| D52 | **Pets/cavalo aplicados animal por animal** (o `FromSaveData` do controlador duplicava os pets) | ✅ Decidido |
 | D51 | **Bazaar: uma barraca por vez** (trava); "juntos" = repor a barraca do dono (a fazer) | 🟡 Parte feita |
 | D50 | **Relógio**: só o menu de pausa pausa (para todos); o resto segue; o tempo segue o mais adiantado (pulos propagam) | ✅ Decidido |
 | D49 | **Vigor máximo compartilhado** (SharedSync); **bônus de comida individuais** (perfil); upgrade de ferramenta individual | ✅ Decidido |

@@ -30,6 +30,8 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 | `PlayerName` | seu nome (opcional) | seu nome (opcional) |
 | `Port` | `47900` | `47900` |
 
+Em `[Game]`, `SkipIntroLogos = true` (padrão) pula as logos de abertura e vai direto para a tela inicial ([D53](../DECISOES.md)).
+
 **IP do host:**
 - Mesma casa: no PC do host, rode `ipconfig` e use o "Endereço IPv4" da placa de rede (ex.: `192.168.100.3`).
 - Casas diferentes: os dois instalam o **Radmin VPN** (grátis) e entram na mesma rede. Use o IP que o Radmin mostra para o host (começa com `26.`).

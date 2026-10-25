@@ -18,6 +18,7 @@ public class Plugin : BasePlugin
 
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
+    internal static ConfigEntry<bool> SkipIntroLogos;
     internal static ConfigEntry<bool> FixStartupFocus;
     internal static ConfigEntry<bool> OwnAppearance;
     internal static ConfigEntry<string> PlayerName;
@@ -57,6 +58,10 @@ public class Plugin : BasePlugin
         // D21: o jogo se pausa ao perder o foco; no multiplayer isso congelaria todos.
         KeepRunningWhenUnfocused = Config.Bind("Game", "KeepRunningWhenUnfocused", true,
             "Mantém o jogo rodando quando a janela perde o foco (necessário no multiplayer).");
+
+        // D53: pula as logos de abertura (pedido do usuário, para testar e entrar mais rápido).
+        SkipIntroLogos = Config.Bind("Game", "SkipIntroLogos", true,
+            "Pula as logos de abertura (Marvelous, CRIWARE...) e vai direto para a tela inicial.");
 
         // D25: o jogo trava na tela inicial se a janela nasce inativa (o console do BepInEx rouba o foco).
         FixStartupFocus = Config.Bind("Game", "FixStartupFocus", true,

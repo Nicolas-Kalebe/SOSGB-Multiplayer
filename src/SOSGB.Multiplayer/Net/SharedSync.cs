@@ -119,11 +119,59 @@ public class SharedSync : MonoBehaviour
             UnionEventFlags),
         Make("pets", () => AnimalManager.IsInstance && AnimalManager.Instance.PetAnimalController != null,
             () => StringExtensions.ToJson(AnimalManager.Instance.PetAnimalController.ToSaveData()),
-            j => AnimalManager.Instance.PetAnimalController.FromSaveData(StringExtensions.JsonToObject<BokuMono.Animal.PetAnimalController.SaveData>(j))),
+            ApplyPets),
         Make("horse", () => AnimalManager.IsInstance && AnimalManager.Instance.RideableAnimalController != null,
             () => StringExtensions.ToJson(AnimalManager.Instance.RideableAnimalController.ToSaveData()),
-            j => AnimalManager.Instance.RideableAnimalController.FromSaveData(StringExtensions.JsonToObject<BokuMono.Animal.RideableAnimalController.SaveData>(j))),
+            ApplyHorse),
     };
+
+    // ----- Pets e cavalo: animal por animal -----
+    // O FromSaveData do PetAnimalController / RideableAnimalController RECRIA os animais (parâmetros e personagens)
+    // sem descarregar os que já estão na cena: aplicar a parte inteira a cada mudança deixava os pets EM DOBRO (visto
+    // pelo usuário). Aqui cada animal recebe o estado no próprio parâmetro (FromSaveData do animal, mesmo Guid), como
+    // a AnimalSync faz com os animais da fazenda. Animal que ainda não existe neste jogo é criado e registrado.
+
+    private static IEnumerable<(string guid, string json)> AnimalsIn(string json, string listName)
+    {
+        var list = new List<(string, string)>();
+        if (JsonNode.Parse(json)?[listName] is not JsonArray arr) return list;
+        foreach (var e in arr)
+            if (e is JsonObject o && o["Guid"] is JsonValue gv && gv.TryGetValue<string>(out var g) && !string.IsNullOrEmpty(g))
+                list.Add((g, o.ToJsonString()));
+        return list;
+    }
+
+    private static void ApplyPets(string json)
+    {
+        var pc = AnimalManager.Instance.PetAnimalController;
+        foreach (var (guid, one) in AnimalsIn(json, "PetParams"))
+        {
+            var sd = StringExtensions.JsonToObject<BokuMono.Animal.PetAnimalParameter.SaveData>(one);
+            if (sd == null) throw new Exception("JsonToObject devolveu nulo (pet)");
+            var p = pc.FindParameter(guid);
+            if (p != null) { p.FromSaveData(sd); continue; }
+            p = new BokuMono.Animal.PetAnimalParameter();
+            p.FromSaveData(sd);
+            pc.AddParameter(p);
+            Plugin.Logger.LogInfo($"[SharedSync] pet novo vindo de outro jogador: {guid}");
+        }
+    }
+
+    private static void ApplyHorse(string json)
+    {
+        var rc = AnimalManager.Instance.RideableAnimalController;
+        foreach (var (guid, one) in AnimalsIn(json, "Parameters"))
+        {
+            var sd = StringExtensions.JsonToObject<BokuMono.Animal.RideableAnimalParameter.SaveData>(one);
+            if (sd == null) throw new Exception("JsonToObject devolveu nulo (cavalo)");
+            var p = rc.FindParameter(guid);
+            if (p != null) { p.FromSaveData(sd); continue; }
+            p = new BokuMono.Animal.RideableAnimalParameter();
+            p.FromSaveData(sd);
+            rc.AddParameter(p);
+            Plugin.Logger.LogInfo($"[SharedSync] cavalo novo vindo de outro jogador: {guid}");
+        }
+    }
 
     // ----- Partes que o JsonToObject do jogo não monta (classes sem construtor vazio): montadas à mão -----
 
