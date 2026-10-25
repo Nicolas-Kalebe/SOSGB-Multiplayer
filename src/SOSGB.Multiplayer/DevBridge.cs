@@ -228,6 +228,25 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, rows });
             }
 
+            case "bazaar":
+            {
+                // bazaar — estado do Bazaar e do relógio (investigação da D47)
+                var bm = BazaarManager.IsInstance ? BazaarManager.Instance : null;
+                if (bm != null && arg.Trim() == "open") bm.RequestOpenShopDialog();
+                string T(Func<object> f) { try { return f()?.ToString(); } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                return Json(new
+                {
+                    ok = true,
+                    now = DateManager.Instance.Now.ToString(),
+                    clockUpdate = DateManager.Instance.IsUpdateEnabled,
+                    exists = bm != null,
+                    openDay = T(() => bm.IsOpenDay()), openTime = T(() => bm.IsOpenTime()), openField = T(() => bm.IsOpenField()),
+                    canOpenShop = T(() => bm.IsEnableOpenMyShopTime()), inShop = T(() => bm.IsInShop), timeStop = T(() => bm.IsBazaarTimeStop),
+                    period = T(() => bm.CurrentPeriod), openPeriod = T(() => bm.OpenPeriod), procedure = T(() => bm.CurrentProcedureMask),
+                    sales = T(() => bm.ThisOnceSalePrice), visitors = T(() => bm.SellVisitorNum),
+                });
+            }
+
             case "marrydiag":
                 // marrydiag on|off — registra quem consulta o casamento (diagnóstico da 6.5)
                 Patches.MarriageDiagnosticsPatch.Enabled = arg.Trim() != "off";

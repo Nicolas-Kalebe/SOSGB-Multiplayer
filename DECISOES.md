@@ -486,3 +486,13 @@ Regras deste arquivo:
 - **Verificado (duas instâncias):** a convidada põe 2 itens no deck e aparecem no host; com o host na tela do deck, a convidada é bloqueada com aviso. Tendências e decoração: autoteste ok. O progresso (`bazaar`) só pode ser testado num dia de Bazaar.
 - **Ideia do usuário para a sessão de venda (2026-10-25):** "ou os dois juntos, ou um faz e o outro fica livre pra trabalhar e comprar itens, e quando acabar o Bazaar pular o tempo pro que não tava; mas dá a opção: quer trabalhar junto ou não?" → em investigação (D47).
 - Protocolo 18 (mensagens de armazém com o número do armazém).
+
+### D47 — Sessão de venda do Bazaar em grupo: proposta (ideia do usuário)
+- **Status:** 📝 Proposta, falta testar num sábado do jogo com o usuário · **Data:** 2026-10-25 · **Decidido por:** usuário (ideia) + IA (viabilidade)
+- **Ideia do usuário:** "ou os dois juntos, ou um faz e o outro fica livre pra trabalhar e comprar itens, e quando acabar o Bazaar pular o tempo pro que não tava; mas dá a opção: quer trabalhar junto ou não?"
+- **O que se sabe do jogo (investigação):** o Bazaar abre aos sábados; a barraca pode ser aberta a partir das 10:00 (`IsEnableOpenMyShopTime`); o mapa do Bazaar fica num estado próprio (`ProcedureMask = HeldMap`) e o relógio pode parar (`IsBazaarTimeStop`); a sessão termina com a tela de resultado (`ShowResultPage`). Os clientes NPC são simulados em cada jogo (`NPCBazaarVisitorAgent`). Dirigir o minijogo por automação não deu (a entrada pelo comando de troca de mapa deixa o jogador preso numa tela), então o comportamento do relógio durante a venda ainda não foi medido.
+- **Viabilidade (proposta):**
+  - **"Um vende, os outros ficam livres":** dá. Quem está vendendo não pausa o grupo (como quem dorme, D33) e, durante a venda, o relógio dele não é corrigido pelo do host. No fim, os relógios se alinham pelo **mais adiantado**: se a venda terminou "mais tarde", quem estava livre pula para essa hora; se o host vendeu, o pulo chega aos outros sozinho pela correção de relógio que já existe.
+  - **"Os dois juntos":** dá, com uma diferença do jogo sozinho: cada um abre a barraca no próprio jogo e vende para os próprios clientes simulados. O deck compartilhado com trava (D46) impede vender o mesmo item duas vezes, e o dinheiro já é compartilhado (D36). O grupo terá mais clientes que no jogo sozinho.
+  - **A opção:** não precisa de menu. Quem vai à barraca vende; quem não vai fica livre. Se quiserem vender juntos, os dois vão à barraca. Dá para acrescentar um aviso "Fulano abriu a barraca do Bazaar" no sistema de avisos.
+- **Próximo passo:** testar num sábado do jogo, com os amigos ou com duas instâncias jogando de verdade (P10).
