@@ -72,6 +72,7 @@
 - **Animais da fazenda:** `AnimalManager.Instance.AllAnimalParams` (IEnumerable IL2CPP: o `foreach` do C# não funciona; use `Cast<Il2CppSystem.Collections.IEnumerable>().GetEnumerator()`) → `TryCast<FarmAnimalParameter>()`. Cada um tem `ToSaveData`/`FromSaveData` (Guid, FriendPoint, Daily*Count, AteFeedType, ProductRegetDays, CurrentSign, Position, Rotation, Order...).
 - **Celeiros:** `AnimalManager.Instance.FarmAnimalBarns.Barns` → `FarmAnimalBarn` (`ToSaveData`/`FromSaveData`: FeedBoxContainers, ExecutedMorningFeed, **ProductEggContainers** = ovos que o jogo recria ao entrar, ProductEggCount, AnimalContainers). Moinhos: `WindmillCraftingManager`. Também `BeekeepingManager` e `MushroomFarmingManager`.
 - `FieldManager.AdvanceDateTime(...)` já atualiza mapas fora da tela.
+- **Ampliações:** `ExpansionManager` (`ToSaveData`/`FromSaveData` com `ExpansionData`: flags reservadas/concluídas + datas). Níveis: `BagLevel`, `BedLevel`, `HouseStorageLevel`, `RidgeLevel`, `BeeKeepingLevel`, `MushroomFarmingLevel`. O tamanho da mochila segue o `BagLevel` (do mundo).
 
 ### Objetos do mapa (Fase 5, investigação)
 - Mapa carregado: `FieldManager.Instance.CurrentFieldCache` (`FieldCache`); objetos em `LayerObjects` (`Dictionary<uint, List<FieldLayerObjectEntity>>`), por GUID: `GetLayerObject(guid)`. Itens no chão são outro tipo (`FieldItemEntity : FieldFreeObjectEntity`, em `FreeObjects`).

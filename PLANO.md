@@ -37,7 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
-| D42 | **Estado compartilhado genérico**: gerenciadores com ToSaveData/FromSaveData (moinho, apicultura, cogumelos, vasos, pets, cavalo) | ✅ Decidido |
+| D42 | **Estado compartilhado genérico**: gerenciadores com ToSaveData/FromSaveData (moinho, apicultura, cogumelos, vasos, pets, cavalo, ampliações da casa) | ✅ Decidido |
 | D41 | **Animais e celeiros**: estado de cuidados de cada animal e ovos/ração de cada celeiro sincronizados (mesclando, sem mexer na posição) | ✅ Decidido |
 | D40 | **Fazenda ao vivo**: diferenças dos objetos dos mapas residentes viram operações por objeto; corrige ferramentas "vazias" do perfil do zero | ✅ Decidido |
 | D39 | **Correio compartilhado**: estado do `LetterManager` sincronizado (montado à mão: o `JsonToObject` devolve nulo) | ✅ Decidido |

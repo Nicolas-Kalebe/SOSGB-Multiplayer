@@ -52,6 +52,10 @@ public class SharedSync : MonoBehaviour
         Make("flowerpot", () => FlowerPotManager.IsInstance,
             () => StringExtensions.ToJson(FlowerPotManager.Instance.ToSaveData()),
             j => FlowerPotManager.Instance.FromSaveData(StringExtensions.JsonToObject<FlowerPotManager.SaveData>(j))),
+        // Ampliações (casa, armazém, cama, mochila, canteiros...): reservadas no carpinteiro, concluídas na virada (5.5).
+        Make("expansion", () => ExpansionManager.IsInstance,
+            () => StringExtensions.ToJson(ExpansionManager.Instance.ToSaveData()),
+            j => ExpansionManager.Instance.FromSaveData(StringExtensions.JsonToObject<ExpansionData>(j))),
         Make("pets", () => AnimalManager.IsInstance && AnimalManager.Instance.PetAnimalController != null,
             () => StringExtensions.ToJson(AnimalManager.Instance.PetAnimalController.ToSaveData()),
             j => AnimalManager.Instance.PetAnimalController.FromSaveData(StringExtensions.JsonToObject<BokuMono.Animal.PetAnimalController.SaveData>(j))),
