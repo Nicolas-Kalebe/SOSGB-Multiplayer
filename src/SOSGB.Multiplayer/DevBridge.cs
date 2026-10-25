@@ -228,6 +228,33 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, rows });
             }
 
+            case "shared":
+            {
+                // shared | shared test | shared json <parte> | shared poke <parte> — estado compartilhado genérico (D42)
+                var sa2 = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (sa2.Length >= 1 && sa2[0] == "test") return Json(new { ok = true, test = Net.SharedSync.SelfTest() });
+                if (sa2.Length >= 5 && sa2[0] == "poke")
+                {
+                    // shared poke <parte> <guid> <campo> <valor> — muda um campo de um objeto como AÇÃO LOCAL (vai para os outros)
+                    var root = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;
+                    var found = false;
+                    void Walk(System.Text.Json.Nodes.JsonNode n)
+                    {
+                        if (n is System.Text.Json.Nodes.JsonObject o)
+                        {
+                            if (o["Guid"]?.ToString() == sa2[2]) { o[sa2[3]] = int.TryParse(sa2[4], out var iv2) ? iv2 : sa2[4]; found = true; }
+                            foreach (var kv in o.ToList()) Walk(kv.Value);
+                        }
+                        else if (n is System.Text.Json.Nodes.JsonArray arr) foreach (var e in arr) Walk(e);
+                    }
+                    Walk(root);
+                    if (!found) return Json(new { ok = false, error = "guid não encontrado" });
+                    return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], root.ToJsonString(), markSynced: false) });
+                }
+                if (sa2.Length >= 2 && sa2[0] == "json") { var js = Net.SharedSync.CaptureJson(sa2[1]) ?? ""; return Json(new { ok = true, length = js.Length, head = js.Substring(0, Math.Min(900, js.Length)) }); }
+                return Json(new { ok = true, status = Net.SharedSync.Status() });
+            }
+
             case "animal":
             {
                 // animal | animal get <guid> | animal set <guid> <campo> <valor> — animais da fazenda (5.3, D41)
@@ -427,7 +454,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

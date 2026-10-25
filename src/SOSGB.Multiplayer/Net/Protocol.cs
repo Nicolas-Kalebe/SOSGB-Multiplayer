@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 15;
+    public const int Version = 16;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -101,4 +101,7 @@ public enum MsgType : byte
 
     /// <summary>Convidado ↔ host: [bytes gzip: int n, {string guid, string json}] — estado de cuidados dos animais da fazenda que mudaram (5.3, D41)</summary>
     AnimalData = 32,
+
+    /// <summary>Convidado ↔ host: [string parte][bytes JSON gzip] — estado de um gerenciador compartilhado (moinho, apicultura, cogumelos, vasos, pets, cavalo). 5.4, D42</summary>
+    SharedState = 33,
 }
