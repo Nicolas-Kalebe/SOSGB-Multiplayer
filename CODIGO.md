@@ -138,6 +138,22 @@ A rede foi removida, mas sobrou a estrutura:
 - `AddPoint` respeita o teto do nível (`LikeabilityLevelCapDatas`): 745 + 500 parou em 1000.
 - **Regra para todo manager:** suponha que `ToSaveData()` é raso, até prova em contrário.
 
+### Troca de contexto completa por jogador (tarefa 1.4) ✅
+`PlayerContext` captura e aplica 6 partes (~57 KB de JSON por jogador):
+
+| Parte | Origem | Verificado |
+|---|---|---|
+| `likeability` (9,5 KB) | `LikeabilityManager.ToSaveData/FromSaveData` | ✅ conteúdo (pontos 745 × 1000) |
+| `talk` (10 KB) | `TalkManager.ToSaveData/FromSaveData` | aplica sem erro |
+| `eventflags` (21 KB) | `new EventFlagSaveData(EventFlagManager.ToSaveData())` → aplicar com `ResetEventFlag()` + `SetEventFlag(id, flag, time)` uma a uma | ✅ conteúdo (flag 1: 0 × 1) |
+| `bag` (13 KB) | `InventoryManager.Instance.BagItemStorage.ToSaveData/FromSaveData` | ✅ conteúdo (18 × 17 itens no slot 0) |
+| `tools` (3 KB) | `InventoryManager.Instance.BagToolStorage.ToSaveData/FromSaveData` | aplica sem erro |
+| `toolstate` | `ToolManager.ToSaveData/FromSaveData` (água no regador) | aplica sem erro |
+
+Armadilhas das flags de evento:
+- `EventFlagSaveDataRuntime` contém um bitset (`Flags`) que quebra o `ToJson` (NullReference).
+- `JsonToObject<EventFlagSaveData>` + `FromSaveData` dá `ArgumentException: same key has already been added` (o desserializador duplica entradas). Por isso a aplicação é feita flag a flag.
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

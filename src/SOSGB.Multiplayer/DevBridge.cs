@@ -178,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load|json <nome>", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "log <texto>", "quit",
                     },
                 });
 
@@ -226,6 +226,17 @@ public class DevBridge : MonoBehaviour
 
             case "ctx":
                 return CtxCommand(arg);
+
+            case "flag":
+                // flag get|set <id> [valor] — flags de evento (parte "eventflags" do contexto)
+                var fa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var efm = EventFlagManager.Instance;
+                var fid = uint.Parse(fa[1]);
+                if (fa[0] == "set") efm.SetEventFlag(fid, int.Parse(fa[2]), 0);
+                return Json(new { ok = true, id = fid, value = efm.GetEventFlag(fid) });
+
+            case "bag":
+                return BagCommand(arg);
 
             case "decodesave":
                 return DecodeSave(arg);
@@ -282,24 +293,39 @@ public class DevBridge : MonoBehaviour
         });
     }
 
-    // Tarefa 1.3: troca de contexto (ver PlayerContext).
+    // Tarefas 1.3/1.4: troca de contexto (ver PlayerContext).
     private static string CtxCommand(string arg)
     {
         var a = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         switch (a[0])
         {
             case "save":
-                PlayerContext.SaveLikeability(a[1]);
-                return Json(new { ok = true, saved = a[1], contexts = PlayerContext.Names });
+                return Json(new { ok = true, saved = a[1], parts = PlayerContext.Save(a[1]) });
             case "load":
-                PlayerContext.LoadLikeability(a[1]);
-                return Json(new { ok = true, loaded = a[1] });
+                return Json(new { ok = true, loaded = a[1], parts = PlayerContext.Load(a[1]) });
             case "json":
-                var json = PlayerContext.GetJson(a[1]);
+                var json = PlayerContext.GetJson(a[1], a.Length > 2 ? a[2] : "likeability");
                 return Json(new { ok = true, length = json.Length, head = json.Substring(0, Math.Min(400, json.Length)) });
             default:
-                return Json(new { ok = false, error = "use: ctx save|load|json <nome>" });
+                return Json(new { ok = false, error = "use: ctx save|load <nome> | ctx json <nome> [parte]", parts = PlayerContext.PartNames });
         }
+    }
+
+    // Tarefa 1.4: ver e mexer na mochila.
+    private static string BagCommand(string arg)
+    {
+        var bag = InventoryManager.Instance.BagItemStorage;
+        var a = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (a.Length > 0 && a[0] == "take") // tira <qtd> do slot <n>
+            bag.PutOut(int.Parse(a[1]), int.Parse(a[2]));
+        var items = new List<string>();
+        var datas = bag.ItemDatas;
+        for (var i = 0; i < datas.Length; i++)
+        {
+            var d = datas[i];
+            if (d != null && d.ItemId != 0) items.Add($"{i}:{d.ItemId}x{d.Stack}");
+        }
+        return Json(new { ok = true, count = items.Count, items });
     }
 
     /// <summary>

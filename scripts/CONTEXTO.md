@@ -36,7 +36,10 @@ AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principa
 | `closemenu` | ⚠️ ainda não funciona (`KeyNotFoundException`); reinicie com `dev-cycle.sh` |
 | `decodesave <caminho>` | Decodifica um `.sav` para `<jogo>/BepInEx/savedump/` (JSON) |
 | `like get <npc>` / `like add <npc> <pts>` | Lê ou soma pontos de amizade |
-| `ctx save/load/json <nome>` | Guarda, carrega ou mostra um contexto de amizade (JSON) |
+| `ctx save/load <nome>` | Guarda ou carrega um contexto completo de jogador (6 partes, JSON) |
+| `ctx json <nome> [parte]` | Mostra o JSON de uma parte |
+| `bag [take <slot> <qtd>]` | Lista a mochila / tira itens |
+| `flag get/set <id> [valor]` | Lê ou define uma flag de evento |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 
