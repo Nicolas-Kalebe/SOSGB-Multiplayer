@@ -175,7 +175,7 @@ public static class NetSession
             Writer.Put(Protocol.Version);
             Writer.Put(Plugin.Version);
             Writer.Put(LocalName);
-            Writer.Put(Plugin.PlayerGuid.Value);
+            Writer.Put(Plugin.EffectivePlayerGuid);
             peer.Send(Writer, DeliveryMethod.ReliableOrdered);
         }
         // No host, o jogador só é registrado depois do Hello válido.

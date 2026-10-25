@@ -36,6 +36,7 @@ public class Plugin : BasePlugin
     internal static int EffectiveAutoLoadSlot;
     internal static string EffectiveNetAutoStart;
     internal static string InstanceTag = "";
+    internal static string EffectivePlayerGuid;
 
     private static int? EnvInt(string name) =>
         int.TryParse(System.Environment.GetEnvironmentVariable(name), out var v) ? v : null;
@@ -60,9 +61,10 @@ public class Plugin : BasePlugin
             "Host: a cada X minutos grava uma cópia de recuperação do mundo (arquivo à parte, não é o save oficial). 0 = desligado.");
         // 3.6: identidade estável do jogador (o host guarda o perfil por ela). Gerada na primeira vez.
         PlayerGuid = Config.Bind("Net", "PlayerGuid", "", "Identificador deste jogador (gerado automaticamente; não edite).");
+        if (string.IsNullOrEmpty(PlayerGuid.Value)) PlayerGuid.Value = System.Guid.NewGuid().ToString("N");
+        // Várias instâncias no mesmo PC: a variável de ambiente vale só para esta execução (não é gravada no .cfg).
         var envGuid = System.Environment.GetEnvironmentVariable("SOSGB_PLAYER_GUID");
-        if (!string.IsNullOrEmpty(envGuid)) PlayerGuid.Value = envGuid; // várias instâncias no mesmo PC
-        else if (string.IsNullOrEmpty(PlayerGuid.Value)) PlayerGuid.Value = System.Guid.NewGuid().ToString("N");
+        EffectivePlayerGuid = string.IsNullOrEmpty(envGuid) ? PlayerGuid.Value : envGuid;
         // Tarefa 2.6: até existir menu no jogo (Fase 8), hospedar/entrar é configurado aqui.
         NetAutoStart = Config.Bind("Net", "AutoStart", "off",
             new ConfigDescription("Ao carregar um save: 'off' (nada), 'host' (hospedar) ou 'join' (entrar em JoinAddress).",

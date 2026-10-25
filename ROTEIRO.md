@@ -158,7 +158,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Fase:** 4 — Economia (v0.3)
 - **Próxima tarefa:** 4.1 (dinheiro compartilhado)
 - **Pendente com o usuário:** deitar na cama de verdade (menu da cama → animação) para confirmar que o caminho real passa pelo `GameController.StartNextDay` igual ao comando `nextday`
-- **Pendente com o usuário:** teste real em 2 PCs (quando houver um amigo)
+- **Em andamento (usuário):** primeiro teste real com uma amiga, usando o pacote v0.1 + `docs/INSTALACAO.md` (rascunho da 8.5)
 - **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
 - **Feito:** 1.2 — save = cabeçalho + JSON (`Obfuscation.Decode(..., General)`), 94 seções
 - **Feito:** 1.3 — troca de contexto da amizade funciona **via JSON** (`ToSaveData` é raso)

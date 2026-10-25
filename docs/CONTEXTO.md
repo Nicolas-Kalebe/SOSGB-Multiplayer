@@ -6,4 +6,5 @@ Documentação técnica que não cabe nos arquivos da raiz.
 
 | Arquivo | Conteúdo |
 |---|---|
+| [`INSTALACAO.md`](INSTALACAO.md) | Como instalar, configurar (host/convidado) e jogar; limitações; montar o pacote |
 | [`PROTOCOLO.md`](PROTOCOLO.md) | Protocolo de rede: transporte, mensagens, aperto de mão, versões |
