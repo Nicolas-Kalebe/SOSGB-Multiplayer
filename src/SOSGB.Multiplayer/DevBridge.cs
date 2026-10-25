@@ -228,6 +228,44 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, rows });
             }
 
+            case "animal":
+            {
+                // animal | animal get <guid> | animal set <guid> <campo> <valor> — animais da fazenda (5.3, D41)
+                var aa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (aa.Length >= 1 && aa[0] == "barns")
+                {
+                    var bl = new List<string>();
+                    foreach (var bn in Net.AnimalSync.Barns())
+                    {
+                        var jn = System.Text.Json.Nodes.JsonNode.Parse(Net.AnimalSync.BarnJson(bn))!;
+                        bl.Add($"{jn["Guid"]} campo={jn["FieldId"]} ovos={jn["ProductEggCount"]} ração={jn["FeedItemId"]} manhã={jn["ExecutedMorningFeed"]}");
+                    }
+                    return Json(new { ok = true, barns = bl });
+                }
+                if (aa.Length == 0)
+                {
+                    var list = new List<string>();
+                    foreach (var an in Net.AnimalSync.FarmAnimals())
+                    {
+                        var jn = System.Text.Json.Nodes.JsonNode.Parse(Net.AnimalSync.Json(an))!;
+                        list.Add($"{an.Guid} {jn["Name"]} campo={jn["LocationFieldId"]} afeição={jn["FriendPoint"]} carinho={jn["DailyStokeCount"]} produto={jn["ProductRegetDays"]} comeu={jn["AteFeedType"]}");
+                    }
+                    return Json(new { ok = true, count = list.Count, animals = list });
+                }
+                var target = Net.AnimalSync.FarmAnimals().FirstOrDefault(x => x.Guid == aa[1]);
+                if (target == null) return Json(new { ok = false, error = "animal não encontrado" });
+                if (aa[0] == "get") return Json(new { ok = true, json = Net.AnimalSync.Json(target) });
+                if ((aa[0] == "set" || aa[0] == "poke") && aa.Length >= 4)
+                {
+                    // set = como se viesse da rede (não reenvia); poke = como uma ação local (vai para os outros)
+                    var node = System.Text.Json.Nodes.JsonNode.Parse(Net.AnimalSync.Json(target))!.AsObject();
+                    node[aa[2]] = int.TryParse(aa[3], out var iv) ? iv : bool.TryParse(aa[3], out var bv) ? bv : aa[3];
+                    var res = Net.AnimalSync.Apply(aa[1], node.ToJsonString(), markSynced: aa[0] == "set");
+                    return Json(new { ok = true, result = res, json = Net.AnimalSync.Json(target).Substring(0, 400) });
+                }
+                return Json(new { ok = false, error = "use: animal | animal get <guid> | animal set <guid> <campo> <valor>" });
+            }
+
             case "equip":
             {
                 // equip <TipoDeFerramenta|idDoItem> — põe a ferramenta na mão (testes da Fase 5). Ex.: equip Hoe
@@ -389,7 +427,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

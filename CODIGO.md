@@ -68,7 +68,9 @@
 
 - `FieldCropEntityData` (`CropId`, `GrowthLevel`, `Waters`, `WateringCount`…) e `FieldRidgeEntityData` (`IsWatered`, `IsFertilized`) herdam de `FieldLayerObjectEntityData` (`FieldId`, `LayerId`, **`Guid`**, `Position`).
 - Managers: `FieldCropManager`, `FieldTreeManager`, `FieldSprinklerManager`, `FieldSaveManager`.
-- Animais: `AnimalManager` (`AddAnimal`, `Breed`, `FarmAnimalBarn`). Moinhos: `WindmillCraftingManager`. Também `BeekeepingManager` e `MushroomFarmingManager`.
+- Animais: `AnimalManager` (`AddAnimal`, `Breed`, `FarmAnimalBarn`).
+- **Animais da fazenda:** `AnimalManager.Instance.AllAnimalParams` (IEnumerable IL2CPP: o `foreach` do C# não funciona; use `Cast<Il2CppSystem.Collections.IEnumerable>().GetEnumerator()`) → `TryCast<FarmAnimalParameter>()`. Cada um tem `ToSaveData`/`FromSaveData` (Guid, FriendPoint, Daily*Count, AteFeedType, ProductRegetDays, CurrentSign, Position, Rotation, Order...).
+- **Celeiros:** `AnimalManager.Instance.FarmAnimalBarns.Barns` → `FarmAnimalBarn` (`ToSaveData`/`FromSaveData`: FeedBoxContainers, ExecutedMorningFeed, **ProductEggContainers** = ovos que o jogo recria ao entrar, ProductEggCount, AnimalContainers). Moinhos: `WindmillCraftingManager`. Também `BeekeepingManager` e `MushroomFarmingManager`.
 - `FieldManager.AdvanceDateTime(...)` já atualiza mapas fora da tela.
 
 ### Objetos do mapa (Fase 5, investigação)

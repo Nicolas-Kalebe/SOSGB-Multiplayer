@@ -64,6 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 15 | `AnimalData` (32, estado de cuidados dos animais e celeiros que mudaram, gzip). D41 |
 | 14 | `FieldSnapshot` (31, mapa não residente inteiro, mandado por quem saiu dele). D40 |
 | 13 | `FieldOps` (30, convidado ↔ host: operações por objeto num mapa residente, gzip). D40 |
 | 12 | `LetterData` (29, convidado ↔ host: estado do correio em JSON gzip). D39 |

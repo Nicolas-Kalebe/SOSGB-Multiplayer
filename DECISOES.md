@@ -429,3 +429,13 @@ Regras deste arquivo:
   - Conflito (dois mexendo no mesmo objeto no mesmo meio segundo): vale a última operação que o host processou.
   - Protocolo 13 (`FieldOps` 30).
   - Para testar ações reais sem mouse: `Patches/InputInjector` (só modo de teste) injeta a intenção "usar ferramenta" (comando `tool`), e `equip <tipo>` põe a ferramenta na mão. O clique sintético não chega ao jogo.
+
+### D41 — Animais da fazenda e celeiros: estado de cuidados sincronizado
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (ROTEIRO 5.3)
+- **Contexto / achados:**
+  - cada animal da fazenda é um `FarmAnimalParameter` com `ToSaveData`/`FromSaveData` próprios. O save mistura **cuidados** (afeição, carinho/escova/sino do dia, comida, produto, gravidez, sinais) com **movimento** (posição, rotação, ordens, rotas), que muda o tempo todo;
+  - os ovos que aparecem no celeiro vêm do **celeiro** (`FarmAnimalBarn.ProductEggContainers`), não do mapa: remover só o objeto do mapa não basta (o jogo recria ao entrar). O celeiro também guarda os cochos de ração e a alimentação do dia;
+  - aplicar `FromSaveData` num animal ou celeiro vivo funciona (o celeiro continua normal na tela).
+- **Decisão:** `Net/AnimalSync`. A cada 1 s, cada jogo compara o estado de cada animal (sem os campos de movimento) e de cada celeiro (sem a hora de entrada pelo portão). O que mudou vai ao host (JSON completo) e é repassado. Quem recebe **mescla**: usa o estado recebido, mas mantém os campos de movimento do próprio jogo (o animal não pula de lugar). Animais novos ou vendidos chegam na virada do dia.
+- **Verificado (duas instâncias):** afeição e carinho mudados de cada lado aparecem no outro; parados 30 s no celeiro, só há poucos envios na entrada (o "pedido" do animal, `CurrentSign`, é sorteado ao entrar; sincronizar isso faz todos verem o mesmo pedido); **coleta real de ovo** pela convidada → o host entra no celeiro depois e vê 3 ovos em vez de 4.
+- **Consequências:** pets e cavalo (`PetAnimalParameter`, `RideableAnimalParameter`) ainda não sincronizam ao vivo (chegam na virada do dia). Protocolo 15 (`AnimalData` 32).
