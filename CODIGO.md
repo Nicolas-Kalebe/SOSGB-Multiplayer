@@ -190,12 +190,17 @@ Armadilhas das flags de evento:
 - O player usa um **AnimatorOverrideController** carregado depois do modelo, que troca os clips `dummy_fix_mot_*` pelos reais (`fix_mot_Mn_*`; `Mn` = masculino). Um clone com o controller base anima com os dummies e fica numa pose torta.
 - Ao recarregar o mundo (convidado recebendo `WorldData`), o player é recriado e os modelos/materiais antigos são liberados. Um clone feito antes **para de ser desenhado** (o objeto continua existindo).
 
-### Aparência do personagem (investigação, ainda não implementada)
+### Aparência do personagem (D28/D32)
 - `UserInfo.AvatarInfos` é uma lista compacta (~18 itens) de `AvatarInfo { MasterId, Category }`: `Face`, `SkinColor`, `EyeColor`, `HairStyle`, `HairColor`, `Beard`, `BeardColor`, `Mole`, `Freckles`, `MotionType`, `VoiceType`, `Hat`, `Accessories`, `Clothes`, `HorseRidingHat/Clothes`, `BagDesign`, `Glider`. `UserInfo.PlayerGender` (0 = masculino).
 - O modelo é montado a partir de peças (prefabs `avt_M_c_720` = roupa 720 masculina, `avt_P_h_012` = cabelo 012) sobre o esqueleto `Chr_root`, com MagicaCloth para saias e cabelos.
 - **Quem monta é o `AvatarMakeManager`** (`SetAvatarParts(info)`, `SetClothesParts`, `CreateAvatar(AvatarInfo[])`, `CreatePlayerModel`...). Ele atua sobre um **único** modelo (`meshRoot`/`makeModel`/`baseModel`) e tem caches de recursos (`AvatarResourceManager`). Montar um segundo personagem por ele pode descarregar as peças do jogador local.
 - NPCs "genéricos" (`NpcData.NpcType.Mob/NpcTourist`) recebem `List<AvatarInfo>`: possível caminho alternativo, ainda não investigado.
-- ⚠️ **Parcial (D28/D29):** funciona só com peças já carregadas e o mesmo gênero; peças não carregadas travam `ChangePlayerAvatar` (modelo invisível). Detalhes em D29.
+- ✅ **Funciona (D32), inclusive gênero.** O que parecia "peça não carregada trava" era um **id inexistente** (ex.: cabelo 45020; os válidos são 45000–45019 e DLC 80600+). Peças válidas montam em ~0,1 s sem pré-carregar. Para listar as válidas: `MasterDataManager.Instance.AvatarMakeMasterData` filtrando por `Category` (comando `applab cat <n>`).
+- **O jogo esconde o modelo (~1–2 s) enquanto carrega peças novas** e depois mostra sozinho. Copiar o modelo nesse intervalo gera um clone invisível: espere algum `Renderer` ligado.
+- **Gênero:** `MotionType` 52000 = masculino (`MotionCategory` 0), 52001 = feminino (1). `ChangePlayerAvatar` troca o corpo; `PlayerCharacter.SwitchGenderMotion(cat, cb)` troca as animações (clips `fix_mot_Mn_*` ↔ `fix_mot_Fn_*`), no mesmo `AnimatorOverrideController` (o objeto é o mesmo: copie com `Instantiate` para o clone e chame `Rebind()`).
+- Trocar a roupa pode ajustar outras peças sozinho (ex.: roupa 49040 → bolsa `16:54040`).
+- `CreateMakeAvatarModel` + `CreateAvatar(infos)` (modelo da tela de customização) só aplicou o cabelo e escondeu o jogador local: não serve para montar avatares.
+- Estrutura da corrotina (vista pelo `CoroutineProbe`): `<ChangePlayerAvatar>d__132` → `<ChangeAvatar>d__133` → `<Coroutine>d__13` (várias vezes).
 - **Técnica (D28):** trocar as `AvatarInfos` do jogador local (`AvatarMakeManager.PlayerAvatarInfos` + `GameController.PlayerAvatarInfos` + `UserInfo.AvatarInfos`), avançar `ChangePlayerAvatar(ChangeType.Default)`, chamar `PlayerCharacter.SwitchGenderMotion(motionCategory)`, copiar o `Model` e devolver tudo. A cópia continua válida. Peças criadas com `AvatarInfo.CreateParts(MasterDataManager.AvatarMakeMaster.GetData(id))` / `CreateNoParts(categoria)`.
 
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).

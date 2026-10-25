@@ -87,9 +87,9 @@ public class PlayerProfiles : MonoBehaviour
             if (_firstWorldDone) { _pending = _lastUploaded ?? Capture(); _pendingIsNewDay = true; }
         };
         NetSession.OnHosting += LoadStore;
-        // NÃO aplicar a aparência no save recebido antes da cena (AppearanceSync.ApplyToUserInfo): testado e
-        // trava o carregamento (personagem nulo, relógio parado), mesmo com o mesmo gênero e pré-carregando
-        // as peças. A aparência própria é aplicada DEPOIS da carga (parte "appearance" do perfil). Ver D28.
+        // NÃO aplicar a aparência no save recebido antes da cena: testado e trava o carregamento (personagem
+        // nulo, relógio parado). A aparência própria é aplicada DEPOIS da carga (parte "appearance" do perfil,
+        // AppearanceSync.ApplyToLocal). Ver D28/D32.
     }
 
     private float _nextRecovery = -1;

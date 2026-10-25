@@ -279,6 +279,31 @@ public class DevBridge : MonoBehaviour
                     AppearanceLab.Run(Instance, variant);
                     return Json(new { ok = true, started = true, local = AppearanceLab.Serialize(local), variant });
                 }
+                if (arg.StartsWith("probe "))
+                {
+                    // applab probe <cat>:<id>,... [none|detail|costume] — sonda do travamento (D29)
+                    var pa = arg.Substring(6).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    AppearanceLab.Probe(Instance, pa[0], pa.Length > 1 ? pa[1] : "none");
+                    return Json(new { ok = true, started = true, local = AppearanceLab.Serialize(AvatarMakeManager.Instance.PlayerAvatarInfos) });
+                }
+                if (arg.StartsWith("motion "))
+                {
+                    // applab motion <0|1> — troca só as animações de gênero (D29)
+                    AppearanceLab.Motion(Instance, int.Parse(arg.Substring(7)));
+                    return Json(new { ok = true, started = true });
+                }
+                if (arg.StartsWith("make"))
+                {
+                    // applab make [<cat>:<id>,...] — monta num modelo separado (tela de customização), D29
+                    AppearanceLab.Make(Instance, arg.Length > 5 ? arg.Substring(5) : "");
+                    return Json(new { ok = true, started = true });
+                }
+                if (arg.StartsWith("build "))
+                {
+                    // applab build <cat>:<id>,... — "jogador falso": testa o caminho do avatar remoto (D32)
+                    AppearanceLab.FakeRemote(arg.Substring(6));
+                    return Json(new { ok = true, started = true });
+                }
                 if (arg.StartsWith("cat "))
                 {
                     // applab cat <categoria> — peças disponíveis numa categoria (ids, partes, motion)

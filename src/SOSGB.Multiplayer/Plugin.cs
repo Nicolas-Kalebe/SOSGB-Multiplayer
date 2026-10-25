@@ -19,7 +19,7 @@ public class Plugin : BasePlugin
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<bool> FixStartupFocus;
-    internal static ConfigEntry<bool> SyncAppearance;
+    internal static ConfigEntry<bool> OwnAppearance;
     internal static ConfigEntry<string> PlayerName;
     internal static ConfigEntry<string> PlayerGuid;
     internal static ConfigEntry<int> RecoverySnapshotMinutes;
@@ -65,11 +65,12 @@ public class Plugin : BasePlugin
         // Só para testes (scripts): SOSGB_FIX_STARTUP=0 desliga nesta execução, sem gravar no .cfg.
         EffectiveFixStartup = FixStartupFocus.Value && System.Environment.GetEnvironmentVariable("SOSGB_FIX_STARTUP") != "0";
 
-        // D28: aparência própria de cada jogador. EXPERIMENTAL e desligada por padrão: com peças de aparência
-        // que não estão carregadas na memória, a montagem do jogo fica esperando para sempre e o personagem
-        // LOCAL pode ficar invisível. Desligada = avatares com o modelo local + nome em cima (estável).
-        SyncAppearance = Config.Bind("Visual", "SyncAppearance", false,
-            "EXPERIMENTAL: mostra cada jogador com a própria aparência. Pode deixar o personagem invisível com algumas roupas/cabelos.");
+        // D28/D32: aparência própria de cada jogador (rosto, cabelo, roupa, gênero). A D29 tinha desligado por
+        // travar; a causa era um id de peça inválido e a cópia feita com o modelo escondido (corrigido na D32).
+        // Chave nova (a antiga "SyncAppearance" ficou false nos .cfg já criados). Desligada = todos com o modelo
+        // do jogador local + nome em cima.
+        OwnAppearance = Config.Bind("Visual", "OwnAppearance", true,
+            "Mostra cada jogador com a própria aparência (rosto, cabelo, roupa, gênero). Ao montar a aparência de quem entrou, o seu personagem pisca por 1 a 2 segundos.");
 
         // D9: o relógio do grupo pausa quando N jogadores estão em menu/evento (0 = todos).
         PauseWhenPlayersInMenu = Config.Bind("Game", "PauseWhenPlayersInMenu", 1,

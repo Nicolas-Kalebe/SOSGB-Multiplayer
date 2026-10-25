@@ -74,7 +74,13 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `anim` | Camadas/parâmetros do Animator do player e dos avatares |
 | `fieldname <id>` | Nome traduzido de um mapa |
 | `avatarinfo` | Peças de aparência e hierarquia do modelo local |
-| `applab run` / `applab apply` / `applab report` | Experimento de aparência / aplica uma aparência variante no jogador local (testes da D28) |
+| `applab run` / `applab apply` / `applab report` | Experimento de aparência / aplica uma aparência variante no jogador local (testes da D28) / mostra o último relatório |
+| `applab cat <n>` | Peças válidas de uma categoria (`id:prefab:motion:dlc`) |
+| `applab set <cat>:<id>,...` | Aplica no jogador local a aparência atual com essas peças trocadas (caminho do convidado) |
+| `applab probe <cat>:<id>,... [none\|detail\|costume]` | Sonda: troca peças e avança o `ChangePlayerAvatar` com o `CoroutineProbe` (onde trava, quanto demora) |
+| `applab motion <0\|1>` | Troca só as animações de gênero (`SwitchGenderMotion`) |
+| `applab build <cat>:<id>,...` | "Jogador falso": monta um avatar remoto com essa aparência na frente do jogador (caminho do avatar remoto, D32) |
+| `applab make [<cat>:<id>,...]` | Experimento descartado (D32): monta no modelo da tela de customização |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

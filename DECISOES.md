@@ -280,7 +280,7 @@ Regras deste arquivo:
 - **Verificado:** screenshots dos dois lados com aparências diferentes (variante de cabelo/roupa aplicada no convidado). **Ainda não testado:** gênero diferente.
 
 ### D29 — Aparência própria (D28) fica EXPERIMENTAL e desligada por padrão
-- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (trabalhando sozinha; o usuário pediu "algo bem feito e funcional")
+- **Status:** ⛔ Substituída pela [D32](#d32--aparência-própria-corrigida-e-ligada-por-padrão-substitui-a-d29) (a causa foi achada e corrigida) · **Data:** 2026-10-25 · **Decidido por:** IA (trabalhando sozinha; o usuário pediu "algo bem feito e funcional")
 - **Contexto:** a D28 funcionou nos testes com peças **padrão** (cabelo 45000, roupa 49000) e com o mesmo gênero. Testes seguintes mostraram dois problemas graves:
   1. **Peças que não estão carregadas na memória** (ex.: rosto 42005, cabelo 45020, cor 46003, roupa 49040): a corrotina `ChangePlayerAvatar` espera para sempre numa etapa interna e o **personagem local fica invisível**. `PreloadAvatarSource` e `DetailPageResourceLoad` terminam em 0,1 s e não resolvem. O teste que isolaria qual peça causa isso foi **interrompido por falta de memória** no PC (duas instâncias do jogo + sistema, em 15 GB).
   2. **Gênero diferente:** trocar `MotionType` em jogo não reconstrói o corpo (modelo invisível). Aplicar a aparência/gênero no save recebido antes da cena trava o carregamento (personagem nulo), **mesmo com o mesmo gênero**.
@@ -308,3 +308,24 @@ Regras deste arquivo:
 - **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** usuário (resposta à P4: "P4 continua na aparência")
 - **Contexto:** a aparência própria (D28) ficou experimental e desligada (D29) porque peças não carregadas travam a montagem e a troca de gênero não funciona.
 - **Decisão:** seguir investigando a aparência antes da Fase 4 (economia). Testes com **uma instância por vez**, por causa da memória (P5).
+
+### D32 — Aparência própria corrigida e LIGADA por padrão (substitui a D29)
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (seguindo a D31: "P4 continua na aparência")
+- **Contexto:** a D29 desligou a aparência própria porque algumas peças "travavam" a montagem (personagem invisível) e a troca de gênero "não funcionava". Para achar a causa, foi criada uma sonda (`CoroutineProbe`): ela avança a corrotina `ChangePlayerAvatar` do jogo passo a passo, descendo nas corrotinas aninhadas, com tempo limite de verdade e registro de onde parou. Testes com **uma instância só** (por causa da memória, P5).
+- **O que a sonda mostrou:**
+  1. **Peças válidas nunca travam**, mesmo sem estar carregadas: cabelo 45005, rosto 42005, cor 46003 e roupa 49040 montam em ~0,1 s, sem pré-carregamento.
+  2. **A causa do travamento era um id inexistente:** o cabelo **45020 não existe** (os cabelos vão de 45000 a 45019, mais os de DLC 80600+). Com ele, o carregamento nunca termina.
+  3. **O jogo esconde o modelo por ~1–2 s** depois da troca, enquanto carrega as peças novas (0 renderers ligados), e depois mostra de novo sozinho. A montagem antiga **copiava o modelo nesse intervalo**, por isso o avatar remoto saía invisível.
+  4. **Gênero funciona:** `ChangePlayerAvatar` com `MotionType` 52001 troca o corpo, e `SwitchGenderMotion(1)` troca as animações (`fix_mot_Mn_*` → `fix_mot_Fn_*`). O modelo fica visível e anda normalmente.
+  5. O modelo separado da tela de customização (`CreateMakeAvatarModel` + `CreateAvatar`) **não serve**: só aplicou o cabelo (sem cor nem roupa) e escondeu o jogador local. A troca temporária continua sendo o caminho.
+- **Decisão:**
+  - `AppearanceSync.Sanitize`: peça com id inexistente (ou de outra categoria) vira a peça do jogador local nessa categoria;
+  - a montagem usa o `CoroutineProbe` (tempo limite de 15 s que funciona) e **espera o modelo reaparecer** (algum renderer ligado por 0,3 s) antes de copiar;
+  - se falhar, tenta de novo com as **roupas** (chapéu, acessório, roupa, bolsa, planador, montaria) do jogador local, pensando em peças de DLC/loja que o outro PC não tenha. Se falhar de novo: o avatar remoto fica com o modelo provisório (cópia do local + nome em cima) e não tenta de novo;
+  - **gênero diferente liberado**: o avatar remoto recebe uma cópia do controlador de animação do gênero dele (+ `Animator.Rebind()`);
+  - nada de montar durante eventos/cenas (o jogador local aparece neles) nem na virada do dia; uma montagem interrompida por recarga do mundo é descartada;
+  - opção nova **`[Visual] OwnAppearance = true`** (ligada). A chave antiga `SyncAppearance` ficou `false` nos `.cfg` já criados; por isso a chave mudou de nome.
+- **Verificado (uma instância):** "jogador falso" (`applab build`) com outro gênero, cabelo, cor e roupa: cópia visível com animação feminina, jogador local devolvido intacto. Convidado aplicando a própria aparência (`applab set`) com o cabelo inválido 45020: a peça foi trocada pela local e o resto aplicado, inclusive o gênero.
+- **Consequências:**
+  - Ao montar a aparência de quem entrou (ou de quem trocou de roupa), **o seu personagem pisca** com outra aparência por cerca de 1 a 2 segundos. É o custo da troca temporária. Acontece pouco: na entrada de alguém e quando alguém troca de visual.
+  - **Falta o teste em rede de verdade** (duas instâncias ou com os amigos). Não foi feito por falta de memória (4 GB livres com o jogo fechado; cada instância usa ~2 GB).

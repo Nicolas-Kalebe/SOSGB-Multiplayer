@@ -37,9 +37,10 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D32 | **Aparência própria corrigida e ligada** (`[Visual] OwnAppearance`): a trava era um id de peça inexistente e a cópia com o modelo escondido; gênero diferente funciona | ✅ Decidido |
 | D31 | **Prioridade: continuar a aparência própria** (resposta à P4) antes da Fase 4 | ✅ Decidido |
 | D30 | **Convidado novo começa do zero** no mundo do host (corações/conversas zerados, mochila vazia, ferramentas básicas, regador vazio; só o visual vem do save dele) | ✅ Decidido |
-| D29 | **Aparência própria experimental, desligada por padrão** (`[Visual] SyncAppearance`): trava com peças não carregadas e não troca gênero | ✅ Decidido |
+| D29 | **Aparência própria experimental, desligada por padrão** (`[Visual] SyncAppearance`): trava com peças não carregadas e não troca gênero | ⛔ Substituída (D32) |
 | D28 | **Aparência própria** de cada jogador: anunciada pela rede e montada pelo jogo por troca temporária; o convidado reaplica a dele (perfil) | ✅ Decidido |
 | D27 | **Interface do multiplayer** (título: modo/nome/IP; jogo: lista com localização; F9 menu) em IMGUI com controles próprios | ✅ Decidido |
 | D26 | **Avisos no sistema do jogo** (entrou/saiu, dormiu, desmaiou, evento) reaproveitando o aviso de correio com texto trocado | ✅ Decidido |

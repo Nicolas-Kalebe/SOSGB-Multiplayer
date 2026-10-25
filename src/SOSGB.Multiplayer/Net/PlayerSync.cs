@@ -35,6 +35,7 @@ public class PlayerSync : MonoBehaviour
         public RuntimeAnimatorController Controller; // controller capturado na montagem (gênero certo)
         public string BuiltAppearance;               // aparência com que o avatar atual foi montado
         public bool Building;
+        public int Gen;                              // muda quando o mundo recarrega (descarta montagens antigas)
         public int[] Hashes = Array.Empty<int>();
         public float[] Weights = Array.Empty<float>();
         public bool HasState;
@@ -95,6 +96,7 @@ public class PlayerSync : MonoBehaviour
             rm.Controller = null;
             rm.BuiltAppearance = null;
             rm.Building = false;
+            rm.Gen++;
             rm.Hashes = Array.Empty<int>();
         }
         Plugin.Logger.LogInfo("[PlayerSync] mundo recarregado: avatares serão recriados");
@@ -301,13 +303,16 @@ public class PlayerSync : MonoBehaviour
     /// <summary>Se a aparência do jogador é conhecida e o avatar não foi montado com ela, pede a montagem.</summary>
     private static void EnsureAppearance(byte id, Remote rm)
     {
-        if (!Plugin.SyncAppearance.Value || rm.Building || rm.Avatar == null) return;
+        if (!Plugin.OwnAppearance.Value || rm.Building || rm.Avatar == null) return;
         var app = AppearanceSync.KnownAppearance(id);
         if (app == null || app == rm.BuiltAppearance) return;
         rm.Building = true;
+        var gen = rm.Gen;
         AppearanceSync.Build(app, (model, controller) =>
         {
+            if (gen != rm.Gen) { if (model != null) UnityEngine.Object.Destroy(model); return; } // de antes de recarregar
             rm.Building = false;
+            if (model == null) { rm.BuiltAppearance = app; return; } // não deu para montar: fica o provisório (sem tentar de novo)
             if (!Remotes.ContainsKey(id)) { UnityEngine.Object.Destroy(model); return; }
             PrepareClone(model, id);
             if (rm.Avatar != null)
@@ -324,7 +329,11 @@ public class PlayerSync : MonoBehaviour
             // estável (o jogo cria outro controller ao devolver a aparência local).
             var sameMotion = AppearanceSync.MotionTypeId(app) == AppearanceSync.MotionTypeId(AppearanceSync.Stable ?? AppearanceSync.Local());
             rm.Controller = !sameMotion && controller != null ? UnityEngine.Object.Instantiate(controller) : null;
-            if (rm.Animator != null && rm.Controller != null) rm.Animator.runtimeAnimatorController = rm.Controller;
+            if (rm.Animator != null && rm.Controller != null)
+            {
+                rm.Animator.runtimeAnimatorController = rm.Controller;
+                rm.Animator.Rebind(); // sem isto o clone pode continuar nas animações do outro gênero
+            }
             rm.Hashes = Array.Empty<int>();
             rm.BuiltAppearance = app;
             Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} montado com a aparência dele");

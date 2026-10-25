@@ -16,7 +16,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `FreshProfile.cs` | D30: perfil "do zero" de quem entra pela 1ª vez (zera corações/conversas, esvazia mochila e regador, ferramentas no nível básico, visual do save próprio) |
 | `NotifySync.cs` | D26: detecta os próprios acontecimentos (dormiu, desmaiou, evento) e mostra os avisos de todos |
 | `Locations.cs` | Nome traduzido de um mapa (tabela `FieldNameText` + `FieldMaster.ConvertToFieldId` para IDs sazonais) |
-| `AppearanceSync.cs` | D28: anuncia a aparência local, monta avatares com a aparência dos outros (troca temporária) e aplica a própria no convidado |
+| `AppearanceSync.cs` | D28/D32: anuncia a aparência local, monta avatares com a aparência dos outros (troca temporária, com validação de peças, tempo limite real e espera do modelo reaparecer) e aplica a própria no convidado |
 | `NetRunner.cs` | `MonoBehaviour` que chama `NetSession.Poll()` a cada frame (tudo na thread principal) |
 
 ## Saves e recuperação (D23)

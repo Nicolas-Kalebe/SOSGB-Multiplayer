@@ -57,7 +57,7 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 
 - Plantar, colher, comprar e mudar o dinheiro **não sincroniza**. O que o convidado fizer no mundo volta ao estado do host na virada do dia.
 - Os NPCs andam de forma independente em cada jogo.
-- O avatar do outro jogador tem a **aparência do seu personagem**, com o **nome em cima**. A aparência própria existe em modo experimental (`[Visual] SyncAppearance = true`), mas pode deixar o personagem invisível com algumas roupas ou cabelos e não funciona entre gêneros diferentes.
+- Cada jogador aparece com a **própria aparência** (rosto, cabelo, roupa, gênero) e o **nome em cima** ([D32](../DECISOES.md)). Quando alguém entra ou troca de visual, o seu personagem **pisca** com outra aparência por 1 a 2 segundos: é normal. Se der problema, desligue em `[Visual] OwnAppearance = false` (aí todos aparecem com o seu modelo).
 - Eventos de casado e filhos não funcionam para convidados ([D12a](../DECISOES.md)).
 
 ## Desinstalar / jogar sem o mod
