@@ -8,7 +8,10 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 1;
+    public const int Version = 2;
+
+    /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
+    public const byte FirstDirectMsg = 20;
 
     /// <summary>Chave de conexão do LiteNetLib (filtra conexões de outros programas).</summary>
     public const string ConnectionKey = "SOSGB-MP";
@@ -39,4 +42,12 @@ public enum MsgType : byte
 
     /// <summary>Qualquer → host → outros, 10×/s: [byte id][uint fieldId][float x,y,z][float rotY][int animHash][float animNorm] (Fase 2.4)</summary>
     PlayerState = 10,
+
+    // ---- 20+: ponto a ponto com o host (NÃO são repassadas aos outros convidados) ----
+
+    /// <summary>Convidado → host: pede o mundo atual (sem corpo). Fase 3.1</summary>
+    WorldRequest = 20,
+
+    /// <summary>Host → convidado: [int tamanho][bytes do .sav] — snapshot do mundo (WorldSnapshot). Fase 3.1</summary>
+    WorldData = 21,
 }

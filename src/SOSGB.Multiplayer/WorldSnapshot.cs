@@ -28,7 +28,9 @@ public static class WorldSnapshot
     private static bool _injectArmed;
 
     /// <summary>Com a ponte de teste ligada, nenhum save vai para o disco (proteção dos saves do usuário).</summary>
-    public static bool SavesBlocked => Plugin.DevBridgeEnabled.Value && Plugin.BlockDiskSaves.Value;
+    public static bool SavesBlocked =>
+        (Plugin.DevBridgeEnabled.Value && Plugin.BlockDiskSaves.Value)
+        || Net.NetSession.Current == Net.NetSession.Mode.Client; // D2/D23: convidado nunca grava no disco
 
     public static string DumpPath => Path.Combine(Paths.BepInExRootPath, "worldsnap.sav");
 
@@ -45,6 +47,11 @@ public static class WorldSnapshot
             done(Captured != null);
         }));
     }
+
+    /// <summary>Recebe um snapshot vindo da rede (convidado, Fase 3.1).</summary>
+    public static void SetCaptured(byte[] bytes) => Captured = bytes;
+
+    public static bool Capturing => _captureArmed;
 
     public static void Load(int slot)
     {

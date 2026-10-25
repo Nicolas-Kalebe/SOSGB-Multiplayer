@@ -58,7 +58,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
-| 3.1 | **Entrar no mundo do host**: o convidado recebe o snapshot (1.5) e não usa o próprio save; **só o host salva** | G | Teste da IA: convidado entra e vê o mesmo dinheiro e data |
+| 3.1 ✅ | **Entrar no mundo do host**: o convidado recebe o snapshot (1.5) e não usa o próprio save; **só o host salva** | G | Teste da IA: convidado entra e vê o mesmo dinheiro e data |
 | 3.2 | **Relógio do host** enviado aos clientes; clientes não avançam o tempo sozinhos | M | Teste da IA: comparar `date` nas 2 instâncias |
 | 3.3 | **Pausa configurável (D9)** com N = 1 | M | Teste da IA: menu numa instância pausa as duas |
 | 3.4 | **Dormir individual (D12)**: deitar desabilita só o seu personagem; contador "dormindo X/4"; dia vira quando todos dormem | M | Teste da IA: `sleep` em cada instância |
@@ -155,7 +155,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 ## Estado atual
 
 - **Fase:** 3 — Mundo e tempo controlados pelo host
-- **Próxima tarefa:** 3.1 (convidado entra no mundo do host via snapshot)
+- **Próxima tarefa:** 3.2 (relógio do host enviado aos convidados)
 - **Pendente com o usuário:** teste real em 2 PCs (quando houver um amigo)
 - **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
 - **Feito:** 1.2 — save = cabeçalho + JSON (`Obfuscation.Decode(..., General)`), 94 seções
@@ -172,4 +172,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Feito:** 2.6 — `[Net] AutoStart = off|host|join` + `JoinAddress` (testado: A hospeda e B entra sozinho)
 - **Simulação de "dois PCs"** (o usuário não tinha um amigo para testar): conexão pelo **IP da LAN** (192.168.x), atraso simulado de 80–150 ms e 5% de perda → o movimento chega em 128–205 ms, sem erros. O firewall do Windows tem regra liberando o jogo (perfil Público = perfil da rede atual)
 - ✅ **Fase 2 concluída** (2026-10-24) em simulação. O teste real em 2 PCs fica para quando houver um amigo disponível (não bloqueia a Fase 3)
+- **Feito:** 3.1 — o convidado recebe o mundo do host (`WorldRequest`/`WorldData`, 73 KB) e recarrega. Testado: host com 74.365 G, convidado (disco com 69.365) passa a ter 74.365; conexão e avatares sobrevivem à recarga; convidado nunca grava no disco
 - **Última atualização:** 2026-10-24

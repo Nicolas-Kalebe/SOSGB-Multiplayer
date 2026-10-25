@@ -35,6 +35,9 @@ public static class NetSession
     public static event Action<MsgType, byte, NetDataReader> OnGameMessage;
     public static event Action<byte> OnPlayerLeft;
 
+    /// <summary>No convidado: disparado quando o host aceita a entrada (Welcome).</summary>
+    public static event Action OnJoined;
+
     private static NetManager _net;
     private static EventBasedNetListener _listener;
     private static NetPeer _server; // no convidado: conexão com o host
@@ -212,6 +215,7 @@ public static class NetSession
                     Players[id] = new Player { Id = id, Name = reader.GetString() };
                 }
                 Plugin.Logger.LogInfo($"[Net] entrei como #{LocalId}; jogadores: {string.Join(", ", Players.Values.Select(p => $"{p.Name}#{p.Id}"))}");
+                OnJoined?.Invoke();
                 break;
             case MsgType.Reject when Current == Mode.Client:
                 LastError = "recusado: " + reader.GetString();
@@ -280,10 +284,13 @@ public static class NetSession
             var sender = Players.Values.FirstOrDefault(p => p.Peer == from);
             if (sender == null) return;
             var body = reader.GetRemainingBytes();
-            Writer.Reset();
-            Writer.Put((byte)type);
-            Writer.Put(body);
-            SendToAllExcept(from, method);
+            if ((byte)type < Protocol.FirstDirectMsg) // 10–19: difusão; 20+: só para o host
+            {
+                Writer.Reset();
+                Writer.Put((byte)type);
+                Writer.Put(body);
+                SendToAllExcept(from, method);
+            }
             OnGameMessage?.Invoke(type, sender.Id, new NetDataReader(body));
         }
         else
@@ -303,6 +310,16 @@ public static class NetSession
         write(Writer);
         if (Current == Mode.Host) SendToAllExcept(null, method);
         else _server?.Send(Writer, method);
+    }
+
+    /// <summary>Host → um convidado específico.</summary>
+    public static void SendTo(byte playerId, MsgType type, Action<NetDataWriter> write, DeliveryMethod method)
+    {
+        if (Current != Mode.Host || !Players.TryGetValue(playerId, out var p) || p.Peer == null) return;
+        Writer.Reset();
+        Writer.Put((byte)type);
+        write(Writer);
+        p.Peer.Send(Writer, method);
     }
 
     private static void SendToAllExcept(NetPeer except, DeliveryMethod method)

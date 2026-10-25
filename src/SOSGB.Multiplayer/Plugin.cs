@@ -80,6 +80,7 @@ public class Plugin : BasePlugin
         AddComponent<FocusGuard>();
         AddComponent<Net.NetRunner>();
         AddComponent<Net.PlayerSync>();
+        Net.WorldSync.Init();
         AddComponent<DebugOverlay>();
 
         if (DevBridgeEnabled.Value)
