@@ -20,3 +20,4 @@ Patches **Harmony** (HarmonyX) que alteram métodos do jogo. Todos são aplicado
 | Arquivo | Método do jogo | Efeito | Decisão | Config |
 |---|---|---|---|---|
 | `AppManagerPatch.cs` | `BokuMono.AppManager.OnFocusChanged(bool)` | Ignora a perda de foco, que zeraria o `Time.timeScale` e pararia a música | [D21](../../../DECISOES.md) | `[Game] KeepRunningWhenUnfocused` (padrão `true`) |
+| `ClockDiagnosticsPatch.cs` | `DateManager.Pause/Resume`, `GameController.Pause/Resume/PauseTalk/ResumeTalk` | **Só diagnóstico** (postfix): registra chamadas com stack trace | Tarefa 1.1 | Ativo só com `[DevBridge] Enabled` |

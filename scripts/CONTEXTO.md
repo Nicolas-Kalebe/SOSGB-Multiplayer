@@ -32,6 +32,8 @@ AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principa
 | `addmoney <n>` | `GameController.AddMoney(n)` |
 | `load <0-2>` | Carrega um slot e entra na cena Game |
 | `screenshot [nome]` | Salva `<jogo>/BepInEx/screenshots/<nome>.png` (esperar ~2 s antes de abrir) |
+| `menu <UILoadKey>` | Abre um menu (100 = Menu, 101 = BagMenu, 122 = Calendar, 123 = Map) |
+| `closemenu` | ⚠️ ainda não funciona (`KeyNotFoundException`); reinicie com `dev-cycle.sh` |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

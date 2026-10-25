@@ -30,7 +30,9 @@ public static class GameState
             var dm = DateManager.Instance;
             var n = dm.Now;
             s["date"] = $"{n.Year}/{n.Month:00}/{n.Day:00} {n.Hour:00}:{n.Minute:00}";
-            s["clockRunning"] = dm.IsPlay();
+            s["clockRunning"] = dm.IsPlay();             // flag bruta (Pause/Resume)
+            s["clockUpdateEnabled"] = dm.IsUpdateEnabled; // trava efetiva (inclui menus/eventos?) — tarefa 1.1
+            s["clockTimeScale"] = dm.TimeScale;
             return 0;
         });
 

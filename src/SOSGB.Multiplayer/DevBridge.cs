@@ -58,6 +58,9 @@ public class DevBridge : MonoBehaviour
     private bool _autoLoadDone;
     private float _titleSince = -1f;
 
+    /// <summary>Registra um evento no próximo registro do sosgb-state.jsonl.</summary>
+    public static void PushEvent(string ev) => Events.Enqueue(ev);
+
     // ---------- inicialização (chamada pelo Plugin.Load) ----------
 
     public static void Start(int port)
@@ -130,7 +133,9 @@ public class DevBridge : MonoBehaviour
         {
             _nextStateLog = Time.unscaledTime + Plugin.StateLogInterval.Value;
             var snap = GameState.Snapshot();
-            while (Events.TryDequeue(out var ev)) snap["event"] = ev;
+            var evs = new List<string>();
+            while (Events.TryDequeue(out var ev)) evs.Add(ev);
+            if (evs.Count > 0) snap["events"] = evs;
             AppendStateLog(snap);
         }
 
@@ -173,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "log <texto>", "quit",
                     },
                 });
 
@@ -205,6 +210,16 @@ public class DevBridge : MonoBehaviour
                 Instance.StartCoroutine(CaptureAtEndOfFrame(path).WrapToIl2Cpp());
                 // O arquivo é gravado no fim do frame; o cliente deve esperar ~1 s antes de abrir.
                 return Json(new { ok = true, path });
+
+            case "menu":
+                // Abre um menu do jogo pela chave UILoadKey (ex.: 100 = Menu, 101 = BagMenu, 122 = Calendar, 123 = Map).
+                var ui = UnityEngine.Object.FindObjectOfType<UIManager>();
+                ui.OpenMenu((UILoadKey)int.Parse(arg), null, false);
+                return Json(new { ok = true, opened = ((UILoadKey)int.Parse(arg)).ToString() });
+
+            case "closemenu":
+                UnityEngine.Object.FindObjectOfType<UIManager>().CloseMenu(null, null, false, null, false);
+                return Json(new { ok = true });
 
             case "log":
                 Plugin.Logger.LogInfo($"[DevBridge] {arg}");

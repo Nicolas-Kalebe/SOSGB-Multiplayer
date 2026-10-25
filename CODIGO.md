@@ -115,6 +115,14 @@ A rede foi removida, mas sobrou a estrutura:
 | `SaveLoadManager.Instance.IsLoadedSaveDataAll` + `LoadSlot(slot, cb)` + `SceneManager.LoadScene(SceneMode.Game)` | ✅ **carrega um save sem passar pela UI** |
 | `AppManager.OnFocusChanged(bool)` | ✅ é quem zera o `Time.timeScale` sem foco (ver D21) |
 
+### Relógio: como ele para de verdade (tarefa 1.1)
+- `DateManager.TimeScale = 60`, ou seja, 1 s real = 1 min de jogo.
+- `IsPlay()` só reflete a flag bruta `updateEnabled` (mexida por `Pause()`/`Resume()`).
+- A **trava efetiva** é a propriedade `DateManager.IsUpdateEnabled` (getter com lógica própria, 551 bytes). Ela fica `false` com um menu aberto (confirmado com `Menu` e `Calendar`) **sem que `Pause()` seja chamado**: o patch de diagnóstico não registrou nenhuma chamada a `DateManager.Pause/Resume` nem a `GameController.Pause*`.
+- **Para o D9:** um patch no getter `IsUpdateEnabled` deixa o host decidir quando o tempo corre (N jogadores em menu).
+- **A confirmar:** diálogo com NPC e cutscene provavelmente passam pela mesma trava (testar na Fase 3/6 com um NPC real).
+- Ponte: o comando `menu <UILoadKey>` abre menus, mas o `closemenu` (`UIManager.CloseMenu`) falha com `KeyNotFoundException`, porque o menu aberto por fora não é registrado no `UIMenuManager`. Depois de testar menus, reinicie com `dev-cycle.sh`.
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

@@ -27,7 +27,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
-| 1.1 | **Relógio em menus e diálogos**: descobrir quem chama `DateManager.Pause()` (patch de log no `Pause`/`Resume` com stack trace). Base do D9 | P | Teste da IA: abrir menu e conversar via comando, ler o log |
+| 1.1 ✅ | **Relógio em menus e diálogos**: descobrir quem chama `DateManager.Pause()` (patch de log no `Pause`/`Resume` com stack trace). Base do D9 | P | Teste da IA: abrir menu e conversar via comando, ler o log |
 | 1.2 | **Formato do save**: hook em `SaveDataManager.Encode<T>`/`Decode<T>` para confirmar JSON + deflate + XOR | P | Teste da IA: forçar save, inspecionar o dump |
 | 1.3 | **Troca de contexto da amizade**: `LikeabilityManager.ToSaveData()` → mudar pontos → `FromSaveData()` restaura. Base do D3 | M | Teste da IA: comandos `likeability get/set/swap` na ponte |
 | 1.4 | **Troca de contexto do inventário**: idem para mochila, ferramentas, `TalkManager`, `EventFlagManager` (D13) | M | Teste da IA |
@@ -153,5 +153,6 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 ## Estado atual
 
 - **Fase:** 1 — Validação técnica
-- **Próxima tarefa:** 1.1 (relógio em menus e diálogos)
+- **Próxima tarefa:** 1.2 (formato do save)
+- **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
 - **Última atualização:** 2026-10-24
