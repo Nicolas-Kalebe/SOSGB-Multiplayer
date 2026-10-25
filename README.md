@@ -8,7 +8,7 @@ Mod de **multiplayer co-op** para **STORY OF SEASONS: Grand Bazaar** (PC), no es
 - **Compartilhado:** fazenda, armazém, casa, dinheiro e correio.
 - **Individual:** mochila, ferramentas e upgrades, corações com NPCs e casamento.
 
-**Status:** 🧪 planejamento. O design está fechado e o código do jogo foi mapeado; o mod ainda não foi escrito.
+**Status:** 🧪 Fase 1 — validação técnica. O plugin carrega no jogo e lê e controla o estado (dinheiro, relógio, saves); a rede ainda não começou. Veja o [`ROTEIRO.md`](ROTEIRO.md).
 
 ## Documentação
 
