@@ -40,7 +40,7 @@ Mensagens ≥ 10 enviadas por um convidado chegam ao host, que as entrega localm
 
 | # | Nome | Corpo | Entrega | Fase |
 |---|---|---|---|---|
-| 10 | `PlayerState` | `byte id, uint fieldId, float x, y, z, float rotY, byte anim` | Unreliable/sequenced | 2.4 |
+| 10 | `PlayerState` | `byte id, uint fieldId, float x, y, z, float rotY, int animStateHash, float animNormTime` — 10×/s. A animação é replicada pelo `fullPathHash` do estado do Animator (`Animator.Play(hash)` no avatar) | Sequenced | 2.4 |
 
 ## Histórico
 

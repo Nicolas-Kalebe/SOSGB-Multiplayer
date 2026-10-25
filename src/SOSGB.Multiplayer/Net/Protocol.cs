@@ -37,6 +37,6 @@ public enum MsgType : byte
     /// <summary>Host → todos: [byte id] (saiu)</summary>
     PlayerLeft = 5,
 
-    /// <summary>Qualquer → host → outros: [byte id][uint fieldId][float x,y,z][float rotY][byte anim] (Fase 2.4)</summary>
+    /// <summary>Qualquer → host → outros, 10×/s: [byte id][uint fieldId][float x,y,z][float rotY][int animHash][float animNorm] (Fase 2.4)</summary>
     PlayerState = 10,
 }

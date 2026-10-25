@@ -5,6 +5,7 @@ using BokuMono;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using UnityEngine;
+using UnhollowedRenderers = Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppArrayBase<UnityEngine.Renderer>;
 
 namespace SOSGB.Multiplayer.Net;
 
@@ -73,7 +74,10 @@ public class PlayerSync : MonoBehaviour
         var player = GameController.Instance.GetPlayer();
         if (player == null) return;
 
-        var t = player.transform;
+        // O jogo move o MODELO (PlayerCharacter.Model / GetPlayerTransform), não a raiz do
+        // PlayerCharacter, que fica parada na origem. Usamos o transform que de fato anda.
+        var t = GameController.Instance.GetPlayerTransform();
+        if (t == null) return;
         var field = FieldManager.Instance.CurrentFieldId;
         int hash = 0;
         float norm = 0;
@@ -168,6 +172,45 @@ public class PlayerSync : MonoBehaviour
         Remotes.Remove(id);
     }
 
+    // Diagnóstico do clone (por que não aparece?): renderers, camadas, escala.
+    private static object Diag(GameObject a)
+    {
+        var rs = a.GetComponentsInChildren<Renderer>(true);
+        int enabled = 0, visible = 0;
+        foreach (var r in rs) { if (r.enabled && r.gameObject.activeInHierarchy) enabled++; if (r.isVisible) visible++; }
+        var local = GameController.Instance.GetPlayer().Model;
+        var lrs = local.GetComponentsInChildren<Renderer>(true);
+        return new
+        {
+            active = a.activeInHierarchy, layer = a.layer, localLayer = local.layer,
+            scale = new[] { a.transform.lossyScale.x, a.transform.lossyScale.y, a.transform.lossyScale.z },
+            localScale = new[] { local.transform.lossyScale.x, local.transform.lossyScale.y, local.transform.lossyScale.z },
+            renderers = rs.Length, enabled, visible, localRenderers = lrs.Length,
+            children = a.transform.childCount,
+            cloneBounds = Center(rs),
+            localModelPos = V(local.transform.position),
+            localBounds = Center(lrs),
+            enabledNames = EnabledNames(rs),
+            localEnabledNames = EnabledNames(lrs),
+        };
+    }
+
+    private static float[] V(Vector3 v) => new[] { (float)Math.Round(v.x, 2), (float)Math.Round(v.y, 2), (float)Math.Round(v.z, 2) };
+
+    private static float[] Center(UnhollowedRenderers rs)
+    {
+        foreach (var r in rs)
+            if (r.enabled && r.gameObject.activeInHierarchy) return V(r.bounds.center);
+        return null;
+    }
+
+    private static string[] EnabledNames(UnhollowedRenderers rs)
+    {
+        var l = new List<string>();
+        foreach (var r in rs) if (r.enabled && r.gameObject.activeInHierarchy) l.Add($"{r.name}:{r.GetIl2CppType().Name}:{r.isVisible}");
+        return l.ToArray();
+    }
+
     /// <summary>Para a ponte de teste: posição dos avatares remotos.</summary>
     public static object Status()
     {
@@ -182,6 +225,7 @@ public class PlayerSync : MonoBehaviour
                 target = new[] { kv.Value.Target.x, kv.Value.Target.y, kv.Value.Target.z },
                 avatar = a == null ? null : new[] { a.transform.position.x, a.transform.position.y, a.transform.position.z },
                 visible = a != null && a.activeSelf,
+                diag = a == null ? null : Diag(a),
                 anim = kv.Value.AnimHash,
             });
         }

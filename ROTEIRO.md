@@ -45,9 +45,9 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 |---|---|---|---|
 | 2.1 ✅ | Integrar **LiteNetLib** (D7): camada `Net/` com host/cliente, handshake, checagem de versão do mod, desconexão | M | Teste da IA: 2 instâncias, `net host` / `net join 127.0.0.1` pela ponte |
 | 2.2 ✅ | Protocolo de mensagens (tipos, serialização binária, IDs de jogador 0–3) documentado em `docs/PROTOCOLO.md` | P | Testes unitários de serialização |
-| 2.3 | **Avatar remoto**: representar os outros jogadores (começar com um modelo simples; depois reaproveitar o modelo do player) | M | Screenshot das 2 instâncias |
-| 2.4 | Sincronizar **posição, rotação e animação** (com interpolação) | M | Teste da IA: mover um, ler a posição no outro |
-| 2.5 | Sincronizar **mapa atual**: o avatar só aparece para quem está no mesmo mapa | P | Teste da IA: `field <id>` numa instância |
+| 2.3 ✅ | **Avatar remoto**: representar os outros jogadores (começar com um modelo simples; depois reaproveitar o modelo do player) | M | Screenshot das 2 instâncias |
+| 2.4 ✅ | Sincronizar **posição, rotação e animação** (com interpolação) | M | Teste da IA: mover um, ler a posição no outro |
+| 2.5 🟡 | Sincronizar **mapa atual**: o avatar só aparece para quem está no mesmo mapa | P | Teste da IA: `field <id>` numa instância |
 | 2.6 | Configuração para entrar e hospedar (IP/porta no `.cfg`; menu no jogo fica para a Fase 8) | P | — |
 
 **✔ Pronto quando:** duas instâncias (e depois dois PCs na LAN) se veem andando e trocando de mapa. 🎉 **Primeiro teste do usuário com um amigo.**
@@ -153,7 +153,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 ## Estado atual
 
 - **Fase:** 2 — Rede básica (v0.1)
-- **Próxima tarefa:** 2.3/2.4 (avatar remoto + posição/animação)
+- **Próxima tarefa:** 2.5 (testar troca de mapa) e 2.6 (config de host/entrar)
 - **Feito:** 1.1 — menus travam o relógio via `DateManager.IsUpdateEnabled`, não via `Pause()` (ver `CODIGO.md` §13)
 - **Feito:** 1.2 — save = cabeçalho + JSON (`Obfuscation.Decode(..., General)`), 94 seções
 - **Feito:** 1.3 — troca de contexto da amizade funciona **via JSON** (`ToSaveData` é raso)
@@ -164,4 +164,6 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - ✅ **Fase 1 concluída** (2026-10-24): nenhuma surpresa que mude o plano
 - **Feito:** 2.1 — LiteNetLib 2.1.4: host/convidado, aperto de mão com versão, IDs 0–3 (testado com 2 instâncias)
 - **Feito:** 2.2 — `docs/PROTOCOLO.md`
+- **Feito:** 2.3/2.4 — avatar remoto (clone visual do modelo do player) com posição, rotação e animação (hash do estado do Animator), 10×/s. **Confirmado por screenshot**: a instância B mostra o avatar do host ao lado da cama
+- **2.5:** a lógica de "só aparece no mesmo mapa" está pronta, mas falta testar trocando de mapa
 - **Última atualização:** 2026-10-24

@@ -166,6 +166,12 @@ Armadilhas das flags de evento:
 - Elas compartilham a pasta e o `.cfg`. A porta da ponte e o slot do auto-load vêm de variáveis de ambiente: `SOSGB_BRIDGE_PORT`, `SOSGB_AUTOLOAD_SLOT` (ver `scripts/second-instance.sh`). O log de estado e os prints ganham o sufixo `-<porta>`.
 - ⚠️ As duas carregam o mesmo slot do disco. Antes de testes de rede, o convidado não pode salvar (Fase 3).
 
+### Player: transform, teleporte e modelo (Fase 2)
+- ⚠️ A raiz do `PlayerCharacter` (`GetPlayer().transform`) **fica parada na origem**. O que anda é o **modelo**: `GameController.GetPlayerTransform()` == `PlayerCharacter.Model.transform`. Use sempre ele para posição e rotação.
+- Mexer no `position` direto não adianta, porque o jogo devolve o personagem para o lugar. Para teleportar: `PlayerCharacter.SetPlayerClosestGroundPosition(Vector3, Nullable<Vector3> rot, float distance)`.
+- O modelo tem 30 `Renderer` (5 ativos: `body`, `skin`, `face`, `M_L`, `hair_00`, todos `SkinnedMeshRenderer`), na layer 11. `Instantiate(player.Model)` sem os `MonoBehaviour` e `Collider` gera um avatar visual que funciona, com `Animator` próprio.
+- A animação é replicada com `Animator.GetCurrentAnimatorStateInfo(0).fullPathHash` → `Animator.Play(hash, 0, norm)` no clone.
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

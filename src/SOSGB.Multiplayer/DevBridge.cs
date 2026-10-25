@@ -240,12 +240,16 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status() });
 
             case "warp":
-                // warp <dx> <dz> — desloca o jogador local (teste de sincronização, 2.4)
+                // warp <dx> <dz> — teleporta o jogador local (teste de sincronização, 2.4).
+                // Mexer no transform direto não adianta: o jogo devolve o modelo para o lugar.
+                // Usamos o teleporte do próprio jogo (SetPlayerClosestGroundPosition).
                 var wa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var pl = GameController.Instance.GetPlayer().transform;
                 var inv = System.Globalization.CultureInfo.InvariantCulture;
-                pl.position += new Vector3(float.Parse(wa[0], inv), 0, float.Parse(wa[1], inv));
-                return Json(new { ok = true, pos = new[] { pl.position.x, pl.position.y, pl.position.z } });
+                var cur = GameController.Instance.GetPlayerTransform().position;
+                var dest = cur + new Vector3(float.Parse(wa[0], inv), 0, float.Parse(wa[1], inv));
+                GameController.Instance.GetPlayer().SetPlayerClosestGroundPosition(dest, new Il2CppSystem.Nullable<Vector3>(), 10f);
+                var now = GameController.Instance.GetPlayerTransform().position;
+                return Json(new { ok = true, pos = new[] { now.x, now.y, now.z } });
 
             case "world":
                 // world capture | world load — tarefa 1.5 (ver WorldSnapshot). Slot de teste = 2.

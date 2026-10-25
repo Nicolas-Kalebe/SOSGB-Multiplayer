@@ -51,6 +51,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `flag get/set <id> [valor]` | Lê ou define uma flag de evento |
 | `world capture/load/info` | Captura o mundo em memória (sem gravar no disco) / carrega o snapshot (slot de teste) |
 | `net host [porta]` / `net join <ip> [porta]` / `net status` / `net leave` | Sessão de rede (Fase 2) |
+| `warp <dx> <dz>` | Teleporta o jogador local (`SetPlayerClosestGroundPosition`) |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

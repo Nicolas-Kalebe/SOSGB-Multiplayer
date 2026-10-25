@@ -8,6 +8,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 |---|---|
 | `Protocol.cs` | Constantes (versão, porta, chave, máximo de jogadores) e o enum `MsgType` |
 | `NetSession.cs` | Sessão LiteNetLib: hospedar/entrar, aperto de mão, lista de jogadores, repasse de mensagens de jogo (host-autoritativo) |
+| `PlayerSync.cs` | Envia o estado do jogador local (10×/s) e mantém os avatares dos remotos (clone visual do modelo, visível só no mesmo mapa) |
 | `NetRunner.cs` | `MonoBehaviour` que chama `NetSession.Poll()` a cada frame (tudo na thread principal) |
 
 ## Regras
