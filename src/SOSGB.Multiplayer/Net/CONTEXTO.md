@@ -13,6 +13,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `ClockSync.cs` | 3.2/3.3: relógio do host, pausa do grupo (D9) via patch em `DateManager.IsUpdateEnabled`; quem dorme não pausa o grupo e o relógio segue para os acordados (D33) |
 | `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo |
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
+| `StorageSync.cs` | 4.2/D37: armazém da casa compartilhado; trava de uma pessoa por vez (host) e sincronização pelo conteúdo |
 | `MoneySync.cs` | 4.1/D36: carteira compartilhada; cada jogo observa `PlayerMoney`, convidado manda a diferença, host manda o total |
 | `FreshProfile.cs` | D30: perfil "do zero" de quem entra pela 1ª vez (zera corações/conversas, esvazia mochila e regador, ferramentas no nível básico, visual do save próprio) |
 | `NotifySync.cs` | D26: detecta os próprios acontecimentos (dormiu, desmaiou, evento) e mostra os avisos de todos |

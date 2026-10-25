@@ -376,3 +376,17 @@ Regras deste arquivo:
   - Lojas, vendas e prêmios entram sem código extra (4.5 sai junto; falta o teste numa loja de verdade).
   - Limite conhecido: se dois jogadores gastam ao mesmo tempo mais do que existe, o host corta em 0 e uma das compras sai "de graça". Aceito entre amigos.
   - Protocolo 10 (`MoneyState` 15, `MoneyDelta` 26).
+
+### D37 — Armazém da casa: uma pessoa por vez + sincronização pelo conteúdo
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (implementa a D2/ROTEIRO 4.2: armazém compartilhado)
+- **Contexto:** com itens, dois jogadores mexendo ao mesmo tempo podem **duplicar ou perder** coisas. No Stardew, só uma pessoa abre um baú por vez.
+- **Decisão:**
+  - **trava:** o host guarda quem está com a tela do armazém aberta (`StorageHolder`). A abertura é vista pela tela atual (`UIManager.UIMenuKey == HouceStorage`, 102). Se outro jogador abrir, o mod fecha a tela dele (`UIManager.CloseMenu`) e mostra "X está usando o armazém. Espere fechar." (`ForceBackUIMain` deu `KeyNotFoundException` e ficou só de reserva);
+  - **conteúdo:** cada jogo confere o armazém a cada 0,5 s (assinatura FNV dos espaços: item, quantidade, qualidade, frescor, embrulho). Mudou por conta própria (guardou, pegou, cozinhou com ingredientes de lá)? Manda o armazém inteiro (`ToSaveData` em JSON, comprimido com gzip: ~2 KB) ao host, que aplica (`FromSaveData`) e repassa aos outros. Ao fechar a tela, a versão final sai na hora;
+  - **conflito:** se o armazém muda num jogo enquanto outro está com a tela aberta, vale o de quem está com ela. O host recusa armazém de quem não tem a trava e devolve o oficial;
+  - depois de carregar um mundo (entrada, virada do dia) a base é zerada, porque o snapshot já traz o armazém.
+- **Verificado (duas instâncias):** convidada guarda → aparece no host; host tira → some na convidada; host com o armazém aberto → a tela da convidada fecha com o aviso; trava solta ao fechar; convidada com a trava guarda e fecha → host recebe; depois da virada do dia os dois ficam idênticos (mesma assinatura).
+- **Consequências:**
+  - Com a regra D9 atual (N = 1), quem está com o armazém aberto também congela os outros. Ver P7.
+  - Outros armazéns compartilhados (moinhos, peças do Bazaar, deck) ainda não sincronizam. Ficam para quando forem usados (Fases 5 e 7).
+  - Protocolo 11 (`StorageHolder` 16, `StorageData` 27, `StorageUse` 28).

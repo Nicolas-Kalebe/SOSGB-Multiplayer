@@ -64,6 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 11 | `StorageHolder` (16, host → todos: quem está com o armazém), `StorageData` (27, armazém inteiro em JSON gzip), `StorageUse` (28, convidado abriu/fechou a tela). D37 |
 | 10 | `MoneyState` (15, host → todos: total da carteira) e `MoneyDelta` (26, convidado → host: diferença). D36 |
 | 9 | Sem mensagens novas, mas o comportamento mudou: `ProfileData` vazio = convidado começa do zero (D30) e aparência própria ligada (D32). Versões antigas não se misturam com a nova (pacote v0.3) |
 | 8 | `PlayerAppearance` (D28); convidado sem ID até o `Welcome` (255 = desconhecido); host valida o ID do remetente |

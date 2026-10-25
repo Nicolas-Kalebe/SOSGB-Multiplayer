@@ -239,6 +239,19 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.AddMoney(uint.Parse(arg), true);
                 return Json(new { ok = true, before, after = ExternalData.Instance.UserInfo.PlayerMoney });
 
+            case "storage":
+            {
+                // storage | storage put <itemId> <qtd> | storage take <slot> <qtd> — armazém da casa (4.2)
+                var hs = InventoryManager.Instance.HouseStorage;
+                var sa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (sa.Length >= 3 && sa[0] == "put") hs.PutIn(BokuMono.Data.ItemData.Create(uint.Parse(sa[1]), int.Parse(sa[2])), out _, false);
+                if (sa.Length >= 3 && sa[0] == "take") hs.PutOut(int.Parse(sa[1]), int.Parse(sa[2]));
+                var list = new List<string>();
+                var hd = hs.ItemDatas;
+                for (var i = 0; i < hd.Length; i++) if (hd[i] != null && hd[i].ItemId != 0) list.Add($"{i}:{hd[i].ItemId}x{hd[i].Stack}");
+                return Json(new { ok = true, count = list.Count, items = list.Take(12), status = Net.StorageSync.Status() });
+            }
+
             case "spendmoney":
                 // spendmoney <n> — gasta pelo caminho do jogo (SpendMoney), teste da carteira compartilhada (4.1)
                 var beforeSpend = ExternalData.Instance.UserInfo.PlayerMoney;
@@ -283,7 +296,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

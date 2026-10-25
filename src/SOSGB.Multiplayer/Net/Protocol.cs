@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 10;
+    public const int Version = 11;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -58,6 +58,9 @@ public enum MsgType : byte
     /// <summary>Host → todos: [long total] — carteira compartilhada oficial (4.1, D36). Só vale vindo do host.</summary>
     MoneyState = 15,
 
+    /// <summary>Host → todos: [byte id ou 255] — quem está com o armazém da casa aberto (4.2, D37). Só vale vindo do host.</summary>
+    StorageHolder = 16,
+
     // ---- 20+: ponto a ponto com o host (NÃO são repassadas aos outros convidados) ----
 
     /// <summary>Convidado → host: pede o mundo atual (sem corpo). Fase 3.1</summary>
@@ -80,4 +83,10 @@ public enum MsgType : byte
 
     /// <summary>Convidado → host: [long diferença] — o dinheiro mudou no convidado (compra, venda...). 4.1, D36</summary>
     MoneyDelta = 26,
+
+    /// <summary>Convidado ↔ host: [bytes JSON gzip] — armazém da casa inteiro (StorageManager.SaveData). 4.2, D37</summary>
+    StorageData = 27,
+
+    /// <summary>Convidado → host: [bool aberto] — abriu/fechou a tela do armazém (trava, D37)</summary>
+    StorageUse = 28,
 }
