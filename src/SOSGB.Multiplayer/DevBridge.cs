@@ -178,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load|json <nome>", "log <texto>", "quit",
                     },
                 });
 
@@ -221,6 +221,12 @@ public class DevBridge : MonoBehaviour
                 UnityEngine.Object.FindObjectOfType<UIManager>().CloseMenu(null, null, false, null, false);
                 return Json(new { ok = true });
 
+            case "like":
+                return LikeCommand(arg);
+
+            case "ctx":
+                return CtxCommand(arg);
+
             case "decodesave":
                 return DecodeSave(arg);
 
@@ -252,6 +258,48 @@ public class DevBridge : MonoBehaviour
             if (result == SaveLoadResult.Succeess)
                 SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
         }));
+    }
+
+    // Tarefa 1.3: inspecionar e alterar a amizade.
+    private static string LikeCommand(string arg)
+    {
+        var a = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var lm = LikeabilityManager.Instance;
+        var id = uint.Parse(a[1]);
+        if (a[0] == "add")
+        {
+            lm.AddPoint(id, float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture), out var result);
+        }
+        return Json(new
+        {
+            ok = true,
+            npc = id,
+            point = lm.GetPoint(id),
+            level = lm.GetLevel(id, false),
+            talkCount = lm.GetTalkCount(id),
+            partner = lm.PartnerCharaId,
+            fiance = lm.FianceCharaId,
+        });
+    }
+
+    // Tarefa 1.3: troca de contexto (ver PlayerContext).
+    private static string CtxCommand(string arg)
+    {
+        var a = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        switch (a[0])
+        {
+            case "save":
+                PlayerContext.SaveLikeability(a[1]);
+                return Json(new { ok = true, saved = a[1], contexts = PlayerContext.Names });
+            case "load":
+                PlayerContext.LoadLikeability(a[1]);
+                return Json(new { ok = true, loaded = a[1] });
+            case "json":
+                var json = PlayerContext.GetJson(a[1]);
+                return Json(new { ok = true, length = json.Length, head = json.Substring(0, Math.Min(400, json.Length)) });
+            default:
+                return Json(new { ok = false, error = "use: ctx save|load|json <nome>" });
+        }
     }
 
     /// <summary>

@@ -35,6 +35,8 @@ AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principa
 | `menu <UILoadKey>` | Abre um menu (100 = Menu, 101 = BagMenu, 122 = Calendar, 123 = Map) |
 | `closemenu` | ⚠️ ainda não funciona (`KeyNotFoundException`); reinicie com `dev-cycle.sh` |
 | `decodesave <caminho>` | Decodifica um `.sav` para `<jogo>/BepInEx/savedump/` (JSON) |
+| `like get <npc>` / `like add <npc> <pts>` | Lê ou soma pontos de amizade |
+| `ctx save/load/json <nome>` | Guarda, carrega ou mostra um contexto de amizade (JSON) |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

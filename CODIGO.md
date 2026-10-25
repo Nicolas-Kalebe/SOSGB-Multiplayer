@@ -132,6 +132,12 @@ A rede foi removida, mas sobrou a estrutura:
 - **Para o mod:** o snapshot que o convidado recebe pode ser esse mesmo JSON (comprimido para a rede). Dados por jogador podem ser guardados como seções extras num arquivo do mod ao lado do save.
 - Os arquivos decodificados ficam em `<jogo>/BepInEx/savedump/` (dados pessoais, **fora do repositório**).
 
+### Troca de contexto da amizade (tarefa 1.3) ✅
+- `LikeabilityManager.Instance.ToSaveData()` → guardar → `FromSaveData(...)` **funciona**: dois "jogadores" com pontos diferentes no mesmo NPC (745 × 1000 no NPC 104), alternando à vontade.
+- ⚠️ **`ToSaveData()` e o construtor de cópia `SaveData(SaveData)` são RASOS**: os `LikeabilityData` continuam sendo os objetos do manager vivo, e um snapshot mudava junto com o jogo. **Solução:** guardar como JSON com `StringExtensions.ToJson(obj)` / `StringExtensions.JsonToObject<T>(json)` (o Newtonsoft do próprio jogo), que dá cópia profunda e já é o formato da rede (~9,5 KB por jogador).
+- `AddPoint` respeita o teto do nível (`LikeabilityLevelCapDatas`): 745 + 500 parou em 1000.
+- **Regra para todo manager:** suponha que `ToSaveData()` é raso, até prova em contrário.
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo
