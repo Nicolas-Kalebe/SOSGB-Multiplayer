@@ -8,7 +8,7 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 |---|---|
 | `bridge.py` | Cliente da ponte: manda um comando e imprime a resposta JSON. `python scripts/bridge.py state` |
 | `dev-cycle.sh` | Ciclo completo: fecha o jogo → compila → abre → ativa a janela → espera o save carregar. `scripts/dev-cycle.sh [--no-build]` |
-| `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte |
+| `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte. Pular o evento da manhã: `-Keys TAB -Milliseconds 1500` e depois `ENTER` |
 | `two-instances.sh` | **Atalho:** recompila e abre host (47800) + convidado (47801) conectados, esperando o mundo carregar |
 | `click.ps1` | Clique de mouse real numa coordenada da janela do jogo (`-ProcessId -X -Y`) |
 | `second-instance.sh` | Abre uma **segunda instância** do jogo com a ponte em outra porta (padrão 47801). Para testar host + convidado no mesmo PC |
@@ -62,6 +62,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `like get <npc>` / `like add <npc> <pts>` | Lê ou soma pontos de amizade |
 | `ctx save/load <nome>` | Guarda ou carrega um contexto completo de jogador (6 partes, JSON) |
 | `ctx json <nome> [parte]` | Mostra o JSON de uma parte |
+| `ctx fresh` | Aplica no jogador local o perfil "do zero" de um convidado novo (D30), sem rede. Desfazer com `ctx save antes` / `ctx load antes` |
 | `bag [take <slot> <qtd>]` | Lista a mochila / tira itens |
 | `flag get/set <id> [valor]` | Lê ou define uma flag de evento |
 | `world capture/load/info` | Captura o mundo em memória (sem gravar no disco) / carrega o snapshot (slot de teste) |

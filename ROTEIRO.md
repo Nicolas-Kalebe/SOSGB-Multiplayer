@@ -157,6 +157,6 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 - **Fase:** 4 — Economia (v0.3), ainda não iniciada. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
 - **Pacote de teste para amigos:** v0.2 (`Downloads\SOSGB-Multiplayer-v0.2-amiga.zip`, fora do repositório).
-- **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P1 perfil inicial, P2 cama de verdade, P3 log da amiga, P4 aparência × jogabilidade, P5 memória).
+- **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P2 cama de verdade, P3 log da amiga, P5 memória). P1 e P4 respondidas: convidado começa do zero (D30, feito) e continuar na aparência (D31).
 - **Próxima tarefa sugerida:** 4.1 (dinheiro compartilhado), salvo se o usuário preferir continuar a aparência (P4).
 - **Última atualização:** 2026-10-25

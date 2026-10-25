@@ -49,7 +49,7 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 
 **Regras desta versão:**
 - **Só o host salva, e só quando todos dormem** ([D23](../DECISOES.md)). Tentar salvar no meio do dia mostra "Não foi possível salvar". É esperado.
-- Na **primeira vez**, o convidado entra com a mochila, as ferramentas e os corações **do próprio save** ([D24](../DECISOES.md), provisório).
+- Na **primeira vez**, o convidado **começa do zero** no mundo do host, como no Stardew ([D30](../DECISOES.md)): corações zerados, mochila vazia, ferramentas básicas. O que ele jogou sozinho no save dele não conta; do save dele só vem o visual do personagem. Por isso ele ainda precisa ter um save (qualquer um) para entrar.
 - Os corações, a mochila e as ferramentas do convidado são dele e ficam guardados no PC do host (`%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\`).
 - Se alguém abrir um menu, o tempo para para todos ([D9](../DECISOES.md)).
 

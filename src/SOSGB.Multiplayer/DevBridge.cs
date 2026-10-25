@@ -441,8 +441,25 @@ public class DevBridge : MonoBehaviour
             case "json":
                 var json = PlayerContext.GetJson(a[1], a.Length > 2 ? a[2] : "likeability");
                 return Json(new { ok = true, length = json.Length, head = json.Substring(0, Math.Min(400, json.Length)) });
+            case "fresh":
+                // ctx fresh — aplica no jogador local o perfil "do zero" de um convidado novo (D30), sem rede.
+                // Teste com uma instância só; desfazer com ctx save/load antes e depois.
+                var names = new List<string>(PlayerContext.ProfileParts);
+                names.Remove("appearance");
+                var parts = PlayerContext.CaptureParts(names);
+                var fresh = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(Net.FreshProfile.Make(parts, null));
+                var tools = InventoryManager.Instance.BagToolStorage.ItemDatas;
+                var before = new List<uint>();
+                for (var i = 0; i < tools.Length; i++) if (tools[i] != null && tools[i].ItemId != 0) before.Add(tools[i].ItemId);
+                var applied = PlayerContext.ApplyParts(fresh);
+                tools = InventoryManager.Instance.BagToolStorage.ItemDatas;
+                var after = new List<uint>();
+                for (var i = 0; i < tools.Length; i++) if (tools[i] != null && tools[i].ItemId != 0) after.Add(tools[i].ItemId);
+                var heads = new Dictionary<string, string>();
+                foreach (var kv in fresh) heads[kv.Key] = kv.Value.Substring(0, Math.Min(300, kv.Value.Length));
+                return Json(new { ok = true, applied, toolsBefore = before, toolsAfter = after, heads });
             default:
-                return Json(new { ok = false, error = "use: ctx save|load <nome> | ctx json <nome> [parte]", parts = PlayerContext.PartNames });
+                return Json(new { ok = false, error = "use: ctx save|load <nome> | ctx json <nome> [parte] | ctx fresh", parts = PlayerContext.PartNames });
         }
     }
 

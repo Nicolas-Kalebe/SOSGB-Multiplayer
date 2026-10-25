@@ -230,7 +230,7 @@ Regras deste arquivo:
 - **Decisão:**
   - **partes do perfil:** amizade (`likeability`), conversas (`talk`), mochila (`bag`), ferramentas (`tools`) e estado das ferramentas (`toolstate`);
   - **flags de evento ficam no MUNDO (compartilhadas) por enquanto (provisório):** elas misturam progresso do mundo (ex.: Bazaar) e eventos de coração pessoais, e ainda não sabemos separar por ID. Trocar tudo por jogador poderia reverter o progresso do mundo. Revisar na Fase 6 (eventos de coração);
-  - **primeira entrada (provisório):** o perfil inicial do convidado é o do **próprio save** que ele tinha carregado antes de entrar. Alternativa a confirmar com o usuário: começar "do zero", como os farmhands do Stardew;
+  - **primeira entrada (provisório, SUBSTITUÍDO pela [D30](#d30--convidado-novo-começa-do-zero-no-mundo-do-host-substitui-a-parte-provisória-da-d24)):** o perfil inicial do convidado era o do **próprio save** que ele tinha carregado antes de entrar. Agora ele começa do zero;
   - **identidade:** `[Net] PlayerGuid`, gerado automaticamente;
   - **armazenamento:** o host guarda os perfis em `%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\profiles_<fazenda>_<host>.json`, gravado **na virada do dia**, junto com o save oficial (D23). O convidado envia o perfil ao dormir, a cada 60 s e ao sair;
   - **virada do dia:** o convidado reaplica o próprio perfil e roda o `OnChangeDate` dos sistemas pessoais (`LikeabilityManager`, `TalkManager(ano)`, `BagItemStorage`).
@@ -287,3 +287,24 @@ Regras deste arquivo:
 - **Decisão:** `[Visual] SyncAppearance = false` por padrão. Desligado: avatares com o modelo do jogador local + **nome em cima** (estável, testado). O código da D28 fica, para retomar.
 - **Ainda vale mesmo desligado:** se outro gênero for montado, usa o corpo do gênero local (fallback); a aparência própria **nunca** é aplicada no save antes da cena.
 - **Próximos passos para retomar:** (a) isolar qual peça trava (rodar uma instância por vez para não faltar memória); (b) descobrir como o jogo carrega as peças da tela de customização/alfaiate (provavelmente `AllResourceLoadAsync`/`InitializeBackyardLoader`); (c) montar com tempo limite **sem** aninhar a corrotina do jogo (hoje o tempo limite não dispara porque o `yield` aninhado nunca volta).
+
+### D30 — Convidado novo começa DO ZERO no mundo do host (substitui a parte provisória da D24)
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** usuário (resposta à P1: "o amigo começa do zero no save do host [...] Não importa o que ele jogou no mundo dele sozinho, só importa o que vocês jogaram juntos. Tipo Minecraft", "igual no Stardew")
+- **Contexto:** pela D24, o convidado entrava pela 1ª vez com a mochila, as ferramentas e os corações do **próprio save**. Isso deixava trazer progresso de fora para o mundo do host (ex.: ferramentas melhoradas, casamento de outro save).
+- **Decisão:** o progresso do convidado **só existe no mundo do host**. Quando o host não conhece o jogador (`ProfileData` vazio, ou sem resposta em 8 s), o convidado monta um perfil "do zero" (`Net/FreshProfile.cs`) a partir dos dados do mundo recém-carregado:
+  - **corações:** todos os contadores de `LikeabilityDatas`/`YesterdayLikeabilityDataList` zerados, sem noivado/casamento e sem a lista de "já conversou". Os **tetos de coração** (`LikeabilityLevelCapDatas`) ficam, porque vêm do progresso do mundo;
+  - **conversas:** todas as listas zeradas, inclusive as de `TalkCond` (as falas de "primeiro encontro" voltam);
+  - **mochila:** vazia. Ela tem espaços **fixos** (ex.: 32, os vazios com `ItemId` 0); esvaziar a lista quebraria a mochila. Por isso cada espaço vira vazio e o tamanho é mantido;
+  - **ferramentas:** as **mesmas do host**, mas no **nível básico**, descendo a cadeia de `ToolMasterData.UpgradeToolId` (ex.: 704→700, 603→600, 102→100, 503→500). Sem ferramentas o convidado não consegue jogar, e o jogo não tem uma lista "ferramentas iniciais" fácil de ler;
+  - **regador:** vazio;
+  - **aparência:** a do personagem do save do próprio convidado. É o único dado aproveitado: é "o boneco" dele, não progresso.
+- **Verificado:** comando de teste `ctx fresh` (uma instância só): corações zerados, mochila vazia com 32 espaços, ferramentas no nível básico, regador vazio. O jogo seguiu normal (relógio, personagem, evento da manhã).
+- **Consequências:**
+  - O tamanho da mochila é o do host (se o host já aumentou a mochila, o convidado começa com ela maior). Aceito por ser simples e não atrapalhar.
+  - Quem já jogou com a versão anterior e tem perfil guardado no host **mantém** o perfil (o host manda o perfil guardado e ele vence).
+  - Falta testar com rede de verdade (duas instâncias ou com os amigos).
+
+### D31 — Prioridade: continuar a aparência própria de cada jogador
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** usuário (resposta à P4: "P4 continua na aparência")
+- **Contexto:** a aparência própria (D28) ficou experimental e desligada (D29) porque peças não carregadas travam a montagem e a troca de gênero não funciona.
+- **Decisão:** seguir investigando a aparência antes da Fase 4 (economia). Testes com **uma instância por vez**, por causa da memória (P5).

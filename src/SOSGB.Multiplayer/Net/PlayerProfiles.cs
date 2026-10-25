@@ -1,4 +1,4 @@
-// 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md, DECISOES.md#d24 e ROTEIRO.md (3.6).
+// 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md, DECISOES.md#d24, #d30 e ROTEIRO.md (3.6).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,8 +19,8 @@ namespace SOSGB.Multiplayer.Net;
 /// (partes individuais do PlayerContext: amizade, conversas, mochila, ferramentas, regador).
 ///
 ///  - Identidade: [Net] PlayerGuid (gerado automaticamente), enviado no Hello.
-///  - Primeira entrada (o host não conhece o GUID): o perfil inicial é o do PRÓPRIO save que o convidado
-///    tinha carregado antes de entrar (D24, provisório).
+///  - Primeira entrada (o host não conhece o GUID): o convidado começa DO ZERO (D30, FreshProfile), como os
+///    farmhands do Stardew. Do save próprio só vem o visual do personagem.
 ///  - O convidado envia o perfil ao host (ProfileUpload) ao dormir, a cada 60 s e ao sair.
 ///  - O host guarda em memória e grava em arquivo na virada do dia (junto do save oficial, D23):
 ///    %APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\profiles_&lt;fazenda&gt;_&lt;host&gt;.json
@@ -41,6 +41,10 @@ public class PlayerProfiles : MonoBehaviour
 
     // ---- convidado ----
     private static string _pending;        // perfil a aplicar quando o mundo carregar
+    private static bool _profileAnswered;  // o host já respondeu se conhece este jogador (ProfileData)
+    private static bool _makeFresh;        // host não conhece: começar do zero (D30)
+    private static string _ownAppearance;  // visual do personagem do save próprio (único dado aproveitado)
+    private static float _answerWaitSince = -1;
     private static bool _pendingIsNewDay;
     private static bool _worldLoading;
     private static IntPtr _oldPlayer;       // personagem do mundo antigo (esperar ser trocado)
@@ -60,17 +64,15 @@ public class PlayerProfiles : MonoBehaviour
         NetSession.OnPlayerLeft += id => GuidOf.Remove(id);
         NetSession.OnJoined += () =>
         {
-            // Antes do mundo do host chegar: o save que este convidado carregou é o perfil
-            // inicial, caso o host ainda não o conheça (D24).
+            // D30: o progresso do convidado só existe no mundo do host. Se o host não conhece este
+            // jogador, ele começa DO ZERO (FreshProfile); do save próprio só aproveitamos o visual.
             _firstWorldDone = false;
-            _pending = Capture();
-            var forced = Environment.GetEnvironmentVariable("SOSGB_TEST_APPEARANCE"); // só testes
-            if (!string.IsNullOrEmpty(forced))
-            {
-                var parts = JsonSerializer.Deserialize<Dictionary<string, string>>(_pending);
-                parts["appearance"] = forced;
-                _pending = JsonSerializer.Serialize(parts);
-            }
+            _pending = null;
+            _profileAnswered = false;
+            _makeFresh = false;
+            _ownAppearance = Environment.GetEnvironmentVariable("SOSGB_TEST_APPEARANCE") is { Length: > 0 } forced
+                ? forced // só testes
+                : (AppearanceSync.Stable ?? SafeLocalAppearance());
             _pendingIsNewDay = false;
         };
         WorldSync.OnWorldReceived += () =>
@@ -133,6 +135,21 @@ public class PlayerProfiles : MonoBehaviour
             if (!WorldReady()) { _readySince = -1; return; }
             if (_readySince < 0) { _readySince = Time.unscaledTime; return; }
             if (Time.unscaledTime - _readySince < 1.5f) return; // deixa os sistemas do mundo novo assentarem
+            // Na entrada, espera a resposta do host (ProfileData) por até 8 s; sem resposta, começa do zero.
+            if (!_firstWorldDone && !_profileAnswered)
+            {
+                if (_answerWaitSince < 0) _answerWaitSince = Time.unscaledTime;
+                if (Time.unscaledTime - _answerWaitSince < 8f) return;
+                _makeFresh = true;
+            }
+            _answerWaitSince = -1;
+            if (!_firstWorldDone && _pending == null && _makeFresh)
+            {
+                // Dados carregados agora são os do host: viram a base do perfil zerado.
+                _pending = FreshProfile.Make(PlayerContext.CaptureParts(PlayerContext.ProfileParts), _ownAppearance);
+                Plugin.Logger.LogInfo("[Profiles] primeira vez neste mundo: começando do zero (D30)");
+                DevBridge.PushEvent("perfil:do-zero");
+            }
             _worldLoading = false;
             ApplyPending();
             _firstWorldDone = true;
@@ -171,13 +188,9 @@ public class PlayerProfiles : MonoBehaviour
         Upload(); // o host passa a ter a versão atual
     }
 
-    /// <summary>Aparência dentro do perfil que será aplicado (null se não houver).</summary>
-    private static string PendingAppearance()
+    private static string SafeLocalAppearance()
     {
-        var src = _pending ?? _lastUploaded;
-        if (string.IsNullOrEmpty(src)) return null;
-        var parts = JsonSerializer.Deserialize<Dictionary<string, string>>(src);
-        return parts.TryGetValue("appearance", out var a) ? a : null;
+        try { return AppearanceSync.Local(); } catch { return null; }
     }
 
     private static string Capture() => JsonSerializer.Serialize(PlayerContext.CaptureParts(PlayerContext.ProfileParts));
@@ -203,8 +216,10 @@ public class PlayerProfiles : MonoBehaviour
 
             case MsgType.ProfileData when NetSession.Current == NetSession.Mode.Client:
                 var json = r.GetString();
-                if (!string.IsNullOrEmpty(json)) _pending = json; // perfil salvo no host vence o do save local
-                Plugin.Logger.LogInfo($"[Profiles] host {(string.IsNullOrEmpty(json) ? "não tinha perfil (usando o do meu save)" : "mandou o perfil guardado")}");
+                _profileAnswered = true;
+                if (!string.IsNullOrEmpty(json)) _pending = json; // progresso deste jogador neste mundo
+                else _makeFresh = true;                           // primeira vez neste mundo (D30)
+                Plugin.Logger.LogInfo($"[Profiles] host {(string.IsNullOrEmpty(json) ? "não me conhece: vou começar do zero" : "mandou meu perfil neste mundo")}");
                 break;
         }
     }

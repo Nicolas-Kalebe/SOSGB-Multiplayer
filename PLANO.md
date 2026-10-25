@@ -37,12 +37,14 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D31 | **Prioridade: continuar a aparência própria** (resposta à P4) antes da Fase 4 | ✅ Decidido |
+| D30 | **Convidado novo começa do zero** no mundo do host (corações/conversas zerados, mochila vazia, ferramentas básicas, regador vazio; só o visual vem do save dele) | ✅ Decidido |
 | D29 | **Aparência própria experimental, desligada por padrão** (`[Visual] SyncAppearance`): trava com peças não carregadas e não troca gênero | ✅ Decidido |
 | D28 | **Aparência própria** de cada jogador: anunciada pela rede e montada pelo jogo por troca temporária; o convidado reaplica a dele (perfil) | ✅ Decidido |
 | D27 | **Interface do multiplayer** (título: modo/nome/IP; jogo: lista com localização; F9 menu) em IMGUI com controles próprios | ✅ Decidido |
 | D26 | **Avisos no sistema do jogo** (entrou/saiu, dormiu, desmaiou, evento) reaproveitando o aviso de correio com texto trocado | ✅ Decidido |
 | D25 | **Inicialização sem clique**: o mod traz a própria janela para frente se ela ficar presa no Launcher (`StartupGuard`) | ✅ Decidido |
-| D24 | **Perfil do convidado**: amizade, conversas, mochila, ferramentas; flags no mundo (provisório); 1ª entrada usa o save do convidado (provisório); gravado pelo host na virada | ✅ Decidido (parte provisória) |
+| D24 | **Perfil do convidado**: amizade, conversas, mochila, ferramentas; flags no mundo (provisório); 1ª entrada: ver D30; gravado pelo host na virada | ✅ Decidido (1ª entrada substituída pela D30) |
 | D23 | **Save no multiplayer só na virada do dia** (pelo host); sozinho continua livre; snapshot em memória contra queda | ✅ Decidido |
 
 ---
