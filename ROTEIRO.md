@@ -112,7 +112,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 6.2b ✅ | **Eventos vistos e progresso do mundo** sincronizados (D43): flags de evento em união, missões, lojas, receitas, peixes... | G | Teste da IA: autoteste + flag em rede |
 | 6.3 | **Cutscenes pessoais**: só quem disparou vê, o mundo segue para os outros; `IsPlayingEvent` por jogador | GG | Teste do usuário |
 | 6.4 ✅ | **Romance exclusivo (D5, D44)** | M | Teste da IA: duas instâncias, bloqueio nos dois sentidos |
-| 6.5 | **Casamento (D12a)**: cônjuges na casa única (patch em `Married`/`PartnerCharaId`); eventos de casado e filhos só para o host; Plano B como reserva | GG | Teste do usuário |
+| 6.5 ⏸ | **Casamento (D12a, D45)**: cônjuges na casa única (patch em `Married`/`PartnerCharaId`); eventos de casado e filhos só para o host; Plano B como reserva. A escolha de rotina não é interceptável; vale o Plano B por ora | GG | Teste do usuário |
 | 6.6 | Verificar a sobreposição de cônjuges na casa (`ScheduleBed/ChairChecker`) | M | Screenshot |
 
 **✔ Pronto quando:** cada jogador namora e casa com quem quiser, sem afetar os corações dos outros.
@@ -163,5 +163,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **Fase:** 4 — Economia (v0.3) concluída pela IA (falta o teste numa loja de verdade); próxima: 5 — Fazenda. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
 - **Pacote de teste para amigos:** v0.3.1 (`Downloads\SOSGB-Multiplayer-v0.3.1-amiga.zip`, fora do repositório; protocolo 9). A v0.3 derrubava o host ao deitar (D33) e foi apagada.
 - **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P3 log da amiga, P5 memória, P7 pausa por menu, P8 espectar, P9 trava de NPC). P2 e P6 feitas pela IA (D33). P1 e P4 respondidas: convidado começa do zero (D30, feito) e aparência (D31 → corrigida na D32).
-- **Próxima tarefa sugerida:** 6.5 (casamento, D12a). Espectar ficou adiado (D35, P8).
+- **Próxima tarefa sugerida:** Fase 7 (festivais e Bazaar). 6.3/6.5/6.6 dependem de teste com os amigos. Espectar ficou adiado (D35, P8).
 - **Última atualização:** 2026-10-25

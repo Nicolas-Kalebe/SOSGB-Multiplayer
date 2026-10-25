@@ -228,6 +228,11 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, rows });
             }
 
+            case "marrydiag":
+                // marrydiag on|off — registra quem consulta o casamento (diagnóstico da 6.5)
+                Patches.MarriageDiagnosticsPatch.Enabled = arg.Trim() != "off";
+                return Json(new { ok = true, enabled = Patches.MarriageDiagnosticsPatch.Enabled });
+
             case "romance":
             {
                 // romance | romance fiance <npc> | romance check <npc> <item> — romance exclusivo (D44)
@@ -235,6 +240,7 @@ public class DevBridge : MonoBehaviour
                 var lmR = LikeabilityManager.Instance;
                 if (ra.Length >= 2 && ra[0] == "fiance") lmR.SetFiance(uint.Parse(ra[1]));
                 if (ra.Length >= 2 && ra[0] == "reset") lmR.ResetPartner();
+                if (ra.Length >= 2 && ra[0] == "partner") lmR.SetPartner(uint.Parse(ra[1]));
                 object check = null;
                 if (ra.Length >= 3 && ra[0] == "check") check = lmR.CheckMarryable(uint.Parse(ra[1]), uint.Parse(ra[2]), false);
                 return Json(new { ok = true, fiance = lmR.FianceCharaId, partner = lmR.PartnerCharaId, check, status = Net.RomanceSync.Status() });

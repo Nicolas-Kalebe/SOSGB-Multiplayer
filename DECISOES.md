@@ -468,3 +468,12 @@ Regras deste arquivo:
 - **Decisão:** `Net/RomanceSync`. O host monta, a cada 2 s, o registro NPC → jogador comprometido (noivado `FianceCharaId` ou casamento `PartnerCharaId`), a partir do próprio `LikeabilityManager` e da parte `likeability` dos perfis guardados dos convidados, e manda a todos quando muda (`RomanceClaims`). Em todos os jogos, patches em `LikeabilityManager.CheckMarryable` (pode oferecer o item de compromisso?) e `SetFiance` recusam um NPC comprometido com **outro** jogador e mostram "Esse coração já tem dono: está comprometido(a) com X." O convidado manda o perfil na hora em que o próprio noivado ou casamento muda.
 - **Verificado (duas instâncias):** a convidada fica noiva do NPC 101 → o host tenta o 101 e é bloqueado (com o aviso); o host fica noivo do 102 → a convidada é bloqueada no 102.
 - **Consequências:** o "namoro" antes do noivado (se existir no jogo como estado separado) não reserva o NPC; a reserva começa no noivado. Protocolo 17 (`RomanceClaims` 17).
+
+### D45 — Casamento de convidados: o que dá e o que não dá agora (6.5)
+- **Status:** ⏸ Parcial · **Data:** 2026-10-25 · **Decidido por:** IA (investigação da D12a)
+- **Achado:** as rotinas dos NPCs (`NpcSchedule.Married`) escolhem "casado" comparando com o casamento do jogador **local**, e essa verificação **não passa** por nenhuma função interceptável (`IsPartner`, `PartnerCharaId`, `IsMarried`, `MarriageInfo.IsMarried`, `CharacterMarriableMasterData.IsMarried/IsLover`, `FieldStayableChecker.IsPartnersHouse`: nenhuma é chamada ao recalcular as rotinas). O jogo lê o campo direto, embutido no código nativo (`Patches/MarriageDiagnosticsPatch`, só no modo de teste, comando `marrydiag`).
+- **Consequência prática hoje (Plano B da D12a):**
+  - o casamento do convidado fica no perfil dele (`PartnerCharaId`), e o romance exclusivo (D44) impede outro jogador de casar com o mesmo NPC;
+  - no jogo do **convidado**, o cônjuge segue a rotina de casado (mora na casa); no jogo do **host** e dos outros, esse NPC segue a rotina de solteiro (mora na casa de origem). As posições dos NPCs são calculadas em cada jogo, então isso não quebra nada, só fica diferente para cada um;
+  - dados de família do mundo (`FamilyManager`: cerimônia, filhos) são os do host. Eventos de casamento e filhos do convidado não foram testados e podem se perder na virada do dia.
+- **Para fazer de verdade:** precisaria de um patch no código nativo da escolha de rotina ou de reescrever a escolha de rotina do cônjuge. Fica para quando houver um casamento real para testar (ROTEIRO 6.5).
