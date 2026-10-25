@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 11;
+    public const int Version = 12;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -89,4 +89,7 @@ public enum MsgType : byte
 
     /// <summary>Convidado → host: [bool aberto] — abriu/fechou a tela do armazém (trava, D37)</summary>
     StorageUse = 28,
+
+    /// <summary>Convidado ↔ host: [bytes JSON gzip] — estado do correio (LetterManager.SaveData). 4.6, D39</summary>
+    LetterData = 29,
 }

@@ -252,6 +252,17 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, count = list.Count, items = list.Take(12), status = Net.StorageSync.Status() });
             }
 
+            case "mail":
+            {
+                // mail | mail add <letterId> | mail take — correio (4.6): carta nova na caixa / pegar as cartas
+                var lm = LetterManager.Instance;
+                var ma = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (ma.Length >= 2 && ma[0] == "add") lm.AddPostSimple(uint.Parse(ma[1]));
+                if (ma.Length >= 1 && ma[0] == "take") lm.PutInBag();
+                if (ma.Length >= 1 && ma[0] == "json") return Json(new { ok = true, debug = Net.LetterSync.Debug() });
+                return Json(new { ok = true, mail = Net.LetterSync.Status() });
+            }
+
             case "spendmoney":
                 // spendmoney <n> — gasta pelo caminho do jogo (SpendMoney), teste da carteira compartilhada (4.1)
                 var beforeSpend = ExternalData.Instance.UserInfo.PlayerMoney;
@@ -296,7 +307,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

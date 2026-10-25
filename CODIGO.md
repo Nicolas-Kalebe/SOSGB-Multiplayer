@@ -71,6 +71,9 @@
 
 ## 7. Correio
 
+- `LetterManager` (singleton): `AddPostSimple(id)` põe carta na caixa; `PutInBag()` pega as cartas; `Read`/`Receive` (ler / receber anexo). `SaveData`: `NowIndex`, `LetterTrendData`, `InPostLetterIndex/Id`, `InBagLetterList` (`InBagLetterData`: Index, Id, IsOpen, IsReceive, Ticks, Info), `InPostLetterInfoList`, `LetterHistoryId`.
+- ⚠️ `StringExtensions.JsonToObject<LetterManager.SaveData>` devolve **nulo** (`InBagLetterData` não tem construtor vazio). Monte à mão (ver `LetterSync.Build`).
+
 - `LetterManager`: `AddPostSimple(id)`, `PutInPost(bool)`, `Read(...)`, `Receive(...)`, `OnChangeDate()`.
 
 ## 8. Player e mapas

@@ -73,7 +73,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ---
 
-## Fase 4 — Economia · **v0.3**
+## Fase 4 — Economia · **v0.3** ✅ (falta só o teste do usuário numa loja de verdade, 4.5)
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
@@ -82,7 +82,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 4.3 ✅ | **Mochila e ferramentas individuais (D13)**: já feitas pelo perfil de cada jogador (D24/D30) | G | Teste da IA: mochila da convidada se mantém dela depois da virada do dia |
 | 4.4 ✅ | **Upgrades de ferramenta** por jogador (D38): upgrade é imediato e fica na mochila do perfil; estado das ferramentas e vigor máximo entraram no perfil | M | Teste da IA: `ctx save/load` com as partes novas |
 | 4.5 🟡 | **Lojas**: compras e vendas descontam e creditam na carteira do grupo (já coberto pela D36; falta testar numa loja de verdade) | M | Teste do usuário |
-| 4.6 | **Correio compartilhado (D10/D10a)** | M | Teste da IA |
+| 4.6 ✅ | **Correio compartilhado (D10/D10a, D39)**: estado do correio sincronizado pelo host | M | Teste da IA: duas instâncias (carta nova, pegar as cartas) |
 
 **✔ Pronto quando:** dá para comprar, vender, guardar e pegar itens juntos sem duplicar nem perder nada.
 
@@ -159,8 +159,8 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ## Estado atual
 
-- **Fase:** 4 — Economia (v0.3), ainda não iniciada. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
+- **Fase:** 4 — Economia (v0.3) concluída pela IA (falta o teste numa loja de verdade); próxima: 5 — Fazenda. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
 - **Pacote de teste para amigos:** v0.3.1 (`Downloads\SOSGB-Multiplayer-v0.3.1-amiga.zip`, fora do repositório; protocolo 9). A v0.3 derrubava o host ao deitar (D33) e foi apagada.
 - **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P3 log da amiga, P5 memória, P7 pausa por menu). P2 e P6 feitas pela IA (D33). P1 e P4 respondidas: convidado começa do zero (D30, feito) e aparência (D31 → corrigida na D32).
-- **Próxima tarefa sugerida:** 4.6 (correio compartilhado). Espectar ficou adiado (D35, P8).
+- **Próxima tarefa sugerida:** Fase 5 (fazenda). Espectar ficou adiado (D35, P8).
 - **Última atualização:** 2026-10-25

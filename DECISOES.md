@@ -403,3 +403,11 @@ Regras deste arquivo:
   - `stamina`: o vigor máximo. Ao aplicar, o vigor atual fica **na mesma proporção** do que o mundo trouxe, respeitando a recuperação da noite que o jogo calculou.
 - **Verificado:** captura e aplicação das duas partes numa instância (`ctx save`/`ctx load`).
 - **Consequências:** no "começar do zero" (D30), essas duas partes vêm do host como estão (o vigor máximo do novo jogador é o do host). Ajustar se o usuário achar que deveria começar menor.
+
+### D39 — Correio compartilhado sincronizando o estado do LetterManager
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** IA (implementa a D10/D10a, decididas antes)
+- **Contexto:** o correio é o `LetterManager` (cartas na caixa, cartas já pegas, lidas, anexo recebido, histórico). Cada jogo tinha a sua cópia: o convidado pegava as cartas e o anexo, mas a caixa do host continuava cheia (anexo duplicado), e na virada do dia tudo voltava ao do host.
+- **Decisão:** como o armazém (D37), mas sem trava: cada jogo confere o JSON do `ToSaveData` a cada 1 s; mudou por conta própria, manda o estado inteiro comprimido (~2,5 KB) ao host, que aplica e repassa aos outros. Vale a última mudança (duas pessoas no correio no mesmo segundo é raro).
+- **Achado:** o `JsonToObject` do jogo devolve **nulo** para `LetterManager.SaveData` (a carta, `InBagLetterData`, não tem construtor vazio). O mod monta o `SaveData` à mão a partir do JSON, com os construtores do jogo. Verificado: ida e volta do JSON idêntica (16.939 caracteres).
+- **Verificado (duas instâncias):** carta nova chega na caixa do host → aparece na da convidada; a convidada pega → some da caixa do host e os dois ficam com as mesmas cartas (133). Sem mensagens repetidas.
+- **Consequências:** a etiqueta "Para: jogador X" (D10a, opção c) continua como melhoria opcional (ROTEIRO 8.4).

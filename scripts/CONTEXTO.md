@@ -67,6 +67,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `wakeup [both\|wake\|flag]` | Levanta da cama enquanto espera os outros (D34) |
 | `pstate` / `pfix <marca>` | Estado de sono/controle do jogador local / mexe numa marca (diagnóstico da D34) |
 | `storage [put <item> <qtd> \| take <espaço> <qtd>]` | Armazém da casa: lista, guarda ou tira (teste da D37) |
+| `mail [add <id> \| take \| json]` | Correio: carta nova na caixa, pegar as cartas, diagnóstico do JSON (D39) |
 | `addmoney <n>` / `spendmoney <n>` | Ganha / gasta pelo caminho do jogo (teste da D36) |
 | `ctx fresh` | Aplica no jogador local o perfil "do zero" de um convidado novo (D30), sem rede. Desfazer com `ctx save antes` / `ctx load antes` |
 | `bag [take <slot> <qtd>]` | Lista a mochila / tira itens |
