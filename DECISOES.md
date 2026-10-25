@@ -460,7 +460,7 @@ Regras deste arquivo:
 - **Achados:**
   - o `FromSaveData` dos **troféus acumula** (cada aplicação soma tudo de novo). A parte foi retirada para não duplicar troféus;
   - adega, prêmios e loja não se montam pelo `JsonToObject` (classes sem construtor vazio): montados à mão. Na loja, o histórico de compras fica o local;
-  - o histórico de itens (`ItemHistoryManager`) tem um `FromSaveData` de 4 partes e ainda não entrou.
+  - o histórico de itens / enciclopédia (`ItemHistoryManager`) entrou depois, também em **união**: cada item recebido é registrado com `AddHistory` (guarda o maior valor). Verificado em rede: um item novo registrado na convidada aparece no host.
 - **Verificado:** autoteste das 17 partes, duas vezes (ida e volta igual e idempotente). Em rede: uma flag de evento marcada na convidada chega ao host; bichinho pego pela convidada nas montanhas some no host (3 → 2); flor colhida idem (18 → 17).
 
 ### D44 — Romance exclusivo implementado (registro no host + bloqueio no jogo)

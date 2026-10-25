@@ -97,6 +97,10 @@ public class SharedSync : MonoBehaviour
             () => StringExtensions.ToJson(BazaarManager.Instance.ToSaveData()),
             j => BazaarManager.Instance.FromSaveData(StringExtensions.JsonToObject<BazaarManager.CustomData>(j), BazaarManager.Instance.DevelopLevel)),
         // NÃO incluir TrophyRackManager: o FromSaveData dele ACUMULA (cada aplicação soma os troféus de novo; testado).
+        // Histórico de itens / enciclopédia (itens já obtidos, maior qualidade, maior peixe): UNIÃO via AddHistory.
+        Make("itemhistory", () => ItemHistoryManager.IsInstance,
+            () => StringExtensions.ToJson(ItemHistoryManager.Instance.ToSaveData()),
+            UnionItemHistory),
         // Flags de evento (eventos de história e de coração já vistos): UNIÃO — só acrescenta/atualiza, nunca apaga.
         Make("eventflags", () => EventFlagManager.IsInstance,
             () => StringExtensions.ToJson(new EventFlagSaveData(EventFlagManager.Instance.ToSaveData())),
@@ -192,6 +196,29 @@ public class SharedSync : MonoBehaviour
                 c.GetProperty("Quality").GetInt32(), new BokuMonoDateTime(c.GetProperty("BuyDateTimeTick").GetInt64())));
         sd.CatelogList = cat;
         ShopManager.Instance.FromSaveData(sd);
+    }
+
+    /// <summary>Registra no histórico local cada item recebido (AddHistory guarda o maior valor; não apaga nada).</summary>
+    private static void UnionItemHistory(string json)
+    {
+        var ihm = ItemHistoryManager.Instance;
+        var local = new Dictionary<uint, (int q, int f)>();
+        using (var ld = System.Text.Json.JsonDocument.Parse(StringExtensions.ToJson(ihm.ToSaveData())))
+            foreach (var e in Items(ld.RootElement)) local[e.id] = (e.q, e.f);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        foreach (var e in Items(doc.RootElement))
+        {
+            if (local.TryGetValue(e.id, out var cur) && cur.q >= e.q && cur.f >= e.f) continue;
+            ihm.AddHistory(e.id, e.q, e.f);
+        }
+    }
+
+    private static IEnumerable<(uint id, int q, int f)> Items(System.Text.Json.JsonElement root)
+    {
+        if (!root.TryGetProperty("PictureBookSaveData", out var pb) || !pb.TryGetProperty("PictureBookDatas", out var list)
+            || list.ValueKind != System.Text.Json.JsonValueKind.Array) yield break;
+        foreach (var e in list.EnumerateArray())
+            yield return (e.GetProperty("ItemId").GetUInt32(), e.GetProperty("MaxQuality").GetInt32(), e.GetProperty("MaxFishSize").GetInt32());
     }
 
     /// <summary>Acrescenta/atualiza as flags recebidas que diferem das locais (não apaga nenhuma).</summary>

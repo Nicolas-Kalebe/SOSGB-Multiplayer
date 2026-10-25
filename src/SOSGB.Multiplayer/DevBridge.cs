@@ -228,6 +228,15 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, rows });
             }
 
+            case "itemhist":
+            {
+                // itemhist <id> | itemhist add <id> <qualidade> — histórico de itens/enciclopédia (D43)
+                var ih = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (ih.Length >= 3 && ih[0] == "add") ItemHistoryManager.Instance.AddHistory(uint.Parse(ih[1]), int.Parse(ih[2]), 0);
+                var hid = uint.Parse(ih[ih.Length >= 3 ? 1 : 0]);
+                return Json(new { ok = true, id = hid, has = ItemHistoryManager.Instance.IsHistory(hid) });
+            }
+
             case "bazaar":
             {
                 // bazaar — estado do Bazaar e do relógio (investigação da D47)
