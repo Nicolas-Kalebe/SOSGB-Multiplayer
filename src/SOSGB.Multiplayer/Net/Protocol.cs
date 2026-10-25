@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 3;
+    public const int Version = 4;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -46,6 +46,9 @@ public enum MsgType : byte
     /// <summary>Host → todos, 2×/s: [long ticks][bool rodando] — relógio do host (3.2) e pausa efetiva (3.3)</summary>
     ClockState = 11,
 
+    /// <summary>Host → todos: [byte dormindo][byte total] — contador "dormindo X/Y" (3.4, D12)</summary>
+    SleepStatus = 12,
+
     // ---- 20+: ponto a ponto com o host (NÃO são repassadas aos outros convidados) ----
 
     /// <summary>Convidado → host: pede o mundo atual (sem corpo). Fase 3.1</summary>
@@ -56,4 +59,7 @@ public enum MsgType : byte
 
     /// <summary>Convidado → host: [bool pausadoLocalmente] — menu/evento aberto no convidado (3.3, D9)</summary>
     PauseReport = 22,
+
+    /// <summary>Convidado → host: [bool dormindo] — o convidado deitou (3.4, D12)</summary>
+    SleepReady = 23,
 }

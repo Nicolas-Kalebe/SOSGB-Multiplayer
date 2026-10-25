@@ -77,7 +77,11 @@ public class DebugOverlay : MonoBehaviour
             }
 
             _lastError = null;
-            return $"Dinheiro: {money}\nRelógio: {clock}\nMapa (fieldId): {field}\nPlayer: {player}";
+            var text = $"Dinheiro: {money}\nRelógio: {clock}\nMapa (fieldId): {field}\nPlayer: {player}";
+            // D12: contador "dormindo X/Y" enquanto alguém dorme no multiplayer.
+            if (Net.NetSession.Current != Net.NetSession.Mode.Offline && (Net.DaySync.LocalSleeping || Net.DaySync.SleepingCount > 0))
+                text += $"\nDormindo {Net.DaySync.SleepingCount}/{Net.DaySync.Total}" + (Net.DaySync.LocalSleeping ? " - esperando os outros" : "");
+            return text;
         }
         catch (Exception e)
         {
@@ -96,7 +100,7 @@ public class DebugOverlay : MonoBehaviour
         if (!_visible) return;
         // Canto inferior esquerdo: o superior esquerdo é da barra de stamina do jogo (tarefa 1.7).
         var y = Screen.height - 125;
-        GUI.Box(new Rect(10, y, 380, 105), $"{Plugin.Name} {Plugin.Version}{Plugin.InstanceTag}  [F8]");
-        GUI.Label(new Rect(20, y + 22, 360, 80), _text);
+        GUI.Box(new Rect(10, y - 20, 380, 125), $"{Plugin.Name} {Plugin.Version}{Plugin.InstanceTag}  [F8]");
+        GUI.Label(new Rect(20, y + 2, 360, 100), _text);
     }
 }

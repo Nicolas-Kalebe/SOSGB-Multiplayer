@@ -87,6 +87,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.PlayerSync>();
         Net.WorldSync.Init();
         AddComponent<Net.ClockSync>();
+        AddComponent<Net.DaySync>();
         AddComponent<DebugOverlay>();
 
         if (DevBridgeEnabled.Value)

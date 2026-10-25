@@ -63,7 +63,10 @@ public static class WorldSnapshot
             Plugin.Logger.LogInfo($"[WorldSnapshot] carga: {r}");
             DevBridge.PushEvent($"worldload:{r}");
             if (r == SaveLoadResult.Succeess)
+            {
+                ExternalData.Instance.UserInfo.Slot = slot; // ver DevBridge.LoadSlot (save automático no slot certo)
                 SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
+            }
         }));
     }
 

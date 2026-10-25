@@ -19,6 +19,9 @@ public static class WorldSync
     private static readonly Queue<byte> Pending = new();
     private static bool _subscribed;
 
+    /// <summary>No convidado: o mundo do host chegou e vai ser carregado.</summary>
+    public static event System.Action OnWorldReceived;
+
     public static void Init()
     {
         if (_subscribed) return;
@@ -46,10 +49,20 @@ public static class WorldSync
                 r.GetBytes(bytes, len);
                 Plugin.Logger.LogInfo($"[WorldSync] mundo recebido ({len} bytes); recarregando");
                 DevBridge.PushEvent($"world-recebido:{len}");
+                OnWorldReceived?.Invoke();
                 WorldSnapshot.SetCaptured(bytes);
                 WorldSnapshot.Load(GuestLoadSlot);
                 break;
         }
+    }
+
+    /// <summary>Host → todos os convidados: manda o mundo atual (usado após a virada do dia, 3.5).</summary>
+    public static void BroadcastWorld()
+    {
+        if (NetSession.Current != NetSession.Mode.Host) return;
+        foreach (var p in NetSession.Players.Values)
+            if (p.Id != Protocol.HostPlayerId) Pending.Enqueue(p.Id);
+        if (!WorldSnapshot.Capturing) CaptureNext();
     }
 
     private static void CaptureNext()

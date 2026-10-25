@@ -178,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     ok = true,
                     commands = new[]
                     {
-                        "ping", "state", "pause", "resume", "addhours <h>", "addmoney <n>", "load <slot 0-2>",
+                        "ping", "state", "pause", "resume", "addhours <h>", "sleep", "nextday", "addmoney <n>", "load <slot 0-2>",
                         "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "field <FieldMasterId>", "log <texto>", "quit",
                     },
                 });
@@ -198,6 +198,16 @@ public class DevBridge : MonoBehaviour
                 // addhours <h> — adianta o relógio local (teste da correção de hora, 3.2)
                 DateManager.Instance.AddHours(float.Parse(arg, System.Globalization.CultureInfo.InvariantCulture));
                 return Json(new { ok = true, date = GameState.Snapshot()["date"] });
+
+            case "sleep":
+                // sleep — faz o jogador local dormir (PlayerCharacter.ActionSleep), tarefas 3.4/3.5
+                GameController.Instance.GetPlayer().ActionSleep();
+                return Json(new { ok = true });
+
+            case "nextday":
+                // nextday — dispara a virada do dia do jogo (GameController.StartNextDay), tarefa 3.5
+                GameController.Instance.StartNextDay();
+                return Json(new { ok = true });
 
             case "addmoney":
                 var before = ExternalData.Instance.UserInfo.PlayerMoney;
@@ -242,7 +252,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status() });
 
             case "warp":
                 // warp <dx> <dz> — teleporta o jogador local (teste de sincronização, 2.4).
@@ -315,7 +325,12 @@ public class DevBridge : MonoBehaviour
             Plugin.Logger.LogInfo($"[DevBridge] LoadSlot({slot}) = {result}");
             Events.Enqueue($"load:{slot}:{result}");
             if (result == SaveLoadResult.Succeess)
+            {
+                // A tela de save/load define o slot atual; como pulamos a tela, definimos aqui.
+                // Sem isso o save automático da virada do dia vai para o slot 0 (o save principal!).
+                ExternalData.Instance.UserInfo.Slot = slot;
                 SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
+            }
         }));
     }
 

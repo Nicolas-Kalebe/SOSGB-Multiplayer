@@ -42,6 +42,8 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `state` | Cena, dinheiro, data/hora, relógio rodando, foco, `timeScale`, mapa, evento, dormindo, posição |
 | `pause` / `resume` | `DateManager.Pause()` / `Resume()` |
 | `addhours <h>` | Adianta o relógio local (`DateManager.AddHours`) |
+| `sleep` | `PlayerCharacter.ActionSleep()` (sozinho não vira o dia) |
+| `nextday` | `GameController.StartNextDay()`: "deitar". No multiplayer passa pelo `DaySync` |
 | `addmoney <n>` | `GameController.AddMoney(n)` |
 | `load <0-2>` | Carrega um slot e entra na cena Game |
 | `screenshot [nome]` | Salva `<jogo>/BepInEx/screenshots/<nome>.png` (esperar ~2 s antes de abrir) |
