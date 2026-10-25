@@ -123,7 +123,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
-| 7.1 🟡 | **Bazaar** em grupo: barraca, vendas e caixa compartilhados (`BazaarManager`). Feito: deck e peças compartilhados, progresso no SharedSync (D46). Sessão de venda medida (D47): relógio normal, "um vende" ou "juntos" sem menu, aviso de barraca aberta. Falta vender em grupo com os amigos | GG | Teste do usuário |
+| 7.1 🟡 | **Bazaar** em grupo: barraca, vendas e caixa compartilhados (`BazaarManager`). Feito: deck e peças compartilhados, progresso no SharedSync (D46). Sessão de venda medida (D47): relógio normal, aviso de barraca aberta. Uma barraca por vez (trava, D51, testada). Todos veem os mesmos clientes e a barraca de quem vende (D55, testado). Falta: ajudar na barraca (repor, sino; D56) e vender em grupo com os amigos | GG | Teste do usuário |
 | 7.2 🟡 | **Festivais**: todos entram juntos, início por confirmação. Feito: resultados e participação compartilhados (`FestivalExecutor` no SharedSync, D43). Falta testar um festival em grupo | G | Teste do usuário |
 | 7.3 ✅ | Tempo corre em menus (D50): só o menu de pausa pausa; quem estava numa tela é adiantado ao sair; pulos de tempo propagam | G | Teste da IA: duas instâncias |
 

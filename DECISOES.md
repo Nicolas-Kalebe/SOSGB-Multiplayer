@@ -571,3 +571,20 @@ Regras deste arquivo:
   - As outras partes ficam como estão: o `jsoncmp` mostrou o mesmo conteúdo nos dois serializadores (pets, cavalo, vasos e ampliações só diferem na formatação ou em propriedades calculadas). A loja perde só um contador do sorteio de itens (`LotteryStatusList`), sem importância.
 - **Verificado (uma instância):** ida e volta do Bazaar sem nenhuma diferença; reaplicar não cria objetos; mudança simulada vinda de outro jogador chega (`shared set windmill WindmillTotalDataList.1.takeOutItemList.0.Stack 5` → 5; `shared set mushroom MushroomLogDatas.0.GrowthLevel 1` → 1).
 - **Consequências:** teste de duas instâncias ainda a fazer (vender no Bazaar como convidado e ver o progresso no host). Para partes novas, conferir sempre com `jsoncmp` e `shared set`, não só com `shared test`.
+
+### D55 — Bazaar: todos veem os mesmos clientes e a barraca de quem vende (etapa 1 do "juntos")
+- **Status:** ✅ Etapa 1 feita e testada · **Data:** 2026-10-25 · **Decidido por:** usuário ("mas não dá pros dois verem os mesmos clientes?" → "sim pode executar esse plano")
+- **Contexto:** cada jogo simula os próprios clientes do Bazaar (`NPCBazaarVisitorAgent`). Com a trava da D51 só um vende por vez; quem não vende via outra multidão e a barraca do dono fechada (barris e caixotes).
+- **Investigação (runtime):**
+  - Com o Bazaar aberto (10:00+) os clientes já passeiam pelo mapa em todos os jogos (estado `WanderField`). Ao abrir a loja, o jogo do dono passa a usar ~25 deles como clientes da barraca (`Wander`/`Watch`/`Buy`/`Exit`).
+  - O elenco é praticamente o mesmo em qualquer jogo no mesmo dia (números 300–326, menos 2; alguns especiais variam, ex.: 424, 328). Cada número é um modelo (`chr_mob_*`).
+  - Um cliente pode ser controlado de fora: `SetEnableUpdate(false)` + `NavMeshAgent` desligado + o script desligado + `Rigidbody` cinemático + `applyRootMotion = false`. Ao devolver, a IA dele volta a funcionar.
+  - A barraca aberta é montada pelo jogo (`BazaarMyShop`): `ShopShelfRoot.ChangeTent(true)` troca o visual fechado (`BazaarMyShopClose`) pelo aberto, e `SetBazaarPartsModel` carrega as peças (balcões = `BazaarShopShelf`, decoração). Funciona sem abrir a loja de verdade.
+  - Itens no balcão: `ShopItem.UpdateExhibitUniqueData(ItemData)` mostra, `ClearContent()` limpa.
+- **Decisão (`Net/BazaarViewSync`):**
+  - **Dono** (quem está com `IsInShop`): 10×/s manda cada cliente (número, posição, rotação, estado do Animator, velocidade, balão) e, quando muda, o que está em cada espaço da barraca. Ao fechar a loja, manda "fechada".
+  - **Quem está no mesmo mapa e não vende:** assume o cliente de mesmo número no próprio jogo (cria com `PopVisitor` se ainda não existir), move como cópia (interpolação como os avatares) e esconde os clientes que o dono não tem. Abre a barraca (tenda + peças) e mostra os itens do dono. Quando a loja fecha ou as mensagens param (1,5 s), devolve tudo: IA dos clientes de volta, barraca fechada.
+  - **As vendas só acontecem no jogo do dono** (os clientes copiados não têm IA), então nada é vendido em dobro. O dinheiro já é compartilhado (D36).
+  - Protocolo 20: `BazaarVisitors` (18) e `BazaarShelves` (19), repassadas pelo host.
+- **Verificado (duas instâncias, host vende):** a convidada assumiu os 25–28 clientes do host com diferença de posição de 0,1–0,2; a barraca aparece aberta com o host atrás do balcão e os clientes na frente; item posto no balcão do host aparece no da convidada; ao fim do turno (tela de resultados fechada), a convidada devolveu os clientes (voltaram a `WanderField`) e a barraca voltou a fechada.
+- **Etapa 2 (a fazer, pedido do usuário "o outro player não ajuda na barraca?"):** quem assiste poder **ajudar**: repor itens nos balcões do dono e tocar o sino. Ver D56.

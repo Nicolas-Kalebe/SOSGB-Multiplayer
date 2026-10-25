@@ -434,6 +434,168 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, res });
             }
 
+            case "visitors":
+            {
+                // visitors [params] — clientes do Bazaar (NpcAgentList/NpcAgentPools): quem, onde, estado, animação (D55)
+                var bmV = BazaarManager.Instance;
+                string V(Func<object> f) { try { return f()?.ToString(); } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                object Agent(NPCBazaarVisitorAgent a)
+                {
+                    var anim = a.GetComponentInChildren<Animator>();
+                    var p = a.transform.position;
+                    object pars = null;
+                    if (arg.Trim() == "params" && anim != null)
+                    {
+                        var pl = new List<string>();
+                        foreach (var ap in anim.parameters) pl.Add($"{ap.name}:{ap.type}={(ap.type == AnimatorControllerParameterType.Float ? anim.GetFloat(ap.nameHash).ToString("0.00") : ap.type == AnimatorControllerParameterType.Bool ? anim.GetBool(ap.nameHash).ToString() : ap.type == AnimatorControllerParameterType.Int ? anim.GetInteger(ap.nameHash).ToString() : "trig")}");
+                        pars = pl;
+                    }
+                    return new
+                    {
+                        name = a.name, active = a.gameObject.activeInHierarchy, spawned = a.IsSpawned,
+                        visitor = V(() => a.VisitorMaster?.Id), chara = V(() => a.VisitorMaster?.CharacterId), preset = V(() => a.PresetId),
+                        state = V(() => a.CurrentState), category = V(() => a.Category),
+                        pos = $"{p.x:0.0},{p.y:0.0},{p.z:0.0}", rotY = a.transform.eulerAngles.y.ToString("0"),
+                        animState = anim == null ? null : V(() => anim.GetCurrentAnimatorStateInfo(0).shortNameHash), pars,
+                    };
+                }
+                var list = new List<object>();
+                if (bmV?.NpcAgentList != null) foreach (var a in bmV.NpcAgentList) list.Add(Agent(a));
+                var pools = 0;
+                if (bmV?.NpcAgentPools != null) pools = bmV.NpcAgentPools.Count;
+                return Json(new { ok = true, count = list.Count, pools, agents = list });
+            }
+
+            case "vtest":
+            {
+                // vtest pool <id> | pop <id> | puppet <id> <x> <z> [velocidade] [full|soft] | free <id> — clientes do Bazaar (D55)
+                var vt = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var bmT = BazaarManager.Instance;
+                NPCBazaarVisitorAgent FindV(uint vid)
+                {
+                    foreach (var a0 in bmT.NpcAgentList) if (a0.VisitorMaster != null && a0.VisitorMaster.Id == vid) return a0;
+                    return null;
+                }
+                var idT = uint.Parse(vt[1]);
+                switch (vt[0])
+                {
+                    case "pool":
+                        bmT.AddVisitorPool(idT, null);
+                        return Json(new { ok = true, pools = bmT.NpcAgentPools?.Count, list = bmT.NpcAgentList?.Count });
+                    case "pop":
+                        bmT.PopVisitor(idT, (Il2CppSystem.Action<NPCBazaarVisitorAgent>)null);
+                        return Json(new { ok = true, pools = bmT.NpcAgentPools?.Count, list = bmT.NpcAgentList?.Count });
+                }
+                var ag = FindV(idT);
+                if (ag == null) return Json(new { ok = false, error = "cliente não está na lista" });
+                var nav = ag.Agent;
+                var animT = ag.GetComponentInChildren<Animator>();
+                var rb = ag.GetComponent<Rigidbody>();
+                if (vt[0] == "free")
+                {
+                    if (nav != null) nav.enabled = true;
+                    if (rb != null) rb.isKinematic = false;
+                    if (animT != null) animT.applyRootMotion = true;
+                    ag.enabled = true;
+                    ag.SetEnableUpdate(true);
+                    return Json(new { ok = true });
+                }
+                var mode = vt.Length > 5 ? vt[5] : "full";
+                ag.SetEnableUpdate(false);
+                if (nav != null) nav.enabled = false;
+                if (mode == "full")
+                {
+                    ag.enabled = false;
+                    if (rb != null) { rb.velocity = Vector3.zero; rb.isKinematic = true; }
+                    if (animT != null) animT.applyRootMotion = false;
+                }
+                var px = float.Parse(vt[2], System.Globalization.CultureInfo.InvariantCulture);
+                var pz = float.Parse(vt[3], System.Globalization.CultureInfo.InvariantCulture);
+                var spd = vt.Length > 4 ? float.Parse(vt[4], System.Globalization.CultureInfo.InvariantCulture) : 0f;
+                ag.transform.position = new Vector3(px, ag.transform.position.y, pz);
+                if (animT != null) { animT.SetFloat("Speed", spd); animT.SetBool("Walk", spd > 0.01f); }
+                var pp = ag.transform.position;
+                return Json(new { ok = true, nav = nav != null, rb = rb != null, root = animT != null && animT.applyRootMotion, pos = $"{pp.x:0.0},{pp.y:0.0},{pp.z:0.0}", state = ag.CurrentState.ToString() });
+            }
+
+            case "shelves":
+            {
+                // shelves — barracas do Bazaar (BazaarShopShelf): ativas?, onde, pais inativos (D55: visual da barraca aberta)
+                var bmS = BazaarManager.Instance;
+                var res = new List<object>();
+                var arr = bmS.ShopShelfs;
+                if (arr != null)
+                    for (var i = 0; i < arr.Length; i++)
+                    {
+                        var sh = arr[i];
+                        if (sh == null) { res.Add(new { i, nulo = true }); continue; }
+                        var chain = new List<string>();
+                        for (var t = sh.transform; t != null; t = t.parent) chain.Add($"{t.name}{(t.gameObject.activeSelf ? "" : "(off)")}");
+                        var p = sh.transform.position;
+                        var items = new List<string>();
+                        for (var k = 0; k < sh.GetShopItemLength(); k++) { var it = sh.GetShopItem(k)?.ItemInvData(); items.Add(it == null ? "-" : $"{it.ItemId}x{it.Stack}"); }
+                        res.Add(new { i, active = sh.gameObject.activeInHierarchy, pos = $"{p.x:0.0},{p.y:0.0},{p.z:0.0}", chain = string.Join(" < ", chain), items });
+                    }
+                var named = new List<string>();
+                foreach (var nm in new[] { "BazaarMyShopClose(Clone)", "BazaarOpenShopAreaCollider", "TentMotion_Root", "bazr_bld_001_01_colider" })
+                {
+                    var go = GameObject.Find(nm);
+                    if (go == null) { named.Add(nm + ": não achado (ou inativo)"); continue; }
+                    var chainN = new List<string>();
+                    for (var t = go.transform; t != null; t = t.parent) chainN.Add(t.name);
+                    var pn = go.transform.position;
+                    named.Add($"{nm}: ativo={go.activeInHierarchy} pos={pn.x:0.0},{pn.z:0.0} filhos={go.transform.childCount} em {string.Join(" < ", chainN)}");
+                }
+                return Json(new { ok = true, current = bmS.GetCurrentShelfIndex(), shelves = res, named });
+            }
+
+            case "findobj":
+            {
+                // findobj <nome> [on|off] — acha objetos pelo nome, inclusive inativos (D55); on/off liga/desliga o 1º achado
+                var fo = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var found = new List<string>();
+                GameObject first = null;
+                foreach (var tr in Resources.FindObjectsOfTypeAll<Transform>())
+                {
+                    if (tr == null || tr.name != fo[0] || !tr.gameObject.scene.IsValid()) continue;
+                    first ??= tr.gameObject;
+                    var chainF = new List<string>();
+                    for (var t = tr; t != null; t = t.parent) chainF.Add($"{t.name}{(t.gameObject.activeSelf ? "" : "(off)")}");
+                    found.Add($"ativo={tr.gameObject.activeInHierarchy} filhos={tr.childCount} em {string.Join(" < ", chainF)}");
+                    if (found.Count >= 10) break;
+                }
+                if (first != null && fo.Length > 1) first.SetActive(fo[1] == "on");
+                return Json(new { ok = true, found });
+            }
+
+            case "bmcall":
+            {
+                // bmcall initshelf | setupfield — chama rotinas internas do BazaarManager (experimento D55)
+                var bmC = BazaarManager.Instance;
+                string R(Func<object> f) { try { return f()?.ToString() ?? "ok"; } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                var r0 = arg.Trim() switch
+                {
+                    "initshelf" => R(() => { bmC.InitShopShelfRoot(); return null; }),
+                    "setupfield" => R(() => { bmC.SetupFieldRoot(out var isOpen); return "isOpenField=" + isOpen; }),
+                    "custom" => R(() => { bmC.SetupPartsBuff(); return null; }),
+                    "parts" => R(() => { UnityEngine.Object.FindObjectOfType<BazaarMyShop>().SetBazaarPartsModel((Il2CppSystem.Action)null); return null; }),
+                    "initcreate" => R(() => { UnityEngine.Object.FindObjectOfType<BazaarMyShop>().InitCreateMyShop(); return null; }),
+                    "tent on" => R(() => { UnityEngine.Object.FindObjectOfType<BazaarMyShop>().ShopShelfRoot.ChangeTent(true, false); return null; }),
+                    "tent off" => R(() => { UnityEngine.Object.FindObjectOfType<BazaarMyShop>().ShopShelfRoot.ChangeTent(false, false); return null; }),
+                    "rootshelves" => R(() => UnityEngine.Object.FindObjectOfType<BazaarMyShop>().ShopShelfRoot.ShopShelfs?.Length),
+                    // shelfset <espaço> <item> <qtd>: põe um item no VISUAL da prateleira atual (teste do espelhamento)
+                    var x when x.StartsWith("shelfset ") => R(() =>
+                    {
+                        var sp = x.Split(' ');
+                        var sh = bmC.ShopShelfs[bmC.GetCurrentShelfIndex()];
+                        sh.GetShopItem(int.Parse(sp[1])).UpdateExhibitUniqueData(new BokuMono.Data.ItemData { ItemId = uint.Parse(sp[2]), Stack = int.Parse(sp[3]), QualityValue = 10, FreshnessValue = 100 });
+                        return "visual atualizado";
+                    }),
+                    _ => "?",
+                };
+                return Json(new { ok = true, result = r0, shelves = bmC.ShopShelfs?.Length ?? -1 });
+            }
+
             case "objcount":
             {
                 // Quantos GameObjects ativos há na cena, por nome (teste de duplicação ao reaplicar estado)
@@ -690,7 +852,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

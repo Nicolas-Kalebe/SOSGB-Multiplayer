@@ -79,6 +79,11 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `shared set <parte> <caminho.com.pontos> <valor>` | Muda um valor do JSON da parte (índices de lista como números) e aplica como se viesse de outro jogador; responde o valor lido de volta (prova que a mudança chega, D54) |
 | `shared roundtrip bazaar [raw]` | JSON → `BazaarSaveData` (montado à mão; `raw` = `JsonToObject` puro) → JSON, para ver o que se perde |
 | `jsoncmp [parte]` | Tamanho do JSON de cada parte no `ToJson` do jogo × `JsonUtility` da Unity (com a parte: os dois JSONs). Unity maior = a parte perde dados (D54) |
+| `visitors [params]` | Clientes do Bazaar: número, estado, posição, animação (com `params`, os parâmetros do Animator) (D55) |
+| `vtest pool\|pop <n>` / `vtest puppet <n> <x> <z> [vel] [full\|soft]` / `vtest free <n>` | Experimentos com um cliente: criar, controlar de fora, devolver a IA (D55) |
+| `shelves` | Barracas do Bazaar (`BazaarShopShelf`): ativas, posição, itens; e o estado da barraca fechada/aberta |
+| `findobj <nome> [on\|off]` | Acha objetos pelo nome, inclusive inativos; liga/desliga o 1º |
+| `bmcall tent on\|off \| parts \| rootshelves \| shelfset <espaço> <item> <qtd> \| initshelf` | Rotinas da barraca: abrir/fechar o visual, carregar as peças, pôr um item no visual do balcão (teste do espelhamento) |
 | `objcount` | GameObjects ativos na cena, por nome. Comparar antes/depois de um `shared reapply` acha estado que duplica objetos (D52) |
 | `pets [old \| apply \| addcopy]` | Pets e cavalo: parâmetros × personagens na cena / reaplica pelo caminho antigo (duplica, D52) / pelo atual / simula um pet novo vindo de outro jogador |
 | `animal [barns \| get <guid> \| set <guid> <campo> <valor> \| poke <guid> <campo> <valor>]` | Animais e celeiros (D41): lista, JSON, mudar como se viesse da rede (`set`) ou como ação local (`poke`) |

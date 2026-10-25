@@ -13,6 +13,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `ClockSync.cs` | Relógio do grupo (D50): só o menu de pausa pausa; quem está em outra tela é adiantado ao sair; o tempo segue o mais adiantado (`ClockJump`); quem dorme não pausa (D33) |
 | `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo |
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
+| `BazaarViewSync.cs` | D55: quem vende no Bazaar manda os clientes e os balcões; os outros no mesmo mapa assumem os clientes de mesmo número (cópias sem IA), abrem a barraca e mostram os itens; devolvem tudo quando a loja fecha |
 | `RomanceSync.cs` | 6.4/D44: romance exclusivo (registro NPC → jogador no host; patches em `CheckMarryable`/`SetFiance`) |
 | `SharedSync.cs` | 5.4/D42/D43: estado compartilhado genérico (lista de partes com capturar/aplicar, em rodízio): moinho, apicultura, cogumelos, vasos, ampliações, pets, cavalo, prêmios, adega, banho, receitas, missões, peixes, reforços, lojas, Bazaar, festivais, informações gerais, histórico de itens e flags de evento (união) |
 | `AnimalSync.cs` | 5.3/D41: animais da fazenda (cuidados) e celeiros (ovos, ração), mesclando sem mexer na posição |
