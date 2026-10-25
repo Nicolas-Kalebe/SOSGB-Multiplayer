@@ -27,6 +27,9 @@ public static class WorldSnapshot
     private static bool _captureArmed;
     private static bool _injectArmed;
 
+    /// <summary>Com a ponte de teste ligada, nenhum save vai para o disco (proteção dos saves do usuário).</summary>
+    public static bool SavesBlocked => Plugin.DevBridgeEnabled.Value && Plugin.BlockDiskSaves.Value;
+
     public static string DumpPath => Path.Combine(Paths.BepInExRootPath, "worldsnap.sav");
 
     public static void Capture(int slot, Action<bool> done)
@@ -60,9 +63,16 @@ public static class WorldSnapshot
     [HarmonyPatch(typeof(SaveDataAccessorWindows), nameof(SaveDataAccessorWindows.SlotSave))]
     private static class SlotSavePatch
     {
-        private static bool Prefix(Il2CppStructArray<byte> datas, int size, ref Result __result)
+        private static bool Prefix(Il2CppStructArray<byte> datas, int size, int slot, ref Result __result)
         {
-            if (!_captureArmed) return true;
+            if (!_captureArmed)
+            {
+                if (!SavesBlocked) return true;
+                Plugin.Logger.LogWarning($"[WorldSnapshot] save do slot {slot} BLOQUEADO (DevBridge.BlockDiskSaves)");
+                DevBridge.PushEvent($"save-bloqueado:{slot}");
+                __result = Result.Succeess;
+                return false;
+            }
             var bytes = new byte[size];
             for (var i = 0; i < size; i++) bytes[i] = datas[i];
             Captured = bytes;
@@ -76,7 +86,7 @@ public static class WorldSnapshot
     {
         private static bool Prefix(ref Result __result)
         {
-            if (!_captureArmed) return true;
+            if (!_captureArmed && !SavesBlocked) return true;
             __result = Result.Succeess;
             return false; // o cabeçalho do slot também não vai para o disco durante a captura
         }

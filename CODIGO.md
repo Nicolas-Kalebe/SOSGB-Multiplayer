@@ -172,6 +172,10 @@ Armadilhas das flags de evento:
 - O modelo tem 30 `Renderer` (5 ativos: `body`, `skin`, `face`, `M_L`, `hair_00`, todos `SkinnedMeshRenderer`), na layer 11. `Instantiate(player.Model)` sem os `MonoBehaviour` e `Collider` gera um avatar visual que funciona, com `Animator` próprio.
 - A animação é replicada com `Animator.GetCurrentAnimatorStateInfo(0).fullPathHash` → `Animator.Play(hash, 0, norm)` no clone.
 
+### Mapas (tarefa 2.5)
+- `GameController.ChangeField((FieldMasterId)id, ...)` troca de mapa. Ao pedir `10001`, o jogo foi para **`10002`**: o ID efetivo é "sazonal" (varia com estação/estado). Use o `FieldManager.CurrentFieldId` real, não o pedido.
+- Trocar de mapa nesse teste **não** disparou save automático.
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

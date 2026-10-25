@@ -52,6 +52,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `world capture/load/info` | Captura o mundo em memória (sem gravar no disco) / carrega o snapshot (slot de teste) |
 | `net host [porta]` / `net join <ip> [porta]` / `net status` / `net leave` | Sessão de rede (Fase 2) |
 | `warp <dx> <dz>` | Teleporta o jogador local (`SetPlayerClosestGroundPosition`) |
+| `field <FieldMasterId>` | Troca de mapa (`GameController.ChangeField`). 100010 = casa |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 
@@ -61,4 +62,4 @@ O estado também é gravado a cada 2 s em `<jogo>/BepInEx/sosgb-state.jsonl`.
 
 - O jogo **fecha e abre sozinho** durante o ciclo. Avise o usuário antes.
 - O `kick-window.ps1` rouba o foco por menos de 1 s e devolve. Ele mira a janela da classe `UnityWndClass`, porque o processo também tem a janela de console do BepInEx.
-- Antes de testes que alteram o save (dinheiro, itens), faça um snapshot em `backups/saves/` (D17).
+- Com a ponte ligada, **o jogo não grava saves no disco** (`[DevBridge] BlockDiskSaves = true`, padrão). Os eventos `save-bloqueado:<slot>` aparecem no log de estado. Mesmo assim, faça um snapshot em `backups/saves/` antes de mudar essa opção (D17).

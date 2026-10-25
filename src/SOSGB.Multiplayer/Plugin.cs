@@ -24,6 +24,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<int> DevBridgePort;
     internal static ConfigEntry<int> AutoLoadSlot;
     internal static ConfigEntry<float> StateLogInterval;
+    internal static ConfigEntry<bool> BlockDiskSaves;
 
     // Valores efetivos (config ou variável de ambiente; ver tarefa 1.6).
     internal static int BridgePort;
@@ -51,6 +52,8 @@ public class Plugin : BasePlugin
         DevBridgePort = Config.Bind("DevBridge", "Port", 47800, "Porta TCP local da ponte de teste.");
         AutoLoadSlot = Config.Bind("DevBridge", "AutoLoadSlot", -1,
             "Slot (0-2) carregado automaticamente na tela de título. -1 desliga.");
+        BlockDiskSaves = Config.Bind("DevBridge", "BlockDiskSaves", true,
+            "Com a ponte ligada, impede o jogo de gravar saves no disco (testes nunca alteram os saves).");
         StateLogInterval = Config.Bind("DevBridge", "StateLogIntervalSeconds", 2f,
             "Intervalo de gravação do BepInEx/sosgb-state.jsonl.");
 

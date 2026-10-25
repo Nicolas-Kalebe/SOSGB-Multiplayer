@@ -179,7 +179,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "field <FieldMasterId>", "log <texto>", "quit",
                     },
                 });
 
@@ -250,6 +250,11 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.GetPlayer().SetPlayerClosestGroundPosition(dest, new Il2CppSystem.Nullable<Vector3>(), 10f);
                 var now = GameController.Instance.GetPlayerTransform().position;
                 return Json(new { ok = true, pos = new[] { now.x, now.y, now.z } });
+
+            case "field":
+                // field <FieldMasterId> — troca de mapa (teste da 2.5). Ex.: 100010 = casa.
+                GameController.Instance.ChangeField((FieldMasterId)uint.Parse(arg), "", "", false, true, false, null, null, null, false);
+                return Json(new { ok = true, changing = uint.Parse(arg) });
 
             case "world":
                 // world capture | world load — tarefa 1.5 (ver WorldSnapshot). Slot de teste = 2.
