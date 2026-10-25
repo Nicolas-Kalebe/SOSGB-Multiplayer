@@ -142,7 +142,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 8.4c ✅ | Esconder/desabilitar a opção "Salvar" no multiplayer: "Salvar" e "Carregar" mostram aviso (D48) | P |
 | 8.4b | "Salvar agora" do host com barreira (pausa todos, espera estado limpo) — opcional (D23) | M |
 | 8.4 | Etiqueta "Para: Jogador X" nas cartas (D10a, opcional) | P |
-| 8.5 | Guia de instalação para os amigos + pacote de release (`DevBridge.Enabled = false`) | M |
+| 8.5 🟡 | Guia de instalação para os amigos + pacote de release (`DevBridge.Enabled = false`): guia atualizado e pacote v0.4 montados; falta a versão 1.0 | M |
 | 8.6 | Checklist de release e versão 1.0 | P |
 
 **Bônus (pós-1.0):** casamento entre jogadores.
@@ -160,8 +160,8 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ## Estado atual
 
-- **Fase:** 4 — Economia (v0.3) concluída pela IA (falta o teste numa loja de verdade); próxima: 5 — Fazenda. Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
-- **Pacote de teste para amigos:** v0.3.1 (`Downloads\SOSGB-Multiplayer-v0.3.1-amiga.zip`, fora do repositório; protocolo 9). A v0.3 derrubava o host ao deitar (D33) e foi apagada.
+- **Fase:** 4, 5 e boa parte da 6 concluídas pela IA (D36–D45); 7 começou (deck e progresso do Bazaar, D46; sessão de venda em proposta, D47); 8.4c feita. Falta teste com os amigos (5.6, Bazaar, festivais, casamento). Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
+- **Pacote de teste para amigos:** v0.4 (`Downloads\SOSGB-Multiplayer-v0.4-amiga.zip`, fora do repositório; mod 0.4.0, protocolo 18). Inclui a economia, a fazenda, os animais e o progresso do mundo compartilhados.
 - **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P3 log da amiga, P5 memória, P7 pausa por menu, P8 espectar, P9 trava de NPC, P10 Bazaar em grupo). P2 e P6 feitas pela IA (D33). P1 e P4 respondidas: convidado começa do zero (D30, feito) e aparência (D31 → corrigida na D32).
-- **Próxima tarefa sugerida:** 8.5 (pacote/guia). Sessão do Bazaar (D47) e festivais dependem de teste num dia de jogo real. Espectar ficou adiado (D35, P8).
+- **Próxima tarefa sugerida:** sessão de teste com os amigos usando o pacote v0.4 (5.6) e um sábado do jogo para o Bazaar (D47). Sessão do Bazaar (D47) e festivais dependem de teste num dia de jogo real. Espectar ficou adiado (D35, P8).
 - **Última atualização:** 2026-10-25

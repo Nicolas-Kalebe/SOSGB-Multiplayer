@@ -1,8 +1,9 @@
-# INSTALAÇÃO E COMO JOGAR (v0.1 — teste)
+# INSTALAÇÃO E COMO JOGAR (v0.4 — teste)
 
 > 🤖 **AUTODOCUMENTAÇÃO OBRIGATÓRIA.** Este projeto se documenta sozinho: registre toda decisão com contexto em [`DECISOES.md`](../DECISOES.md), mantenha um `CONTEXTO.md` em cada pasta e abra todo `.md` com este aviso. Regras completas em [`AGENTS.md`](../AGENTS.md).
 
-> ⚠️ **Versão de teste.** Vocês se veem andando, compartilham o mundo do host, o relógio e o sono. **O que vocês fazem no mundo (plantar, colher, comprar, dinheiro) ainda NÃO é sincronizado** (Fases 4–5 do [`ROTEIRO.md`](../ROTEIRO.md)).
+> ⚠️ **Versão de teste.** Já é compartilhado: o mundo do host, o relógio, o sono, o **dinheiro**, o **armazém da casa**, o **correio**, a **fazenda** (terra, plantas, árvores, pedras, minérios, flores, bichinhos), os **animais e celeiros** (ovos, ração, afeição), os **pets e o cavalo**, as **ampliações da casa**, o **deck do Bazaar**, os **eventos já vistos** e o progresso do mundo (missões, lojas, receitas, peixes...). Cada um tem a própria mochila, ferramentas, corações e aparência. Ainda falta testar a **venda no Bazaar** e os **festivais** em grupo (ver [`ROTEIRO.md`](../ROTEIRO.md)).
+> **Todos precisam da mesma versão do mod** (o host recusa versões diferentes com uma mensagem).
 
 ## O que cada um precisa
 
@@ -16,7 +17,7 @@
 2. **Backup dos saves:** `Win + R` → `%APPDATA%\STORY OF SEASONS Grand Bazaar` → copie a pasta inteira para outro lugar.
 3. Copie o conteúdo do pacote (`BepInEx`, `dotnet`, `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`) para dentro da pasta do jogo.
 4. Abra o jogo. Abre junto um console preto, que é do BepInEx. **Na primeira vez demora alguns minutos** para chegar ao menu, porque o BepInEx gera os arquivos de interop.
-   - Se ficar numa tela preta, clique na janela do jogo ou dê Alt+Tab (ver [D21](../DECISOES.md)).
+   - O próprio mod traz a janela para frente se ela ficar presa na tela inicial ([D25](../DECISOES.md)). Se mesmo assim ficar numa tela preta, clique na janela do jogo.
 
 ## Configuração
 
@@ -48,17 +49,21 @@ Arquivo: `<jogo>\BepInEx\config\com.nicolaskalebe.sosgb.multiplayer.cfg` (criado
 3. Para dormir: cada um vai para a cama. Quem dorme espera os outros ("Dormindo X/Y"), e o tempo continua correndo para quem está acordado. Mudou de ideia? Aperte **Backspace** (ou F9 → "Levantar da cama") para levantar. Quando todos dormem, o dia vira para todo mundo.
 
 **Regras desta versão:**
-- **Só o host salva, e só quando todos dormem** ([D23](../DECISOES.md)). Tentar salvar no meio do dia mostra "Não foi possível salvar". É esperado.
+- **Só o host salva, e só quando todos dormem** ([D23](../DECISOES.md)). No menu de pausa, "Salvar" e "Carregar" mostram um aviso em vez de abrir ([D48](../DECISOES.md)).
+- **Armazém da casa e deck do Bazaar: um de cada vez.** Se outro jogador já estiver com a tela aberta, a sua fecha e aparece o aviso "Fulano está usando o armazém" ([D37](../DECISOES.md)/[D46](../DECISOES.md)).
+- **Romance exclusivo:** um NPC noivo ou casado com um jogador fica indisponível para os outros ([D44](../DECISOES.md)).
+- **Natureza compartilhada:** o que um pega (minério, flor, bichinho, ovo) some para todos.
 - Na **primeira vez**, o convidado **começa do zero** no mundo do host, como no Stardew ([D30](../DECISOES.md)): corações zerados, mochila vazia, ferramentas básicas. O que ele jogou sozinho no save dele não conta; do save dele só vem o visual do personagem. Por isso ele ainda precisa ter um save (qualquer um) para entrar.
 - Os corações, a mochila e as ferramentas do convidado são dele e ficam guardados no PC do host (`%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\`).
 - Se alguém abrir um menu, o tempo para para todos ([D9](../DECISOES.md)).
 
 ## Limitações conhecidas
 
-- Plantar, colher, comprar e mudar o dinheiro **não sincroniza**. O que o convidado fizer no mundo volta ao estado do host na virada do dia.
-- Os NPCs andam de forma independente em cada jogo.
+- Os NPCs andam de forma independente em cada jogo (cada um vê o NPC no lugar calculado pelo próprio jogo).
+- **Venda no Bazaar e festivais em grupo ainda não foram testados** ([D47](../DECISOES.md)).
+- Quando alguém abre um menu ou entra num evento, **todos param** (inclusive os personagens). Pode mudar ([P7](../PERGUNTAS.md)).
 - Cada jogador aparece com a **própria aparência** (rosto, cabelo, roupa, gênero) e o **nome em cima** ([D32](../DECISOES.md)). Quando alguém entra ou troca de visual, o seu personagem **pisca** com outra aparência por 1 a 2 segundos: é normal. Se der problema, desligue em `[Visual] OwnAppearance = false` (aí todos aparecem com o seu modelo).
-- Eventos de casado e filhos não funcionam para convidados ([D12a](../DECISOES.md)).
+- Casamento de convidado: o cônjuge mora na casa só no jogo de quem casou; eventos de casado e filhos não foram testados para convidados ([D45](../DECISOES.md)).
 
 ## Desinstalar / jogar sem o mod
 

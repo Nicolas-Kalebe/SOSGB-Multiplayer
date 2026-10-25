@@ -12,7 +12,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "com.nicolaskalebe.sosgb.multiplayer";
     public const string Name = "SOSGB Multiplayer";
-    public const string Version = "0.4.0-dev";
+    public const string Version = "0.4.0";
 
     internal static ManualLogSource Logger;
 
