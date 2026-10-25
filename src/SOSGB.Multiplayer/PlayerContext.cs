@@ -80,25 +80,12 @@ public static class PlayerContext
             Capture = CaptureToolData,
             Apply = ApplyToolData,
         },
-        // Vigor máximo (cresce com itens especiais) é de cada jogador. O mundo do host traz o vigor DELE; ao
-        // aplicar, o vigor atual fica na mesma proporção (respeita a recuperação da noite que o jogo calculou).
-        new Part
-        {
-            Name = "stamina",
-            Capture = () => System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, float> { ["max"] = GameController.Instance.PlayerMaxHP }),
-            Apply = ApplyStamina,
-        },
+        // Bônus de comida e outros efeitos temporários (PlayerBuffManager) são de cada jogador (pedido do usuário).
+        // O vigor máximo é do MUNDO (compartilhado, SharedSync "maxstamina"), não entra aqui.
+        Make("buffs",
+            () => PlayerBuffManager.Instance.ToSaveData(),
+            d => PlayerBuffManager.Instance.FromSaveData(d)),
     };
-
-    private static void ApplyStamina(string json)
-    {
-        var max = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, float>>(json)["max"];
-        if (max <= 0) return;
-        var gc = GameController.Instance;
-        var ratio = gc.PlayerMaxHP > 0 ? Math.Clamp(gc.PlayerHP / gc.PlayerMaxHP, 0f, 1f) : 1f;
-        gc.PlayerMaxHP = max;
-        gc.PlayerHP = max * ratio;
-    }
 
     // O ToJson do jogo não aceita o array IL2CPP direto: cada ToolSaveData vira um JSON, numa lista.
     private static string CaptureToolData()
@@ -128,7 +115,7 @@ public static class PlayerContext
     }
 
     /// <summary>Partes do perfil individual de um convidado (D24: flags de evento ficam no mundo por enquanto).</summary>
-    public static readonly string[] ProfileParts = { "likeability", "talk", "bag", "tools", "toolstate", "tooldata", "stamina", "appearance" };
+    public static readonly string[] ProfileParts = { "likeability", "talk", "bag", "tools", "toolstate", "tooldata", "buffs", "appearance" };
 
     public static Dictionary<string, string> CaptureParts(IEnumerable<string> names)
     {

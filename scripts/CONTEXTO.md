@@ -69,6 +69,8 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `storage [deck\|parts] [put <item> <qtd> \| take <espaço> <qtd>]` | Armazéns: casa (padrão), deck do Bazaar ou peças da barraca: lista, guarda ou tira (D37/D46) |
 | `farm [near \| data <guid> \| rm <guid> \| re <guid> \| mk <Tipo> <json> \| cap \| apply \| resident \| residents \| install \| snap \| bench]` | Laboratório da fazenda: objetos do mapa, remover/recriar, capturar/aplicar estado, mapas residentes, custo (D40) |
 | `itemhist <id> \| itemhist add <id> <qualidade>` | Histórico de itens/enciclopédia: consultar / registrar (D43) |
+| `stamina [max <n> \| buff <id> [segundos] \| ids]` | Vigor (máximo compartilhado) e bônus de comida (individuais), D49 |
+| `gates` | Portões e áreas de transição da cena atual (destino e posição) |
 | `bazaar [open]` | Estado do Bazaar e do relógio (aberto hoje, horário, na barraca, relógio parado...) / pede a abertura da barraca (D47) |
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
 | `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local |

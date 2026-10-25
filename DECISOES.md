@@ -398,7 +398,7 @@ Regras deste arquivo:
   - o tamanho da mochila fica na própria lista de espaços dela (`BagItemSaveData.itemDatas`), que também é do perfil: upgrade de mochila já é individual;
   - porém dois dados individuais ficavam no mundo e o convidado herdava os do host a cada virada: `UserInfo.ToolSaveDatas` (um bloco cifrado de ~38 bytes por tipo de ferramenta) e o **vigor máximo** (`GameController.PlayerMaxHP`);
   - `ReinForceData` (reforços de canteiros) e `ExpansionData` (ampliações) são da fazenda: continuam do mundo.
-- **Decisão:** duas partes novas no perfil:
+- **Decisão (o vigor máximo mudou na [D49](#d49--vigor-máximo-compartilhado-bônus-de-comida-individuais-substitui-parte-da-d38): agora é compartilhado):** duas partes novas no perfil:
   - `tooldata`: `ToolManager.SetToolSaveData()` / `FromSaveData(ToolSaveData[])`. Cada item vira um JSON numa lista, porque o `ToJson` do jogo não aceita o array IL2CPP direto;
   - `stamina`: o vigor máximo. Ao aplicar, o vigor atual fica **na mesma proporção** do que o mundo trouxe, respeitando a recuperação da noite que o jogo calculou.
 - **Verificado:** captura e aplicação das duas partes numa instância (`ctx save`/`ctx load`).
@@ -503,3 +503,12 @@ Regras deste arquivo:
 - **Contexto:** no multiplayer, "Salvar" mostrava "Não foi possível acessar os dados" (o save fica bloqueado, D23), e "Carregar" trocaria o mundo no meio da sessão.
 - **Decisão:** patch em `UIPausePage.OnDecide`. Conectado, "Salvar" (texto 1130) mostra "No multiplayer o jogo salva sozinho quando todos dormem." e "Carregar" (texto 1140) mostra "Para carregar outro save, saia do multiplayer primeiro (F9 → Desconectar)." Nenhuma das duas telas abre. Jogando sozinho, nada muda.
 - **Verificado:** hospedando, as duas opções mostram o aviso; o menu continua funcionando, fecha com Esc e o personagem anda depois.
+
+### D49 — Vigor máximo compartilhado; bônus de comida individuais (substitui parte da D38)
+- **Status:** ✅ Decidido · **Data:** 2026-10-25 · **Decidido por:** usuário ("o vigor máximo pode ser compartilhado, já que tem poucos jeitos de aumentar ele, mas os bônus de comida são individuais"; "upgrade de ferramenta não deve ser compartilhado" — já era assim)
+- **Decisão:**
+  - **vigor máximo** saiu do perfil (D38) e virou a parte `maxstamina` do `SharedSync`: quem aumenta, aumenta para todos. Ao aplicar, o vigor atual fica na mesma proporção;
+  - **bônus de comida** e outros efeitos temporários (`PlayerBuffManager`) entraram no perfil de cada jogador (parte `buffs`). No "começar do zero" (D30), o convidado novo chega sem bônus;
+  - **upgrade de ferramenta** continua individual (ferramentas no perfil, D24/D38); o dinheiro do ferreiro sai da carteira comum.
+  - Perfis antigos que tinham a parte `stamina` simplesmente ignoram essa parte.
+- **Verificado (duas instâncias):** a convidada sobe o vigor máximo para 1200 → o host recebe; o host ganha um bônus de comida → a convidada não recebe, e o bônus fica gravado no perfil do host.

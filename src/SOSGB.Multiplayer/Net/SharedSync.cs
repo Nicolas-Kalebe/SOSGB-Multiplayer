@@ -54,6 +54,11 @@ public class SharedSync : MonoBehaviour
         Make("flowerpot", () => FlowerPotManager.IsInstance,
             () => StringExtensions.ToJson(FlowerPotManager.Instance.ToSaveData()),
             j => FlowerPotManager.Instance.FromSaveData(StringExtensions.JsonToObject<FlowerPotManager.SaveData>(j))),
+        // Vigor máximo: do MUNDO, compartilhado (pedido do usuário: "tem poucos jeitos de aumentar"). Ao aplicar, o
+        // vigor atual fica na mesma proporção.
+        Make("maxstamina", () => GameController.IsInstance,
+            () => System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, float> { ["max"] = GameController.Instance.PlayerMaxHP }),
+            ApplyMaxStamina),
         // Ampliações (casa, armazém, cama, mochila, canteiros...): reservadas no carpinteiro, concluídas na virada (5.5).
         Make("expansion", () => ExpansionManager.IsInstance,
             () => StringExtensions.ToJson(ExpansionManager.Instance.ToSaveData()),
@@ -137,6 +142,16 @@ public class SharedSync : MonoBehaviour
         var l = new Il2CppSystem.Collections.Generic.List<int>();
         if (e.ValueKind == System.Text.Json.JsonValueKind.Array) foreach (var x in e.EnumerateArray()) l.Add(x.GetInt32());
         return l;
+    }
+
+    private static void ApplyMaxStamina(string json)
+    {
+        var max = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, float>>(json)["max"];
+        if (max <= 0) return;
+        var gc = GameController.Instance;
+        var ratio = gc.PlayerMaxHP > 0 ? Math.Clamp(gc.PlayerHP / gc.PlayerMaxHP, 0f, 1f) : 1f;
+        gc.PlayerMaxHP = max;
+        gc.PlayerHP = max * ratio;
     }
 
     /// <summary>Adega: SaveData só tem construtor com os 4 valores.</summary>

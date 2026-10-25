@@ -19,6 +19,7 @@ namespace SOSGB.Multiplayer.Net;
 ///   bag         → mochila vazia (mesmo número de espaços);
 ///   tools       → mesmas ferramentas do host, mas no NÍVEL BÁSICO (cadeia de UpgradeToolId, só itens válidos);
 ///   toolstate   → regador vazio;
+///   buffs       → sem bônus de comida (os do host não passam);
 ///   appearance  → o visual do personagem do save do próprio convidado (só aparência, não progresso).
 /// </summary>
 public static class FreshProfile
@@ -37,6 +38,7 @@ public static class FreshProfile
                     "bag" => EmptyBag(kv.Value),
                     "tools" => BasicTools(kv.Value),
                     "toolstate" => ZeroNumbers(kv.Value),
+                    "buffs" => EmptyArrays(kv.Value), // sem bônus de comida herdados do host
                     "appearance" => string.IsNullOrEmpty(ownAppearance) ? kv.Value : ownAppearance,
                     _ => kv.Value,
                 };

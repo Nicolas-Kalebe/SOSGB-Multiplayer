@@ -228,6 +228,44 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, rows });
             }
 
+            case "stamina":
+            {
+                // stamina | stamina max <n> | stamina buff <id> — vigor (máximo compartilhado) e bônus (individuais)
+                var sa3 = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var gcS = GameController.Instance;
+                if (sa3.Length >= 2 && sa3[0] == "max") gcS.PlayerMaxHP = float.Parse(sa3[1], System.Globalization.CultureInfo.InvariantCulture);
+                if (sa3.Length >= 2 && sa3[0] == "buff") PlayerBuffManager.Instance.AddBuff(uint.Parse(sa3[1]), sa3.Length >= 3 ? float.Parse(sa3[2], System.Globalization.CultureInfo.InvariantCulture) : 0, null, (BuffActionAttr)6);
+                if (sa3.Length >= 1 && sa3[0] == "ids")
+                {
+                    var ids = new List<uint>();
+                    foreach (var bmd in MasterDataManager.Instance.BuffMaster.list) { ids.Add(bmd.Id); if (ids.Count >= 15) break; }
+                    return Json(new { ok = true, ids });
+                }
+                var buffs = new List<string>();
+                foreach (var bf in PlayerBuffManager.Instance.GetPlayerBuffs()) buffs.Add(StringExtensions.ToJson(bf));
+                return Json(new { ok = true, hp = gcS.PlayerHP, max = gcS.PlayerMaxHP, buffs });
+            }
+
+            case "gates":
+            {
+                // gates — portões e áreas de transição da cena atual: destino e posição (para andar até o Bazaar)
+                var list = new List<string>();
+                foreach (var g in UnityEngine.Object.FindObjectsOfType<FieldGate>())
+                {
+                    string gDest; try { gDest = g.FieldMasterId.ToString(); } catch { gDest = "?"; }
+                    var gp = g.transform.position;
+                    list.Add($"portão → {gDest} em ({gp.x:0.0}, {gp.z:0.0})");
+                }
+                foreach (var t in UnityEngine.Object.FindObjectsOfType<FieldTransitionArea>())
+                {
+                    string tDest; try { tDest = t.FieldId.ToString(); } catch { tDest = "?"; }
+                    var tp = t.transform.position;
+                    list.Add($"área → {tDest} em ({tp.x:0.0}, {tp.z:0.0})");
+                }
+                var pp = GameController.Instance.GetPlayerTransform().position;
+                return Json(new { ok = true, field = FieldManager.Instance.CurrentFieldId, player = $"({pp.x:0.0}, {pp.z:0.0})", gates = list });
+            }
+
             case "itemhist":
             {
                 // itemhist <id> | itemhist add <id> <qualidade> — histórico de itens/enciclopédia (D43)
