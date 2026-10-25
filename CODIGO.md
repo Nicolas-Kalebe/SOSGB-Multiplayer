@@ -154,6 +154,13 @@ Armadilhas das flags de evento:
 - `EventFlagSaveDataRuntime` contém um bitset (`Flags`) que quebra o `ToJson` (NullReference).
 - `JsonToObject<EventFlagSaveData>` + `FromSaveData` dá `ArgumentException: same key has already been added` (o desserializador duplica entradas). Por isso a aplicação é feita flag a flag.
 
+### Snapshot do mundo (tarefa 1.5) ✅
+- **Capturar:** arma um patch em `SaveDataAccessorWindows.SlotSave/SlotSystemSave` e chama `SaveLoadManager.Instance.Save(slot, (FieldMasterId)FieldManager.CurrentFieldId, cb)`. O patch desvia os bytes para a memória e **não escreve no disco**.
+- **Carregar:** arma um patch em `SaveDataAccessorWindows.SlotLoad` que devolve os bytes do snapshot, e chama `LoadSlot(slot, cb)` + `SceneManager.LoadScene(SceneMode.Game)`.
+- Verificado: snapshot de **72.773 bytes** (o `.sav` comprimido). Depois de +1000 G e de carregar o snapshot, o dinheiro voltou ao valor capturado. Os `SaveData*.sav` no disco ficaram com o hash intacto.
+- O `SaveSystem.sav` (configurações gerais) é regravado pelo próprio jogo ao abrir, e isso não tem relação com o snapshot.
+- **Para a Fase 3:** o host captura e manda ~73 KB; o convidado carrega com a injeção no `SlotLoad`. Sem precisar conhecer o formato do save.
+
 **Acesso a singletons:** `Classe.IsInstance` / `Classe.Instance` (herdados de `BokuMono.Utility.Singleton<T>` ou `SingletonMonoBehaviour<T>`).
 
 ### Peculiaridades do Il2CppInterop neste jogo

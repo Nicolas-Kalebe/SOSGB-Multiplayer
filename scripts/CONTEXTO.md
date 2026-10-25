@@ -40,6 +40,7 @@ AutoLoadSlot = 2      # slot de TESTE (o 3º na tela). Nunca use o save principa
 | `ctx json <nome> [parte]` | Mostra o JSON de uma parte |
 | `bag [take <slot> <qtd>]` | Lista a mochila / tira itens |
 | `flag get/set <id> [valor]` | Lê ou define uma flag de evento |
+| `world capture/load/info` | Captura o mundo em memória (sem gravar no disco) / carrega o snapshot (slot de teste) |
 | `log <texto>` | Escreve no log do BepInEx e no `sosgb-state.jsonl` (marcador de teste) |
 | `quit` | Fecha o jogo |
 

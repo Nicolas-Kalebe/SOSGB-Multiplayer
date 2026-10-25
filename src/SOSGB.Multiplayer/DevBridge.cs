@@ -178,7 +178,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "log <texto>", "quit",
                     },
                 });
 
@@ -226,6 +226,20 @@ public class DevBridge : MonoBehaviour
 
             case "ctx":
                 return CtxCommand(arg);
+
+            case "world":
+                // world capture | world load — tarefa 1.5 (ver WorldSnapshot). Slot de teste = 2.
+                if (arg.StartsWith("capture"))
+                {
+                    WorldSnapshot.Capture(2, okCap => PushEvent($"worldcapture:{okCap}:{WorldSnapshot.Captured?.Length ?? 0}"));
+                    return Json(new { ok = true, started = "capture", note = "acompanhe com 'world info'" });
+                }
+                if (arg.StartsWith("load"))
+                {
+                    WorldSnapshot.Load(2);
+                    return Json(new { ok = true, started = "load" });
+                }
+                return Json(new { ok = true, capturedBytes = WorldSnapshot.Captured?.Length ?? 0, dump = WorldSnapshot.DumpPath });
 
             case "flag":
                 // flag get|set <id> [valor] — flags de evento (parte "eventflags" do contexto)

@@ -15,6 +15,7 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 | `DevBridge.cs` | Ponte de teste para IA (D20): comandos em 127.0.0.1, log `sosgb-state.jsonl`, screenshots, auto-load |
 | `PngWriter.cs` | Codificador PNG próprio, porque o `EncodeToPNG` da Unity quebra no interop |
 | `PlayerContext.cs` | Troca de contexto por jogador (D3/D13): snapshots em JSON dos managers do jogo |
+| `WorldSnapshot.cs` | Snapshot do mundo via pipeline de save do jogo (patches em `SaveDataAccessorWindows`) |
 | `FocusGuard.cs` | Mantém `runInBackground` (D21) |
 | [`Patches/`](Patches/CONTEXTO.md) | Patches Harmony nos métodos do jogo |
 
