@@ -367,10 +367,14 @@ public class DevBridge : MonoBehaviour
             case "storage":
             {
                 // storage | storage put <itemId> <qtd> | storage take <slot> <qtd> — armazém da casa (4.2)
-                var hs = InventoryManager.Instance.HouseStorage;
-                var sa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (sa.Length >= 3 && sa[0] == "put") hs.PutIn(BokuMono.Data.ItemData.Create(uint.Parse(sa[1]), int.Parse(sa[2])), out _, false);
-                if (sa.Length >= 3 && sa[0] == "take") hs.PutOut(int.Parse(sa[1]), int.Parse(sa[2]));
+                // storage [deck|parts] ... — armazém 0 (casa), deck (1) ou peças do Bazaar (2)
+                var sa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+                var sidx = 0;
+                if (sa.Count > 0 && sa[0] == "deck") { sidx = 1; sa.RemoveAt(0); }
+                else if (sa.Count > 0 && sa[0] == "parts") { sidx = 2; sa.RemoveAt(0); }
+                var hs = Net.StorageSync.Get(sidx);
+                if (sa.Count >= 3 && sa[0] == "put") hs.PutIn(BokuMono.Data.ItemData.Create(uint.Parse(sa[1]), int.Parse(sa[2])), out _, false);
+                if (sa.Count >= 3 && sa[0] == "take") hs.PutOut(int.Parse(sa[1]), int.Parse(sa[2]));
                 var list = new List<string>();
                 var hd = hs.ItemDatas;
                 for (var i = 0; i < hd.Length; i++) if (hd[i] != null && hd[i].ItemId != 0) list.Add($"{i}:{hd[i].ItemId}x{hd[i].Stack}");

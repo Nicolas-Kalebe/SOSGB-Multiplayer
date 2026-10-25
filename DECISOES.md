@@ -477,3 +477,12 @@ Regras deste arquivo:
   - no jogo do **convidado**, o cônjuge segue a rotina de casado (mora na casa); no jogo do **host** e dos outros, esse NPC segue a rotina de solteiro (mora na casa de origem). As posições dos NPCs são calculadas em cada jogo, então isso não quebra nada, só fica diferente para cada um;
   - dados de família do mundo (`FamilyManager`: cerimônia, filhos) são os do host. Eventos de casamento e filhos do convidado não foram testados e podem se perder na virada do dia.
 - **Para fazer de verdade:** precisaria de um patch no código nativo da escolha de rotina ou de reescrever a escolha de rotina do cônjuge. Fica para quando houver um casamento real para testar (ROTEIRO 6.5).
+
+### D46 — Bazaar: deck e progresso compartilhados (primeira parte da 7.1)
+- **Status:** ✅ Decidido (parte) · **Data:** 2026-10-25 · **Decidido por:** IA; o formato da sessão de venda é do usuário (ver abaixo)
+- **Decisão:**
+  - o **deck do Bazaar** (itens separados para vender) e as **peças de decoração da barraca** viraram armazéns compartilhados, com a mesma trava e sincronização do armazém da casa (D37). O `StorageSync` agora cuida de vários armazéns (0 casa, 1 deck, 2 peças), e as mensagens levam o número do armazém;
+  - o **progresso do Bazaar** entra no `SharedSync`: `bazaar` (nível, reputação, vendas totais e da semana...), `bazaartrend` (tendências) e `bazaarcustom` (decoração). Achado: `BazaarManager.ToBazaarSaveData` **quebra fora do Bazaar** (o gerenciador só fica completo no dia e no mapa dele). Por isso falha ao capturar passou a ser **temporária** (só pula); só falha ao aplicar desliga uma parte.
+- **Verificado (duas instâncias):** a convidada põe 2 itens no deck e aparecem no host; com o host na tela do deck, a convidada é bloqueada com aviso. Tendências e decoração: autoteste ok. O progresso (`bazaar`) só pode ser testado num dia de Bazaar.
+- **Ideia do usuário para a sessão de venda (2026-10-25):** "ou os dois juntos, ou um faz e o outro fica livre pra trabalhar e comprar itens, e quando acabar o Bazaar pular o tempo pro que não tava; mas dá a opção: quer trabalhar junto ou não?" → em investigação (D47).
+- Protocolo 18 (mensagens de armazém com o número do armazém).

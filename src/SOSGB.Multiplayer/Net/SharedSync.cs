@@ -31,6 +31,7 @@ public class SharedSync : MonoBehaviour
         public Func<string> Capture;
         public Action<string> Apply;
         public bool Disabled;
+        public bool CaptureFailLogged;
     }
 
     /// <summary>Campos de movimento/IA (em qualquer nível do JSON): fora da comparação, mantidos locais ao mesclar.</summary>
@@ -85,6 +86,16 @@ public class SharedSync : MonoBehaviour
         Make("shopanimal", () => ShopAnimalInfoManager.IsInstance,
             () => StringExtensions.ToJson(ShopAnimalInfoManager.Instance.ToSaveData()),
             j => ShopAnimalInfoManager.Instance.FromSaveData(StringExtensions.JsonToObject<ShopAnimalInfoManager.ShopAnimalInfoData>(j))),
+        // Bazaar (7.1, D46): progresso (nível, reputação, vendas), tendências e decoração da barraca.
+        Make("bazaar", () => BazaarManager.IsInstance,
+            () => StringExtensions.ToJson(BazaarManager.Instance.ToBazaarSaveData()),
+            j => BazaarManager.Instance.FromBazaarSaveData(StringExtensions.JsonToObject<BazaarManager.BazaarSaveData>(j))),
+        Make("bazaartrend", () => BazaarManager.IsInstance,
+            () => StringExtensions.ToJson(BazaarManager.Instance.ToTrendSaveData()),
+            j => BazaarManager.Instance.FromSaveData(StringExtensions.JsonToObject<BazaarManager.TrendData>(j))),
+        Make("bazaarcustom", () => BazaarManager.IsInstance,
+            () => StringExtensions.ToJson(BazaarManager.Instance.ToSaveData()),
+            j => BazaarManager.Instance.FromSaveData(StringExtensions.JsonToObject<BazaarManager.CustomData>(j), BazaarManager.Instance.DevelopLevel)),
         // NÃO incluir TrophyRackManager: o FromSaveData dele ACUMULA (cada aplicação soma os troféus de novo; testado).
         // Flags de evento (eventos de história e de coração já vistos): UNIÃO — só acrescenta/atualiza, nunca apaga.
         Make("eventflags", () => EventFlagManager.IsInstance,
@@ -291,7 +302,12 @@ public class SharedSync : MonoBehaviour
                 if (p.Disabled || !p.Available()) continue;
                 string json;
                 try { json = p.Capture(); }
-                catch (Exception e) { Disable(p, "capturar", e); continue; }
+                catch (Exception e)
+                {
+                    // Falha ao capturar é TEMPORÁRIA (ex.: o Bazaar só fica completo no dia e no mapa dele): só pula.
+                    if (!p.CaptureFailLogged) { p.CaptureFailLogged = true; Plugin.Logger.LogInfo($"[SharedSync] '{p.Name}' indisponível agora ({FirstLine(e.Message)}); tentando de novo depois"); }
+                    continue;
+                }
                 var sig = Signature(json);
                 if (!Baseline.TryGetValue(p.Name, out var old)) { Baseline[p.Name] = sig; continue; }
                 if (old == sig) continue;
@@ -307,6 +323,8 @@ public class SharedSync : MonoBehaviour
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[SharedSync] {e.Message}"); }
     }
+
+    private static string FirstLine(string s) { var i = s.IndexOf((char)10); return i < 0 ? s : s.Substring(0, i); }
 
     private static void Disable(Part p, string what, Exception e)
     {
@@ -342,9 +360,12 @@ public class SharedSync : MonoBehaviour
         if (p == null) return "parte desconhecida";
         if (p.Disabled) return "parte desligada";
         if (!p.Available()) return "indisponível agora";
+        string localJson;
+        try { localJson = p.Capture(); }
+        catch { return "indisponível agora (não deu para ler o estado local)"; }
         try
         {
-            var merged = Merge(json, p.Capture());
+            var merged = Merge(json, localJson);
             p.Apply(merged);
             if (markSynced) Baseline[name] = Signature(p.Capture());
             return "ok";

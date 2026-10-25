@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 17;
+    public const int Version = 18;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -61,7 +61,7 @@ public enum MsgType : byte
     /// <summary>Host → todos: [string "charaId=nome;…"] — NPCs noivos/casados e com quem (romance exclusivo, 6.4, D44)</summary>
     RomanceClaims = 17,
 
-    /// <summary>Host → todos: [byte id ou 255] — quem está com o armazém da casa aberto (4.2, D37). Só vale vindo do host.</summary>
+    /// <summary>Host → todos: [byte armazém][byte id ou 255] — quem está com cada armazém aberto (0 casa, 1 deck, 2 peças do Bazaar; D37/D46). Só vale vindo do host.</summary>
     StorageHolder = 16,
 
     // ---- 20+: ponto a ponto com o host (NÃO são repassadas aos outros convidados) ----
@@ -87,10 +87,10 @@ public enum MsgType : byte
     /// <summary>Convidado → host: [long diferença] — o dinheiro mudou no convidado (compra, venda...). 4.1, D36</summary>
     MoneyDelta = 26,
 
-    /// <summary>Convidado ↔ host: [bytes JSON gzip] — armazém da casa inteiro (StorageManager.SaveData). 4.2, D37</summary>
+    /// <summary>Convidado ↔ host: [byte armazém][bytes JSON gzip] — armazém inteiro (StorageManager.SaveData). 4.2, D37/D46</summary>
     StorageData = 27,
 
-    /// <summary>Convidado → host: [bool aberto] — abriu/fechou a tela do armazém (trava, D37)</summary>
+    /// <summary>Convidado → host: [byte armazém][bool aberto] — abriu/fechou a tela do armazém (trava, D37/D46)</summary>
     StorageUse = 28,
 
     /// <summary>Convidado ↔ host: [bytes JSON gzip] — estado do correio (LetterManager.SaveData). 4.6, D39</summary>

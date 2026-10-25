@@ -1,4 +1,4 @@
-// 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md e DECISOES.md#d37.
+// 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md e DECISOES.md#d37 / #d46.
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -11,30 +11,45 @@ using UnityEngine;
 namespace SOSGB.Multiplayer.Net;
 
 /// <summary>
-/// Armazém da casa compartilhado (4.2, D37).
+/// Armazéns compartilhados (4.2, D37; deck e peças do Bazaar na D46).
 ///
-///  - UMA pessoa por vez com o armazém aberto (como os baús do Stardew). O host guarda quem está com ele
-///    (StorageHolder). Se outro jogador abrir a tela, o mod fecha (CloseMenu) e avisa.
-///  - Sincronização pelo CONTEÚDO: cada jogo confere o armazém a cada 0,5 s (assinatura dos espaços). Mudou
+///  - UMA pessoa por vez com a tela do armazém aberta (como os baús do Stardew). O host guarda quem está com cada
+///    armazém (StorageHolder). Se outro jogador abrir a tela, o mod fecha (CloseMenu) e avisa.
+///  - Sincronização pelo CONTEÚDO: cada jogo confere cada armazém a cada 0,5 s (assinatura dos espaços). Mudou
 ///    por conta própria (guardou, pegou, cozinhou com ingredientes de lá)? Manda o armazém inteiro, em JSON
 ///    comprimido, ao host (StorageData). O host aplica e repassa aos outros.
 ///  - Conflito (alguém mudou o armazém enquanto outro estava com ele aberto): vence quem está com ele aberto.
-///  - Depois de carregar um mundo (entrada, virada do dia), a base é zerada: o snapshot já traz o armazém.
+///  - Depois de carregar um mundo (entrada, virada do dia), a base é zerada: o snapshot já traz os armazéns.
 /// </summary>
 public class StorageSync : MonoBehaviour
 {
     public StorageSync(IntPtr ptr) : base(ptr) { }
 
     public const byte NoHolder = 255;
-    private const int HouseStorageKey = 102; // UILoadKey.HouceStorage (sic, nome do jogo)
 
-    /// <summary>Quem está com o armazém aberto (id do jogador) ou NoHolder.</summary>
-    public static byte Holder { get; private set; } = NoHolder;
+    private sealed class Store
+    {
+        public byte Index;
+        public string Name;            // nome no aviso ("o armazém", "o deck do Bazaar")
+        public int UiKey;              // UILoadKey da tela (trava); -1 = sem trava
+        public Func<StorageManager> Get;
+        public byte Holder = NoHolder;
+        public long Baseline;
+        public bool HasBaseline;
+        public bool LocalOpen;
+    }
 
-    private static long _baseline;            // assinatura do armazém já sincronizado
-    private static bool _hasBaseline;
+    private static readonly Store[] Stores =
+    {
+        new() { Index = 0, Name = "o armazém", UiKey = 102, Get = () => InventoryManager.Instance.HouseStorage },          // UILoadKey.HouceStorage
+        new() { Index = 1, Name = "o deck do Bazaar", UiKey = 103, Get = () => InventoryManager.Instance.DeckStorage },     // UILoadKey.DeckStorage
+        new() { Index = 2, Name = "as peças do Bazaar", UiKey = 113, Get = () => InventoryManager.Instance.BazaarCustomPartsStorage }, // UILoadKey.BazaarCustom
+    };
+
+    /// <summary>Quem está com o armazém da casa aberto (compatível com testes antigos).</summary>
+    public static byte Holder => Stores[0].Holder;
+
     private static bool _subscribed;
-    private static bool _localOpen;
     private float _nextCheck;
 
     private void Awake()
@@ -42,11 +57,18 @@ public class StorageSync : MonoBehaviour
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
-        WorldSync.OnWorldReceived += () => { _hasBaseline = false; _localOpen = false; };
-        NetSession.OnHosting += () => { _hasBaseline = false; Holder = NoHolder; };
-        NetSession.OnJoined += () => { _hasBaseline = false; Holder = NoHolder; };
-        NetSession.OnPlayerLeft += id => { if (NetSession.Current == NetSession.Mode.Host && Holder == id) SetHolder(NoHolder); };
-        NetSession.OnPlayerJoinedNamed += (id, name) => { if (NetSession.Current == NetSession.Mode.Host) BroadcastHolder(); };
+        WorldSync.OnWorldReceived += () => { foreach (var s in Stores) { s.HasBaseline = false; s.LocalOpen = false; } };
+        NetSession.OnHosting += () => { foreach (var s in Stores) { s.HasBaseline = false; s.Holder = NoHolder; } };
+        NetSession.OnJoined += () => { foreach (var s in Stores) { s.HasBaseline = false; s.Holder = NoHolder; } };
+        NetSession.OnPlayerLeft += id =>
+        {
+            if (NetSession.Current != NetSession.Mode.Host) return;
+            foreach (var s in Stores) if (s.Holder == id) SetHolder(s, NoHolder);
+        };
+        NetSession.OnPlayerJoinedNamed += (id, name) =>
+        {
+            if (NetSession.Current == NetSession.Mode.Host) foreach (var s in Stores) BroadcastHolder(s);
+        };
     }
 
     private static bool Ready()
@@ -63,27 +85,29 @@ public class StorageSync : MonoBehaviour
         try
         {
             if (!Ready()) return;
-            WatchLocalUi();
+            foreach (var s in Stores) WatchLocalUi(s);
             if (Time.unscaledTime < _nextCheck) return;
             _nextCheck = Time.unscaledTime + 0.5f;
-            var sig = Signature();
-            if (!_hasBaseline) { _baseline = sig; _hasBaseline = true; return; }
-            if (sig == _baseline) return;
-            _baseline = sig;
-            var someoneElse = Holder != NoHolder && Holder != NetSession.LocalId;
-            if (someoneElse)
+            foreach (var s in Stores)
             {
-                // Mexeram aqui enquanto outro está com o armazém aberto: vence quem está com ele (o próximo
-                // StorageData dele corrige este). Só registra.
-                Plugin.Logger.LogInfo("[StorageSync] armazém mudou aqui enquanto outro jogador estava com ele; vale o dele");
-                return;
+                if (s.Get() == null) continue;
+                var sig = Signature(s);
+                if (!s.HasBaseline) { s.Baseline = sig; s.HasBaseline = true; continue; }
+                if (sig == s.Baseline) continue;
+                s.Baseline = sig;
+                if (s.Holder != NoHolder && s.Holder != NetSession.LocalId)
+                {
+                    // Mexeram aqui enquanto outro está com a tela aberta: vale o dele (o próximo StorageData corrige).
+                    Plugin.Logger.LogInfo($"[StorageSync] {s.Name} mudou aqui enquanto outro jogador estava com ele; vale o dele");
+                    continue;
+                }
+                SendSnapshot(s);
             }
-            SendSnapshot();
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[StorageSync] {e.Message}"); }
     }
 
-    // ---------- tela do armazém (trava) ----------
+    // ---------- tela (trava) ----------
 
     // UIManager não é singleton com Instance: achamos o objeto uma vez e guardamos (procura de novo se sumir).
     private static UIManager _ui;
@@ -101,38 +125,42 @@ public class StorageSync : MonoBehaviour
         }
     }
 
-    private static void WatchLocalUi()
+    private static void WatchLocalUi(Store s)
     {
+        if (s.UiKey < 0) return;
         var ui = Ui;
-        var open = ui != null && (int)ui.UIMenuKey == HouseStorageKey && ui.IsMenu;
-        if (open == _localOpen) return;
-        _localOpen = open;
+        var open = ui != null && (int)ui.UIMenuKey == s.UiKey && ui.IsMenu;
+        if (open == s.LocalOpen) return;
+        s.LocalOpen = open;
         var me = NetSession.LocalId;
         if (open)
         {
-            if (Holder != NoHolder && Holder != me)
+            if (s.Holder != NoHolder && s.Holder != me)
             {
-                var name = NetSession.Players.TryGetValue(Holder, out var p) ? p.Name : "Outro jogador";
-                Plugin.Logger.LogInfo($"[StorageSync] armazém em uso por {name}; fechando a tela");
-                GameNotify.Show($"{name} está usando o armazém. Espere fechar.");
+                var name = NetSession.Players.TryGetValue(s.Holder, out var p) ? p.Name : "Outro jogador";
+                Plugin.Logger.LogInfo($"[StorageSync] {s.Name} em uso por {name}; fechando a tela");
+                GameNotify.Show($"{name} está usando {s.Name}. Espere fechar.");
                 CloseStorageUi(ui);
-                _localOpen = false;
+                s.LocalOpen = false;
                 return;
             }
-            Claim(true);
+            Claim(s, true);
         }
         else
         {
             // Fechou: manda já a versão final (sem esperar a conferência de 0,5 s) e solta a trava.
-            var sig = Signature();
-            if (!_hasBaseline || sig != _baseline) { _baseline = sig; _hasBaseline = true; SendSnapshot(); }
-            Claim(false);
+            if (s.Get() != null)
+            {
+                var sig = Signature(s);
+                if (!s.HasBaseline || sig != s.Baseline) { s.Baseline = sig; s.HasBaseline = true; SendSnapshot(s); }
+            }
+            Claim(s, false);
         }
     }
 
     /// <summary>
-    /// Fecha a tela do armazém. CloseMenu funcionou nos testes; ForceBackUIMain deu KeyNotFoundException
-    /// ('HouceStorage') quando a tela não veio do histórico de menus, então fica só de reserva.
+    /// Fecha a tela. CloseMenu funcionou nos testes; ForceBackUIMain deu KeyNotFoundException ('HouceStorage')
+    /// quando a tela não veio do histórico de menus, então fica só de reserva.
     /// </summary>
     private static void CloseStorageUi(UIManager ui)
     {
@@ -144,39 +172,43 @@ public class StorageSync : MonoBehaviour
         }
     }
 
-    private static void Claim(bool open)
+    private static void Claim(Store s, bool open)
     {
         if (NetSession.Current == NetSession.Mode.Host)
         {
-            if (open && Holder == NoHolder) SetHolder(NetSession.LocalId);
-            else if (!open && Holder == NetSession.LocalId) SetHolder(NoHolder);
+            if (open && s.Holder == NoHolder) SetHolder(s, NetSession.LocalId);
+            else if (!open && s.Holder == NetSession.LocalId) SetHolder(s, NoHolder);
         }
         else
-            NetSession.SendGame(MsgType.StorageUse, w => w.Put(open), DeliveryMethod.ReliableOrdered);
+        {
+            var idx = s.Index;
+            NetSession.SendGame(MsgType.StorageUse, w => { w.Put(idx); w.Put(open); }, DeliveryMethod.ReliableOrdered);
+        }
     }
 
-    private static void SetHolder(byte id)
+    private static void SetHolder(Store s, byte id)
     {
-        Holder = id;
-        BroadcastHolder();
-        DevBridge.PushEvent($"armazem:{(id == NoHolder ? "livre" : id.ToString())}");
+        s.Holder = id;
+        BroadcastHolder(s);
+        DevBridge.PushEvent($"armazem{s.Index}:{(id == NoHolder ? "livre" : id.ToString())}");
     }
 
-    private static void BroadcastHolder()
+    private static void BroadcastHolder(Store s)
     {
-        var h = Holder;
-        NetSession.SendGame(MsgType.StorageHolder, w => w.Put(h), DeliveryMethod.ReliableOrdered);
+        var idx = s.Index;
+        var h = s.Holder;
+        NetSession.SendGame(MsgType.StorageHolder, w => { w.Put(idx); w.Put(h); }, DeliveryMethod.ReliableOrdered);
     }
 
     // ---------- conteúdo ----------
 
-    /// <summary>Assinatura (FNV) dos espaços do armazém: item, quantidade, qualidade, frescor e embrulho.</summary>
-    private static long Signature()
+    /// <summary>Assinatura (FNV) dos espaços: item, quantidade, qualidade, frescor e embrulho.</summary>
+    private static long Signature(Store s)
     {
         unchecked
         {
             var h = (long)1469598103934665603;
-            var datas = InventoryManager.Instance.HouseStorage.ItemDatas;
+            var datas = s.Get().ItemDatas;
             for (var i = 0; i < datas.Length; i++)
             {
                 var d = datas[i];
@@ -192,14 +224,13 @@ public class StorageSync : MonoBehaviour
         }
     }
 
-    private static string Capture() => StringExtensions.ToJson(InventoryManager.Instance.HouseStorage.ToSaveData());
+    private static string Capture(Store s) => StringExtensions.ToJson(s.Get().ToSaveData());
 
-    private static void Apply(string json)
+    private static void Apply(Store s, string json)
     {
-        var hs = InventoryManager.Instance.HouseStorage;
-        hs.FromSaveData(StringExtensions.JsonToObject<StorageManager.SaveData>(json));
-        _baseline = Signature();
-        _hasBaseline = true;
+        s.Get().FromSaveData(StringExtensions.JsonToObject<StorageManager.SaveData>(json));
+        s.Baseline = Signature(s);
+        s.HasBaseline = true;
     }
 
     private static byte[] Pack(string json)
@@ -216,72 +247,93 @@ public class StorageSync : MonoBehaviour
         return sr.ReadToEnd();
     }
 
-    private static void SendSnapshot()
+    private static void SendSnapshot(Store s)
     {
-        var packed = Pack(Capture());
+        var packed = Pack(Capture(s));
+        var idx = s.Index;
         if (NetSession.Current == NetSession.Mode.Host)
         {
             foreach (var id in NetSession.Players.Keys)
-                if (id != NetSession.LocalId) NetSession.SendTo(id, MsgType.StorageData, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+                if (id != NetSession.LocalId) NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
         }
         else
-            NetSession.SendGame(MsgType.StorageData, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
-        Plugin.Logger.LogInfo($"[StorageSync] armazém enviado ({packed.Length} bytes comprimidos)");
-        DevBridge.PushEvent("armazem:enviado");
+            NetSession.SendGame(MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
+        Plugin.Logger.LogInfo($"[StorageSync] {s.Name} enviado ({packed.Length} bytes comprimidos)");
+        DevBridge.PushEvent($"armazem{s.Index}:enviado");
     }
+
+    private static Store ByIndex(byte i) => i < Stores.Length ? Stores[i] : null;
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
         switch (type)
         {
             case MsgType.StorageUse when NetSession.Current == NetSession.Mode.Host:
+            {
+                var s = ByIndex(r.GetByte());
                 var open = r.GetBool();
-                if (open && Holder == NoHolder) SetHolder(from);
-                else if (!open && Holder == from) SetHolder(NoHolder);
-                else if (open) BroadcastHolder(); // já está com outro: reenviar faz o convidado fechar a tela
+                if (s == null) return;
+                if (open && s.Holder == NoHolder) SetHolder(s, from);
+                else if (!open && s.Holder == from) SetHolder(s, NoHolder);
+                else if (open) BroadcastHolder(s); // já está com outro: reenviar faz o convidado fechar a tela
                 break;
-
+            }
             case MsgType.StorageHolder when NetSession.Current == NetSession.Mode.Client && from == Protocol.HostPlayerId:
-                Holder = r.GetByte();
+            {
+                var s = ByIndex(r.GetByte());
+                var h = r.GetByte();
+                if (s == null) return;
+                s.Holder = h;
                 // Corrida: abri junto com outro e o host deu para ele → fecho a minha tela.
-                if (_localOpen && Holder != NoHolder && Holder != NetSession.LocalId && Ui != null)
+                if (s.LocalOpen && h != NoHolder && h != NetSession.LocalId && Ui != null)
                 {
-                    GameNotify.Show("Outro jogador abriu o armazém primeiro. Espere ele fechar.");
+                    GameNotify.Show($"Outro jogador abriu {s.Name} primeiro. Espere ele fechar.");
                     CloseStorageUi(Ui);
-                    _localOpen = false;
+                    s.LocalOpen = false;
                 }
                 break;
-
+            }
             case MsgType.StorageData:
             {
+                var s = ByIndex(r.GetByte());
                 var data = r.GetBytesWithLength();
-                if (!Ready()) return;
+                if (s == null || !Ready() || s.Get() == null) return;
                 if (NetSession.Current == NetSession.Mode.Host)
                 {
                     // Só aceita de quem está com a trava (ou de qualquer um, se ninguém está).
-                    if (Holder != NoHolder && Holder != from) { Plugin.Logger.LogInfo($"[StorageSync] armazém de #{from} ignorado (está com #{Holder})"); SendTo(from); return; }
-                    Apply(Unpack(data));
+                    if (s.Holder != NoHolder && s.Holder != from) { Plugin.Logger.LogInfo($"[StorageSync] {s.Name} de #{from} ignorado (está com #{s.Holder})"); SendTo(s, from); return; }
+                    Apply(s, Unpack(data));
+                    var idx = s.Index;
                     foreach (var id in NetSession.Players.Keys)
-                        if (id != NetSession.LocalId && id != from) NetSession.SendTo(id, MsgType.StorageData, w => w.PutBytesWithLength(data), DeliveryMethod.ReliableOrdered);
-                    Plugin.Logger.LogInfo($"[StorageSync] armazém atualizado por #{from}");
+                        if (id != NetSession.LocalId && id != from) NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(data); }, DeliveryMethod.ReliableOrdered);
+                    Plugin.Logger.LogInfo($"[StorageSync] {s.Name} atualizado por #{from}");
                 }
                 else if (from == Protocol.HostPlayerId)
                 {
-                    Apply(Unpack(data));
-                    Plugin.Logger.LogInfo("[StorageSync] armazém atualizado pelo host");
+                    Apply(s, Unpack(data));
+                    Plugin.Logger.LogInfo($"[StorageSync] {s.Name} atualizado pelo host");
                 }
-                DevBridge.PushEvent("armazem:recebido");
+                DevBridge.PushEvent($"armazem{s.Index}:recebido");
                 break;
             }
         }
     }
 
     /// <summary>Host: manda o armazém oficial para um jogador (corrige quem mexeu sem a trava).</summary>
-    private static void SendTo(byte id)
+    private static void SendTo(Store s, byte id)
     {
-        var packed = Pack(Capture());
-        NetSession.SendTo(id, MsgType.StorageData, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+        var packed = Pack(Capture(s));
+        var idx = s.Index;
+        NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
     }
 
-    public static object Status() => new { holder = Holder, localOpen = _localOpen, baseline = _baseline };
+    /// <summary>Testes: StorageManager de um armazém pelo índice (0 casa, 1 deck, 2 peças do Bazaar).</summary>
+    public static StorageManager Get(int index) => index >= 0 && index < Stores.Length ? Stores[index].Get() : null;
+
+    public static object Status()
+    {
+        var list = new System.Collections.Generic.List<object>();
+        foreach (var s in Stores) list.Add(new { s.Name, holder = s.Holder, localOpen = s.LocalOpen, baseline = s.Baseline });
+        return new { holder = Stores[0].Holder, localOpen = Stores[0].LocalOpen, baseline = Stores[0].Baseline, stores = list };
+    }
 }

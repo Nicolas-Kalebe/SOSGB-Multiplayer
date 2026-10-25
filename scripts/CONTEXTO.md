@@ -66,7 +66,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `ctx json <nome> [parte]` | Mostra o JSON de uma parte |
 | `wakeup [both\|wake\|flag]` | Levanta da cama enquanto espera os outros (D34) |
 | `pstate` / `pfix <marca>` | Estado de sono/controle do jogador local / mexe numa marca (diagnóstico da D34) |
-| `storage [put <item> <qtd> \| take <espaço> <qtd>]` | Armazém da casa: lista, guarda ou tira (teste da D37) |
+| `storage [deck\|parts] [put <item> <qtd> \| take <espaço> <qtd>]` | Armazéns: casa (padrão), deck do Bazaar ou peças da barraca: lista, guarda ou tira (D37/D46) |
 | `farm [near \| data <guid> \| rm <guid> \| re <guid> \| mk <Tipo> <json> \| cap \| apply \| resident \| residents \| install \| snap \| bench]` | Laboratório da fazenda: objetos do mapa, remover/recriar, capturar/aplicar estado, mapas residentes, custo (D40) |
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
 | `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local |
