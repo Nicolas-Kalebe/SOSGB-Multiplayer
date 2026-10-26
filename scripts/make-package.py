@@ -1,11 +1,11 @@
 # 🤖 AUTODOCUMENTAÇÃO: ver scripts/CONTEXTO.md e docs/INSTALACAO.md (pacote para os amigos).
 # Monta o pacote do mod para os amigos direto da pasta do jogo: só o carregador (winhttp/doorstop), o runtime
 # (dotnet/), o núcleo do BepInEx e o mod. NUNCA interop, unity-libs, logs, capturas, saves de teste nem um .cfg
-# com a ponte de teste ligada (D18/D20). Uso: python scripts/make-package.py --version 0.5 --ip <IP do host>
+# com a ponte de teste ligada (D18/D20). Uso: python scripts/make-package.py --version 0.5.1 --ip <IP do host>
 import argparse, os, zipfile
 
 ap = argparse.ArgumentParser(description="Monta o pacote do mod para os amigos")
-ap.add_argument("--version", default="0.5")
+ap.add_argument("--version", default="0.5.1")
 ap.add_argument("--ip", default="", help="IP do host para o JoinAddress (ex.: o do Radmin, 26.x.x.x)")
 ap.add_argument("--game", default=r"L:\Games\STORY OF SEASONS Grand Bazaar")
 ap.add_argument("--out", default=os.path.join(os.path.expanduser("~"), "Downloads"))
