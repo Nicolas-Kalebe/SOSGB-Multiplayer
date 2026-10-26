@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D64 | **Respostas do usuário**: tentar espectar (P8), analisar NPC parado para os dois (P9), ferramenta do moinho só de quem deixou (P12), festival com um inscrito e resultado comum, junto com o usuário (P13), cenas vistas por jogador (P15), queda de conexão volta ao menu (P16) | ✅ Decidido |
 | D63 | **Revisão independente do núcleo**: voltar ao título encerra a sessão, perfil comprimido (limite de 64 KB), mensagens guardadas enquanto carrega (sem perder nem duplicar), convidado sabe da virada, desconectar deitado, captura do mundo sem travar, GUID repetido, perfis gravados de forma segura | ✅ Decidido |
 | D62 | **Estante de troféus: só o host arruma** (troféu do convidado posto nela sumiria na virada) | ✅ Decidido |
 | D61 | **Happy Bingo compartilhado por mescla** (maior progresso por quadrado, prêmios resgatados em união; fecha o resgate repetido do convidado) | ✅ Decidido |

@@ -688,3 +688,15 @@ Regras deste arquivo:
 - **Ficou para depois (anotado):** animal/celeiro e correio aplicam o estado inteiro recebido; dois jogadores mexendo no mesmo celeiro no mesmo segundo podem desfazer um ao outro (precisa de mescla campo a campo; ver D64 se feita).
 - **Testado (uma instância):** plugin carrega; recuperação grava `recovery_profiles_*.json` e o oficial fica intacto; host deitado esperando outro jogador e "Desconectar" → o dia vira sozinho (1/02/22 → 1/02/23 06:05) e o personagem fica livre; voltar ao título hospedando → sessão encerrada; carregar o save → hospeda de novo pela entrada automática. As partes que dependem de duas pessoas (fila de mensagens, aviso da virada no convidado, GUID repetido) ficam para o teste com o usuário.
 - Protocolo 23 (ainda não distribuído): `ProfileUpload`/`ProfileData` em gzip com tamanho int, blocos com tamanho int, `SleepStatus` com o byte "virada começou".
+
+### D64 — Respostas do usuário às perguntas P8, P9 e P11–P17
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** usuário (respostas em PERGUNTAS.md)
+- **P8 (espectar enquanto dorme):** "gostaria de pelo menos tentar" → tentar seguir com a câmera quem está acordado em outro mapa.
+- **P9 (trava de NPC, D14):** o usuário entende que, ao conversar, o NPC para de andar e deve parar para os dois; e que duas pessoas comandando o NPC ao mesmo tempo pode dar conflito. Pediu análise (ver a decisão da implementação).
+- **P11 (Happy Energy):** compartilhada, como já está (D57).
+- **P12 (ferramenta no moinho):** como o jogo não deixa guardar ferramenta no baú, só quem deixou a ferramenta no moinho pode pegar (ou ela só aparece para essa pessoa, se for mais fácil). O resto do moinho continua compartilhado.
+- **P13 (festivais com competição):** um só se inscreve e o resultado é compartilhado. Fazer **com o usuário junto** (testes).
+- **P15 (cenas já vistas):** sim, guardar por jogador.
+- **P16 (conexão caiu):** o convidado volta para o menu inicial.
+- **P17 (Happy Bingo):** compartilhado, como já está (D61).
+- **Testes:** há memória para duas instâncias; se faltar, pode fechar programas que não sejam vitais nem de trabalho. Uma cópia do jogo aberta pelo usuário nunca é fechada pela IA.
