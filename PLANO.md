@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D58 | **Virada do dia depois da meia-noite**: o host reconhece o fim da virada pelo personagem (o número do dia não muda); antes ficava preso e os convidados dormiam para sempre | ✅ Decidido |
 | D57 | **Conflitos achados na wiki e no save**: Happy Energy compartilhada, pedidos (progresso somado), tutoriais e BRAND em união, pets/cavalos novos só do host | ✅ Decidido |
 | D56 | **Bazaar: ajudante dentro da barraca com os botões do jogo** (pedidos ao dono; vendas só no jogo dele) | 🟡 Em implementação |
 | D55 | **Bazaar: todos veem os mesmos clientes e a barraca aberta de quem vende** (cópias dos clientes do dono; vendas só no jogo dele) | ✅ Etapa 1 |

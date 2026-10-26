@@ -36,7 +36,10 @@ public class DaySync : MonoBehaviour
     private static bool _allowNextDay;   // host: libera a chamada original
     private static bool _waitingNewDay;  // host: virada em andamento; mandar o mundo quando terminar
     private static int _dayBefore;
+    private static bool _playerNewDay;   // host: o jogo preparou o personagem para o dia novo (PlayerCharacter.StartNextDay)
+    private static float _dayChangeStartedAt;
     private static float _newDaySince = -1;
+    private const float DayChangeTimeout = 60f; // segundos reais; depois disso manda o mundo mesmo sem o sinal
     private static bool _subscribed;
 
     private void Awake()
@@ -174,18 +177,28 @@ public class DaySync : MonoBehaviour
         Plugin.Logger.LogInfo("[DaySync] todos dormindo: virando o dia");
         _waitingNewDay = true;
         _dayBefore = DateManager.Instance.Now.Day;
+        _playerNewDay = false;
+        _dayChangeStartedAt = Time.unscaledTime;
         _newDaySince = -1;
         _allowNextDay = true;
         GameController.Instance.StartNextDay();
     }
 
-    /// <summary>Host: quando o dia virou e o jogo assentou, manda o mundo novo e zera os "dormindo".</summary>
+    /// <summary>
+    /// Host: quando o dia virou e o jogo assentou, manda o mundo novo e zera os "dormindo".
+    /// O NÚMERO do dia não serve sozinho de sinal: dormindo (ou desmaiando às 5h) depois da meia-noite, o calendário já
+    /// está no dia seguinte e o jogo acorda no MESMO número (06:00, ou 10:00 depois do desmaio). Por isso o sinal
+    /// principal é o jogo preparar o personagem para o dia novo; o número do dia e um tempo-limite ficam de reserva.
+    /// </summary>
     private static void WatchNewDay()
     {
         if (!_waitingNewDay || !DateManager.IsInstance || !GameController.IsInstance) return;
-        if (DateManager.Instance.Now.Day == _dayBefore || GameController.Instance.IsWaitChangeDate()) return;
+        var changed = _playerNewDay || DateManager.Instance.Now.Day != _dayBefore;
+        var timedOut = Time.unscaledTime - _dayChangeStartedAt > DayChangeTimeout;
+        if ((!changed && !timedOut) || GameController.Instance.IsWaitChangeDate()) { _newDaySince = -1; return; }
         if (_newDaySince < 0) { _newDaySince = Time.unscaledTime; return; }
         if (Time.unscaledTime - _newDaySince < 3f) return; // deixa o jogo terminar de processar o dia
+        if (!changed) Plugin.Logger.LogWarning("[DaySync] a virada não deu sinal em 60 s; mandando o mundo assim mesmo");
 
         _waitingNewDay = false;
         LocalSleeping = false;
@@ -203,7 +216,18 @@ public class DaySync : MonoBehaviour
         sleeping = SleepingCount,
         total = Total,
         hostWaitingNewDay = _waitingNewDay,
+        playerNewDay = _playerNewDay,
     };
+
+    /// <summary>Sinal de que a virada chegou ao fim: o jogo prepara o personagem para o dia novo (vem depois do save).</summary>
+    [HarmonyPatch(typeof(PlayerCharacter), nameof(PlayerCharacter.StartNextDay))]
+    private static class PlayerStartNextDayPatch
+    {
+        private static void Postfix()
+        {
+            if (_waitingNewDay) _playerNewDay = true;
+        }
+    }
 
     [HarmonyPatch(typeof(GameController), nameof(GameController.StartNextDay))]
     private static class StartNextDayPatch

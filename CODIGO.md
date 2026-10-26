@@ -223,6 +223,8 @@ Armadilhas das flags de evento:
 - `GameController.StartNextDay()` (público, `UniTask`) vira o dia **na hora** (data → dia seguinte, 06:00). Ordem observada: `StartNextDay` → `PreChangeDate` → save automático.
 - `PlayerCharacter.ActionSleep()` sozinho **não** vira o dia (só a ação/animação). O fluxo real começa na cama: `FieldPlayerBed.Access()` abre um menu de escolhas.
 - **O save automático da virada do dia vai para o slot 0**, mesmo com `UserInfo.Slot = 2`: o slot 0 é o **slot de save automático** do jogo (o slot 0 e o slot 1 do usuário têm o mesmo dinheiro). `UserInfo.Slot` é gravado no save (`"Slot": 2`).
+- **Depois da meia-noite o número do dia não muda na virada** (D58): o calendário já está no dia seguinte. Dormir à 1h acordou às 10h do mesmo número; o desmaio de sono acontece às **5h** e também acorda às 10h do mesmo número. Ordem completa observada: `StartNextDay` → `PreChangeDate` → save automático → `PlayerCharacter.StartNextDay` (bom sinal de "virada concluída").
+- O desmaio (sono às 5h; cansaço) passa por `GameController.StartNextDay`, igual à cama. A pilha de chamadas não aparece no log (`StackTraceUtility` vem vazio no IL2CPP).
 - Para segurar a virada no multiplayer, um prefix em `StartNextDay` retorna `false` com `__result = default(UniTask)` (tarefa já concluída).
 
 ### Animação do personagem (bugs do 1º teste real)
