@@ -24,6 +24,7 @@ public class NotifySync : MonoBehaviour
     private bool _wasFaint, _wasSleepyFaint, _wasInEvent, _wasSleeping, _wasInShop;
     private float _nextPoll;
     private static bool _pendingJoinNotice;
+    private static float _returnToTitleAt = -1; // P16/D65: queda de conexão no convidado → menu inicial
 
     private void Awake()
     {
@@ -36,14 +37,31 @@ public class NotifySync : MonoBehaviour
         NetSession.OnDisconnectedFromHost += reason =>
         {
             GameNotify.Show($"Conexão com o host perdida ({reason}).");
-            if (WorldSnapshot.HoldingHostWorld)
-                GameNotify.Show("Este mundo é do host: nada daqui será salvo. Volte ao título para entrar de novo ou jogar o seu save.");
+            if (!WorldSnapshot.HoldingHostWorld) return;
+            // Pedido do usuário (P16): o mundo é do host e não é salvo aqui (D59), então volta ao menu inicial.
+            GameNotify.Show("Voltando ao menu inicial em alguns segundos (o mundo do host não é salvo aqui).");
+            _returnToTitleAt = Time.unscaledTime + 4f;
         };
         NetSession.OnGameMessage += OnMessage;
     }
 
+    /// <summary>P16/D65: o convidado que perdeu a conexão volta ao menu inicial (a volta ao título libera os saves, D59).</summary>
+    private static void ReturnToTitle()
+    {
+        _returnToTitleAt = -1;
+        try
+        {
+            if (NetSession.Current != NetSession.Mode.Offline) return; // reconectou (F9) nesse meio-tempo
+            if (!WorldSnapshot.HoldingHostWorld || !SceneManager.IsInstance || SceneManager.Instance.CurrentSceneMode != SceneMode.Game) return;
+            Plugin.Logger.LogInfo("[NotifySync] conexão perdida: voltando ao menu inicial");
+            SceneManager.Instance.LoadScene(SceneMode.Title, null, null);
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[NotifySync] voltar ao menu: {e.Message}"); }
+    }
+
     private void Update()
     {
+        if (_returnToTitleAt > 0 && Time.unscaledTime >= _returnToTitleAt) ReturnToTitle();
         if (NetSession.Current == NetSession.Mode.Offline || Time.unscaledTime < _nextPoll) return;
         _nextPoll = Time.unscaledTime + 0.25f;
         try

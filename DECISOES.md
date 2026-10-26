@@ -700,3 +700,10 @@ Regras deste arquivo:
 - **P16 (conexão caiu):** o convidado volta para o menu inicial.
 - **P17 (Happy Bingo):** compartilhado, como já está (D61).
 - **Testes:** há memória para duas instâncias; se faltar, pode fechar programas que não sejam vitais nem de trabalho. Uma cópia do jogo aberta pelo usuário nunca é fechada pela IA.
+
+### D65 — Conexão caiu: o convidado volta ao menu inicial (P16)
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** usuário (P16: "volta pro menu")
+- **Contexto:** com a D59 o convidado que perdia a conexão ficava no mundo do host sem salvar, com um aviso. O usuário preferiu voltar ao menu.
+- **Decisão:** ao perder a conexão com o mundo do host na memória, o aviso diz "Voltando ao menu inicial em alguns segundos" e, 4 s depois, o jogo carrega a tela de título (`NotifySync.ReturnToTitle`). A volta ao título libera os saves (D59). Se a pessoa reconectar pelo F9 nesse meio-tempo, não volta.
+- **Testado com duas instâncias:** host derrubado à força (taskkill) → no convidado "desconectado do host: Timeout" → aviso → tela de título 17 s depois (10 s de espera da conexão + 4 s do aviso + carga); mundo do host fora da memória.
+- **No mesmo teste (mudanças da noite, D58/D63):** o host mudou um animal logo depois de mandar o mundo; o convidado, ainda carregando, guardou a mensagem e aplicou depois (afeição 777 nos dois). Os dois dormiram pela cama de verdade à 1h: o host virou o dia, o convidado recebeu o aviso "o host começou a virada", o mundo novo e o perfil, e aplicou as mensagens que chegaram durante a carga.
