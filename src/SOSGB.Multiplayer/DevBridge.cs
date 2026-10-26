@@ -922,6 +922,63 @@ public class DevBridge : MonoBehaviour
                     (Action<int, SaveLoadResult>)((s, r) => PushEvent($"save-manual:{s}:{r}")));
                 return Json(new { ok = true, started = true });
 
+            case "windmill":
+            {
+                // windmill | windmill addcomplete <tipo 1-3> <item> | windmill takeout <tipo> | windmill droptool <item> — moinhos (P12/D66)
+                var wmA = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var wm = WindmillCraftingManager.Instance;
+                var sd = wm.saveData;
+                string RW(Func<object> f) { try { return f()?.ToString() ?? "ok"; } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                string res = null;
+                if (wmA.Length >= 3 && wmA[0] == "addcomplete")
+                    res = RW(() => { sd.AddCompleteItem((WindmillCraftingType)int.Parse(wmA[1]), new BokuMono.Data.ItemData { ItemId = uint.Parse(wmA[2]), Stack = 1, QualityValue = 10, FreshnessValue = 100 }); return "ok"; });
+                if (wmA.Length >= 2 && wmA[0] == "droptool")
+                    res = RW(() =>
+                    {
+                        // tira uma ferramenta da mochila (simula quem a deixou no moinho para melhorar)
+                        foreach (var d in InventoryManager.Instance.BagToolStorage.ItemDatas)
+                            if (d != null && d.ItemId == uint.Parse(wmA[1])) { InventoryManager.Instance.BagToolStorage.PutOut(d); return "tirada"; }
+                        return "não tem";
+                    });
+                if (wmA.Length >= 2 && wmA[0] == "takeout")
+                    res = RW(() => { wm.TakeOutAction((WindmillCraftingType)int.Parse(wmA[1]), (Il2CppSystem.Action)(() => PushEvent("moinho:retirado"))); return "chamado"; });
+                var mills = new List<string>();
+                for (var t = 1; t <= 3; t++)
+                {
+                    var ty = (WindmillCraftingType)t;
+                    string L(Il2CppSystem.Collections.Generic.List<BokuMono.Data.ItemData> l)
+                    {
+                        var parts = new List<string>();
+                        if (l != null) foreach (var it in l) parts.Add(it == null ? "null" : $"{it.ItemId}x{it.Stack}");
+                        return string.Join(",", parts);
+                    }
+                    var crafts = new List<string>();
+                    try
+                    {
+                        var dl = sd.GetDataList(ty);
+                        if (dl != null) foreach (var c in dl)
+                        {
+                            var mats = new List<string>();
+                            if (c.materialList != null) foreach (var m in c.materialList) if (m != null) mats.Add($"{m.ItemId}x{m.Stack}");
+                            crafts.Add($"receita {c.recipeDataId} faz {RW(() => c.GetCreateItemId())} materiais [{string.Join(",", mats)}] falta {RW(() => c.LeftTimeMinute)} min");
+                        }
+                    }
+                    catch (Exception e) { crafts.Add("erro: " + e.Message); }
+                    mills.Add($"{ty}: pedidos {string.Join(" | ", crafts)}");
+                    mills.Add($"{ty}: liberado={RW(() => wm.IsReleaseWindmill(ty))} fazendo={RW(() => sd.GetDataList(ty)?.Count)} pronto=[{RW(() => L(sd.GetCompleteList(ty)))}] cancelados=[{RW(() => L(sd.GetCancelToolList(ty)))}] mesmaLista={RW(() => sd.GetCompleteList(ty)?.Pointer == sd.GetCompleteList(ty)?.Pointer)}");
+                }
+                var recipes = new List<string>();
+                foreach (var r in MasterDataManager.Instance.WindmillCraftingMaster.list)
+                    if (r != null && (int)r.ToolType != 0 && recipes.Count < 12) {
+                        var req = new List<string>();
+                        if (r.RequiredItemId != null) for (var k = 0; k < r.RequiredItemId.Count; k++) req.Add($"{r.RequiredItemType[k]}:{r.RequiredItemId[k]}x{r.RequiredItemStack[k]}");
+                        recipes.Add($"{r.Id}: faz {r.CraftingItemId} ferramenta={r.ToolType} nv{r.ToolLv} moinho={r.WindmillType} tempo={r.Time} pede [{string.Join(",", req)}]");
+                    }
+                var tools = new List<string>();
+                foreach (var d in InventoryManager.Instance.BagToolStorage.ItemDatas) if (d != null && d.ItemId != 0) tools.Add(d.ItemId.ToString());
+                return Json(new { ok = true, result = res, mills, recipes, tools });
+            }
+
             case "trophy":
             {
                 // trophy — estante de troféus: o que o jogo guarda (troféus "usados" e a estante) e troféus na mochila
