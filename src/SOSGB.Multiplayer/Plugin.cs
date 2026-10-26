@@ -121,6 +121,8 @@ public class Plugin : BasePlugin
 
         var harmony = new Harmony(Guid);
         harmony.PatchAll(typeof(Plugin).Assembly);
+        // Só testes: registro das rotinas da barraca do Bazaar, sob pedido (D56).
+        if (DevMode && System.Environment.GetEnvironmentVariable("SOSGB_BAZAAR_DIAG") == "1") Patches.BazaarDiagnosticsPatch.Apply(harmony);
         // Só testes: SOSGB_TEST_UNPATCH="BazaarManager.IsBuyStandby,UIBazaarMainPage.OpenMiniDeck" tira os patches do mod
         // desses métodos (achar qual patch atrapalha o jogo sem recompilar).
         var unpatch = System.Environment.GetEnvironmentVariable("SOSGB_TEST_UNPATCH");
@@ -147,6 +149,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.NotifySync>();
         AddComponent<Net.AppearanceSync>();
         AddComponent<Net.MoneySync>();
+        AddComponent<Net.MissionSync>();
         AddComponent<Net.StorageSync>();
         AddComponent<Net.LetterSync>();
         AddComponent<Net.FarmSync>();

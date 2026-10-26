@@ -8,7 +8,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 21;
+    public const int Version = 22;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -119,4 +119,13 @@ public enum MsgType : byte
 
     /// <summary>Ajudante → host (→ dono da barraca): [byte ajudante][byte tipo 1=atender 2=pôr item][byte balcão][byte espaço][uint item][int qtd][int qualidade][int frescor] — pedido do ajudante no Bazaar; o host repassa ao dono se não for ele (D56)</summary>
     BazaarHelp = 35,
+
+    /// <summary>Convidado → host: [long diferença] — a Happy Energy mudou no convidado (D57, como MoneyDelta)</summary>
+    HappyDelta = 36,
+
+    /// <summary>Host → todos: [long total] — Happy Energy compartilhada oficial (D57, como MoneyState). Só vale vindo do host.</summary>
+    HappyState = 37,
+
+    /// <summary>Convidado ↔ host: [byte 0=mudanças 1=lista oficial][bool lojaNova][int n]{[uint id][byte estado][int progresso ou diferença][long aceito][long completo]} — pedidos dos moradores (D57)</summary>
+    MissionData = 38,
 }

@@ -14,6 +14,8 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo |
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
 | `BazaarViewSync.cs` | D55: quem vende no Bazaar manda os clientes e os balcões; os outros no mesmo mapa assumem os clientes de mesmo número (cópias sem IA), abrem a barraca e mostram os itens; devolvem tudo quando a loja fecha |
+| `BazaarHelpSync.cs` | D56: ajudante na barraca do Bazaar — interceptações instaladas só enquanto ajuda (Enter → pedido "atender", mini deck → pedido "pôr item", estados dos espaços do dono); o dono executa os pedidos; lista do mini deck refeita quando o deck muda |
+| `MissionSync.cs` | D57: pedidos dos moradores compartilhados (progresso somado, estado mais avançado; host manda a lista oficial) |
 | `RomanceSync.cs` | 6.4/D44: romance exclusivo (registro NPC → jogador no host; patches em `CheckMarryable`/`SetFiance`) |
 | `SharedSync.cs` | 5.4/D42/D43: estado compartilhado genérico (lista de partes com capturar/aplicar, em rodízio): moinho, apicultura, cogumelos, vasos, ampliações, pets, cavalo, prêmios, adega, banho, receitas, missões, peixes, reforços, lojas, Bazaar, festivais, informações gerais, histórico de itens e flags de evento (união) |
 | `AnimalSync.cs` | 5.3/D41: animais da fazenda (cuidados) e celeiros (ovos, ração), mesclando sem mexer na posição |
@@ -21,7 +23,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `FieldState.cs` | Fase 5 (alicerce, D40): estado dos objetos de um mapa (captura pelo serializador oficial, aplicar só as diferenças no mapa atual ou num mapa residente, instalar no save de mapas) |
 | `LetterSync.cs` | 4.6/D39: correio compartilhado; estado do `LetterManager` sincronizado (montado à mão a partir do JSON) |
 | `StorageSync.cs` | 4.2/D37/D46: armazéns compartilhados (casa, deck do Bazaar, peças da barraca); trava de uma pessoa por vez (host) e sincronização pelo conteúdo |
-| `MoneySync.cs` | 4.1/D36: carteira compartilhada; cada jogo observa `PlayerMoney`, convidado manda a diferença, host manda o total |
+| `MoneySync.cs` | 4.1/D36/D57: carteiras compartilhadas (dinheiro e Happy Energy); cada jogo observa o valor, convidado manda a diferença, host manda o total |
 | `FreshProfile.cs` | D30: perfil "do zero" de quem entra pela 1ª vez (zera corações/conversas, esvazia mochila e regador, ferramentas no nível básico, visual do save próprio) |
 | `NotifySync.cs` | D26: detecta os próprios acontecimentos (dormiu, desmaiou, evento) e mostra os avisos de todos |
 | `Locations.cs` | Nome traduzido de um mapa (tabela `FieldNameText` + `FieldMaster.ConvertToFieldId` para IDs sazonais) |

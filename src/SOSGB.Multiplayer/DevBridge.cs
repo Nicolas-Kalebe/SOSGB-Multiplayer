@@ -734,6 +734,49 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, result = rb, inputEnable = page.IsInputEnable(), miniDeck = page.IsMiniDeck() });
             }
 
+            case "d57":
+            {
+                // d57 happy [add <n>] | mission [add <id> <n> | state <id> <0-4>] | tutorial [add <id>] | brand [add <item>]
+                // Testes do que passou a ser compartilhado na D57.
+                var da = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var uiD = ExternalData.Instance.UserInfo;
+                string RD(Func<object> f) { try { return f()?.ToString() ?? "ok"; } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                object res = null;
+                switch (da.Length > 0 ? da[0] : "")
+                {
+                    case "happy":
+                        if (da.Length >= 3 && da[1] == "add") RD(() => { GameController.Instance.AddHappyPointNotUpdateHeld(uint.Parse(da[2])); return null; });
+                        res = new { happy = uiD.PlayerHappyPoint };
+                        break;
+                    case "mission":
+                    {
+                        var mm = MissionManager.Instance;
+                        string r0 = null;
+                        if (da.Length >= 4 && da[1] == "add") r0 = RD(() => { var od = mm.GetMissionData(uint.Parse(da[2])); od.SetProgress(od.ProgressValue + int.Parse(da[3])); return od.ProgressValue; });
+                        if (da.Length >= 4 && da[1] == "state") r0 = RD(() => { var od = mm.GetMissionData(uint.Parse(da[2])); od.State = (MissionManager.OrderState)int.Parse(da[3]); return od.State; });
+                        var all = new List<string>();
+                        foreach (var od in mm.OrderDatas) if (od != null) all.Add($"{od.Id}:{(int)od.State}:{od.ProgressValue}");
+                        res = new { result = r0, count = all.Count, orders = all.Take(60) };
+                        break;
+                    }
+                    case "tutorial":
+                    {
+                        var tm = TutorialManager.Instance;
+                        if (da.Length >= 3 && da[1] == "add") tm.AddTutorialRead(uint.Parse(da[2]));
+                        var sd = tm.ToSaveData();
+                        res = new { read = sd.ReadTutorialIdList?.Count ?? -1, tips = sd.ReadTipsIdList?.Count ?? -1, has = da.Length >= 3 && sd.ReadTutorialIdList != null && sd.ReadTutorialIdList.Contains(uint.Parse(da[2])) };
+                        break;
+                    }
+                    case "brand":
+                        if (da.Length >= 3 && da[1] == "add") { uiD.BrandItemIds ??= new Il2CppSystem.Collections.Generic.List<uint>(); uiD.BrandItemIds.Add(uint.Parse(da[2])); }
+                        var bl = new List<uint>();
+                        if (uiD.BrandItemIds != null) foreach (var b in uiD.BrandItemIds) bl.Add(b);
+                        res = new { items = bl };
+                        break;
+                }
+                return Json(new { ok = true, res });
+            }
+
             case "objcount":
             {
                 // Quantos GameObjects ativos há na cena, por nome (teste de duplicação ao reaplicar estado)
@@ -885,7 +928,12 @@ public class DevBridge : MonoBehaviour
                 if (sa.Count > 0 && sa[0] == "deck") { sidx = 1; sa.RemoveAt(0); }
                 else if (sa.Count > 0 && sa[0] == "parts") { sidx = 2; sa.RemoveAt(0); }
                 var hs = Net.StorageSync.Get(sidx);
-                if (sa.Count >= 3 && sa[0] == "put") hs.PutIn(BokuMono.Data.ItemData.Create(uint.Parse(sa[1]), int.Parse(sa[2])), out _, false);
+                if (sa.Count >= 3 && sa[0] == "put")
+                {
+                    hs.PutIn(BokuMono.Data.ItemData.Create(uint.Parse(sa[1]), int.Parse(sa[2])), out _, false);
+                    // Deck: o "Ver estoque" do jogo dá um número de deck a cada item; sem ele o mini deck da barraca quebra (D56).
+                    if (sidx == 1) Net.BazaarHelpSync.FixDeckNumbers();
+                }
                 if (sa.Count >= 3 && sa[0] == "take") hs.PutOut(int.Parse(sa[1]), int.Parse(sa[2]));
                 var list = new List<string>();
                 var hd = hs.ItemDatas;
@@ -990,7 +1038,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status() });
+                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status(), missions = Net.MissionSync.Status() });
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)

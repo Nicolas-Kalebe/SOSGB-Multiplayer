@@ -43,6 +43,9 @@ public class BazaarViewSync : MonoBehaviour
         public float Norm;
         public float Speed;
         public byte Sign;
+        // Balão de desejo (item que o cliente quer e quantos), o UIEmoteSign do cliente. 0 = sem balão.
+        public uint WishItem;
+        public int WishBuy, WishBuff, WishCounter;
     }
 
     private struct Slot
@@ -61,6 +64,8 @@ public class BazaarViewSync : MonoBehaviour
         public float RotY;
         public int Hash;
         public byte Sign;
+        public uint Wish;
+        public int WishBuy;
         public bool Seen;
     }
 
@@ -153,6 +158,19 @@ public class BazaarViewSync : MonoBehaviour
                         RotY = a.transform.eulerAngles.y,
                         Sign = (byte)a.currentSignType,
                     };
+                    try
+                    {
+                        var em = a.EmoteSign;
+                        if (em != null && em.IsShowing && em.itemId != 0)
+                        {
+                            v.WishItem = em.itemId;
+                            var c = em.itemCount;
+                            v.WishBuy = c?.buyNum ?? 0;
+                            v.WishBuff = c?.buffNum ?? 0;
+                            v.WishCounter = em.counterIndex;
+                        }
+                    }
+                    catch { /* balão é só enfeite */ }
                     if (an != null)
                     {
                         var st = an.GetCurrentAnimatorStateInfo(0);
@@ -174,6 +192,7 @@ public class BazaarViewSync : MonoBehaviour
                 {
                     w.Put(v.Id); w.Put(v.Pos.x); w.Put(v.Pos.y); w.Put(v.Pos.z); w.Put(v.RotY);
                     w.Put(v.Hash); w.Put(v.Norm); w.Put(v.Speed); w.Put(v.Sign);
+                    w.Put(v.WishItem); w.Put(v.WishBuy); w.Put(v.WishBuff); w.Put(v.WishCounter);
                 }
                 w.Put((byte)states.Length);
                 foreach (var st in states) w.Put(st);
@@ -227,6 +246,10 @@ public class BazaarViewSync : MonoBehaviour
                     Norm = r.GetFloat(),
                     Speed = r.GetFloat(),
                     Sign = r.GetByte(),
+                    WishItem = r.GetUInt(),
+                    WishBuy = r.GetInt(),
+                    WishBuff = r.GetInt(),
+                    WishCounter = r.GetInt(),
                 });
             if (open && r.AvailableBytes >= 1)
             {
@@ -384,7 +407,19 @@ public class BazaarViewSync : MonoBehaviour
                     }
                     continue;
                 }
-                p = Capture(a);
+                if (Frozen.TryGetValue(a.Pointer, out var fp))
+                {
+                    // Estava congelado como "extra" e agora o dono tem esse cliente: vira cópia sem capturar de novo
+                    // (capturar de novo gravaria o estado congelado como se fosse o original).
+                    Frozen.Remove(a.Pointer);
+                    for (var i = Hidden.Count - 1; i >= 0; i--)
+                        if (Hidden[i] == null || Hidden[i].Pointer == a.Pointer) Hidden.RemoveAt(i);
+                    a.SetActiveGraphic(true);
+                    fp.Hash = 0;
+                    fp.Sign = 0;
+                    p = fp;
+                }
+                else p = Capture(a);
                 Puppets[v.Id] = p;
                 a.transform.position = v.Pos;
             }
@@ -406,11 +441,34 @@ public class BazaarViewSync : MonoBehaviour
                 catch { /* balão é só enfeite */ }
                 p.Sign = v.Sign;
             }
+            // Balão de desejo (o item que o cliente quer e quantos), como no jogo do dono.
+            if (v.WishItem != p.Wish || v.WishBuy != p.WishBuy)
+            {
+                try
+                {
+                    var em = p.Agent.EmoteSign;
+                    if (em != null)
+                    {
+                        if (v.WishItem == 0) em.Hide(null);
+                        else em.Show(new BuyNumBuffParam(v.WishBuy, v.WishBuff), v.WishItem, v.WishCounter, 0);
+                        p.Wish = v.WishItem;
+                        p.WishBuy = v.WishBuy;
+                    }
+                }
+                catch { /* balão é só enfeite */ }
+            }
         }
 
         var gone = new List<uint>();
         foreach (var kv in Puppets) if (!kv.Value.Seen) gone.Add(kv.Key);
-        foreach (var id in gone) { Release(Puppets[id]); Puppets.Remove(id); }
+        foreach (var id in gone)
+        {
+            var gp = Puppets[id];
+            Puppets.Remove(id);
+            // No modo ajudante o cliente que saiu da loja do dono não pode voltar a ter IA aqui: fica congelado e escondido.
+            if (BazaarHelpSync.Active && gp.Agent != null) { Frozen[gp.Agent.Pointer] = gp; gp.Agent.SetActiveGraphic(false); }
+            else Release(gp);
+        }
 
         // Clientes deste jogo que o dono não tem: escondidos enquanto as cópias estão na tela.
         if (bm.NpcAgentList != null)
@@ -418,11 +476,11 @@ public class BazaarViewSync : MonoBehaviour
             {
                 if (a == null || a.VisitorMaster == null) continue;
                 if (Puppets.TryGetValue(a.VisitorMaster.Id, out var p) && p.Agent != null && p.Agent.Pointer == a.Pointer) continue;
-                if (Hidden.Exists(h => h != null && h.Pointer == a.Pointer)) continue;
-                a.SetActiveGraphic(false);
-                Hidden.Add(a);
                 // Ajudante em modo loja: os clientes do próprio jogo não podem andar até o balcão nem reservar espaços.
-                if (BazaarHelpSync.Active && !Frozen.ContainsKey(a.Pointer)) { Frozen[a.Pointer] = Capture(a); a.SetActiveGraphic(false); }
+                if (BazaarHelpSync.Active && !Frozen.ContainsKey(a.Pointer)) Frozen[a.Pointer] = Capture(a);
+                // O jogo daqui às vezes volta a mostrar o cliente (aparecer, reposicionar): esconde de novo a cada pacote.
+                a.SetActiveGraphic(false);
+                if (!Hidden.Exists(h => h != null && h.Pointer == a.Pointer)) Hidden.Add(a);
             }
     }
 
@@ -453,6 +511,7 @@ public class BazaarViewSync : MonoBehaviour
         try
         {
             if (p.Sign != 0) a.HideSign();
+            if (p.Wish != 0) a.EmoteSign?.Hide(null);
             if (p.Anim != null) p.Anim.applyRootMotion = p.RootMotion;
             if (p.Body != null) p.Body.isKinematic = p.BodyWasKinematic;
             a.enabled = true;

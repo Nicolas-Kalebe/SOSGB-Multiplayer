@@ -122,6 +122,15 @@ public class SharedSync : MonoBehaviour
         Make("pets", () => AnimalManager.IsInstance && AnimalManager.Instance.PetAnimalController != null,
             () => StringExtensions.ToJson(AnimalManager.Instance.PetAnimalController.ToSaveData()),
             ApplyPets),
+        // Tutoriais já lidos (D57): UNIÃO — quem leu, ninguém vê de novo. Sem isto o convidado via o mesmo tutorial
+        // todo dia (o que ele lia se perdia na virada, quando chega o mundo do host).
+        Make("tutorial", () => TutorialManager.IsInstance,
+            CaptureTutorial,
+            UnionTutorial),
+        // Selo BRAND (preço 3x) ganho nos festivais, em itens e animais (D57): UNIÃO.
+        Make("brand", () => ExternalData.IsInstance && ExternalData.Instance.UserInfo != null,
+            CaptureBrand,
+            UnionBrand),
         Make("horse", () => AnimalManager.IsInstance && AnimalManager.Instance.RideableAnimalController != null,
             () => StringExtensions.ToJson(AnimalManager.Instance.RideableAnimalController.ToSaveData()),
             ApplyHorse),
@@ -132,6 +141,65 @@ public class SharedSync : MonoBehaviour
     // sem descarregar os que já estão na cena: aplicar a parte inteira a cada mudança deixava os pets EM DOBRO (visto
     // pelo usuário). Aqui cada animal recebe o estado no próprio parâmetro (FromSaveData do animal, mesmo Guid), como
     // a AnimalSync faz com os animais da fazenda. Animal que ainda não existe neste jogo é criado e registrado.
+
+    // ----- Tutoriais e BRAND: união de listas de números -----
+
+    private static string Ids(Il2CppSystem.Collections.Generic.List<uint> l)
+    {
+        var res = new List<uint>();
+        if (l != null) foreach (var x in l) res.Add(x);
+        res.Sort();
+        return System.Text.Json.JsonSerializer.Serialize(res);
+    }
+
+    private static List<uint> IdsIn(string json, string key)
+    {
+        using var d = System.Text.Json.JsonDocument.Parse(json);
+        var res = new List<uint>();
+        if (d.RootElement.TryGetProperty(key, out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+            foreach (var x in arr.EnumerateArray()) res.Add(x.GetUInt32());
+        return res;
+    }
+
+    private static string CaptureTutorial()
+    {
+        var sd = TutorialManager.Instance.ToSaveData();
+        return "{\"t\":" + Ids(sd.ReadTutorialIdList) + ",\"p\":" + Ids(sd.ReadTipsIdList) + "}";
+    }
+
+    private static void UnionTutorial(string json)
+    {
+        var tm = TutorialManager.Instance;
+        var sd = tm.ToSaveData();
+        foreach (var id in IdsIn(json, "t"))
+            if (sd.ReadTutorialIdList == null || !sd.ReadTutorialIdList.Contains(id)) tm.AddTutorialRead(id);
+        var tips = tm.ReadTipsIdList;
+        if (tips != null)
+            foreach (var id in IdsIn(json, "p"))
+                if (!tips.Contains(id)) tips.Add(id);
+    }
+
+    private static string CaptureBrand()
+    {
+        var ui = ExternalData.Instance.UserInfo;
+        return "{\"i\":" + Ids(ui.BrandItemIds) + ",\"a\":" + Ids(ui.BrandAnimalIds) + "}";
+    }
+
+    private static void UnionBrand(string json)
+    {
+        var ui = ExternalData.Instance.UserInfo;
+        ui.BrandItemIds ??= new Il2CppSystem.Collections.Generic.List<uint>();
+        ui.BrandAnimalIds ??= new Il2CppSystem.Collections.Generic.List<uint>();
+        foreach (var id in IdsIn(json, "i")) if (!ui.BrandItemIds.Contains(id)) ui.BrandItemIds.Add(id);
+        foreach (var id in IdsIn(json, "a")) if (!ui.BrandAnimalIds.Contains(id)) ui.BrandAnimalIds.Add(id);
+    }
+
+    /// <summary>
+    /// Host aplicando estado vindo de um convidado (D57). Pets e cavalos NOVOS só nascem no mundo do host: eventos da
+    /// manhã (pet grátis em 1 de verão, cavalo em 14 de verão) rodam em cada jogo e criariam um animal a mais por
+    /// jogador. Quando o host recusa algo, ele manda o estado DELE a todos em vez de repassar o do convidado.
+    /// </summary>
+    private static bool _applyingFromGuest, _filtered;
 
     private static IEnumerable<(string guid, string json)> AnimalsIn(string json, string listName)
     {
@@ -152,6 +220,7 @@ public class SharedSync : MonoBehaviour
             if (sd == null) throw new Exception("JsonToObject devolveu nulo (pet)");
             var p = pc.FindParameter(guid);
             if (p != null) { p.FromSaveData(sd); continue; }
+            if (_applyingFromGuest) { _filtered = true; Plugin.Logger.LogInfo($"[SharedSync] pet novo vindo de convidado ignorado ({guid}): pets novos só no mundo do host"); continue; }
             p = new BokuMono.Animal.PetAnimalParameter();
             p.FromSaveData(sd);
             pc.AddParameter(p);
@@ -168,6 +237,7 @@ public class SharedSync : MonoBehaviour
             if (sd == null) throw new Exception("JsonToObject devolveu nulo (cavalo)");
             var p = rc.FindParameter(guid);
             if (p != null) { p.FromSaveData(sd); continue; }
+            if (_applyingFromGuest) { _filtered = true; Plugin.Logger.LogInfo($"[SharedSync] cavalo novo vindo de convidado ignorado ({guid})"); continue; }
             p = new BokuMono.Animal.RideableAnimalParameter();
             p.FromSaveData(sd);
             rc.AddParameter(p);
@@ -524,9 +594,22 @@ public class SharedSync : MonoBehaviour
         var packed = r.GetBytesWithLength();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
         if (!Ready()) return;
-        var res = ApplyPart(name, LetterSync.Unpack(packed));
+        _applyingFromGuest = NetSession.Current == NetSession.Mode.Host;
+        _filtered = false;
+        string res;
+        try { res = ApplyPart(name, LetterSync.Unpack(packed)); }
+        finally { _applyingFromGuest = false; }
         if (res == "ok") Received++;
-        if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: from);
+        if (NetSession.Current == NetSession.Mode.Host)
+        {
+            if (_filtered)
+            {
+                // Recusou parte do que veio: todos (inclusive quem mandou) recebem o estado do host.
+                var own = Parts.FirstOrDefault(x => x.Name == name);
+                if (own != null) SendToClients(name, LetterSync.Pack(own.Capture()), except: NetSession.UnknownId);
+            }
+            else SendToClients(name, packed, except: from);
+        }
         Plugin.Logger.LogInfo($"[SharedSync] {name} de #{from}: {res}");
         DevBridge.PushEvent($"compartilhado:recebido:{name}:{res}");
     }

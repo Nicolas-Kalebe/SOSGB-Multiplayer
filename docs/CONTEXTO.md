@@ -7,4 +7,5 @@ Documentação técnica que não cabe nos arquivos da raiz.
 | Arquivo | Conteúdo |
 |---|---|
 | [`INSTALACAO.md`](INSTALACAO.md) | Como instalar, configurar (host/convidado) e jogar; limitações; montar o pacote |
+| [`RISCOS-MULTIPLAYER.md`](RISCOS-MULTIPLAYER.md) | Levantamento do que no jogo pode conflitar no co-op (inventário do save + wiki), com a situação de cada item (D57) |
 | [`PROTOCOLO.md`](PROTOCOLO.md) | Protocolo de rede: transporte, mensagens, aperto de mão, versões |

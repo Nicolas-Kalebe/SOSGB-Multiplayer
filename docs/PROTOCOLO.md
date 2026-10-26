@@ -64,6 +64,8 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 22 | `HappyDelta` (36) / `HappyState` (37): Happy Energy compartilhada; `MissionData` (38): pedidos dos moradores. D57 |
+| 21 | `BazaarHelp` (35): pedidos do ajudante do Bazaar ao dono (atender, pôr item); `BazaarVisitors` leva também o estado de cada espaço; `BazaarShelves` leva os 12 espaços dos balcões no formato do jogo. D56 |
 | 20 | `BazaarVisitors` (18) e `BazaarShelves` (19): clientes e balcões de quem está vendendo no Bazaar, repassados a todos. D55 |
 | 19 | `ClockJump` (34, convidado → host: o tempo pulou para frente); `PauseReport` passa a significar "no menu de pausa"; armazém 3 = barraca do Bazaar (trava). D50/D51 |
 | 18 | Mensagens de armazém (`StorageHolder`, `StorageData`, `StorageUse`) com o número do armazém (0 casa, 1 deck, 2 peças do Bazaar). D46 |

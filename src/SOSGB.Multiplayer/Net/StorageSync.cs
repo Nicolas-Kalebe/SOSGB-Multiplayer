@@ -49,7 +49,7 @@ public class StorageSync : MonoBehaviour
         // Barraca do Bazaar: só uma pessoa vende por vez (D51; evita duas barracas vendendo os mesmos itens). Não tem
         // conteúdo próprio; a trava vale enquanto a loja está aberta. Quem abre a loja com a barraca de outro é
         // ajudante (D56) e não pega a trava.
-        new() { Index = 3, Name = "a barraca do Bazaar", UiKey = -1, OpenNow = () => BazaarManager.IsInstance && BazaarManager.Instance.IsInShop && !BazaarHelpSync.Active, Get = () => null },
+        new() { Index = 3, Name = "a barraca do Bazaar", UiKey = -1, OpenNow = () => BazaarManager.IsInstance && BazaarManager.Instance.IsInShop && (Stores[3].Holder == NoHolder || Stores[3].Holder == NetSession.LocalId), Get = () => null },
     };
 
     /// <summary>Quem está com a barraca do Bazaar aberta (NoHolder = ninguém).</summary>
@@ -267,6 +267,8 @@ public class StorageSync : MonoBehaviour
         s.Baseline = Signature(s);
         s.HasBaseline = true;
         s.LastReceived = json;
+        // A lista do mini deck do Bazaar é uma cópia que o jogo não refaz sozinho quando o deck muda (D56).
+        if (s.Index == 1) BazaarHelpSync.RefreshMiniDeck();
     }
 
     /// <summary>
