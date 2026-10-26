@@ -44,6 +44,7 @@ public class AnimalSync : MonoBehaviour
     private static bool _subscribed;
     private float _nextTick;
     public static int Sent, Received;
+    private static readonly HeldMessages Held = new("AnimalSync");
 
     private void Awake()
     {
@@ -116,7 +117,9 @@ public class AnimalSync : MonoBehaviour
     {
         try
         {
-            if (!Ready() || Time.unscaledTime < _nextTick) return;
+            if (!Ready()) return;
+            if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
+            if (Time.unscaledTime < _nextTick) return;
             _nextTick = Time.unscaledTime + 1f;
             var changed = new List<(string guid, string json)>();
             foreach (var a in FarmAnimals())
@@ -144,7 +147,7 @@ public class AnimalSync : MonoBehaviour
             if (changed.Count == 0) return;
             var packed = Pack(changed);
             if (NetSession.Current == NetSession.Mode.Host) SendToClients(packed, except: NetSession.LocalId);
-            else NetSession.SendGame(MsgType.AnimalData, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+            else NetSession.SendGame(MsgType.AnimalData, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
             Sent += changed.Count;
             Plugin.Logger.LogInfo($"[AnimalSync] {changed.Count} animal(is) mudou(aram): enviado ({packed.Length} bytes)");
             DevBridge.PushEvent($"animais:enviado:{changed.Count}");
@@ -169,15 +172,15 @@ public class AnimalSync : MonoBehaviour
     {
         foreach (var id in NetSession.Players.Keys)
             if (id != NetSession.LocalId && id != except)
-                NetSession.SendTo(id, MsgType.AnimalData, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+                NetSession.SendTo(id, MsgType.AnimalData, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
     }
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
         if (type != MsgType.AnimalData) return;
-        var packed = r.GetBytesWithLength();
+        if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; } // D63: guarda em vez de descartar
+        var packed = r.GetBlob();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
-        if (!Ready()) return;
         try
         {
             var list = Unpack(packed);

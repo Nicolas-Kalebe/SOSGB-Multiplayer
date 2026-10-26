@@ -77,6 +77,7 @@ public class MoneySync : MonoBehaviour
         try
         {
             if (!Ready()) return;
+            if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
             var ui = ExternalData.Instance.UserInfo;
             foreach (var w in Wallets) Tick(w, ui);
         }
@@ -114,14 +115,23 @@ public class MoneySync : MonoBehaviour
     private static void Broadcast(Wallet w, long total) =>
         NetSession.SendGame(w.StateMsg, x => x.Put(total), DeliveryMethod.ReliableOrdered);
 
+    private static readonly HeldMessages Held = new("MoneySync");
+
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
+        foreach (var w in Wallets)
+        {
+            if (type != w.DeltaMsg && type != w.StateMsg) continue;
+            // Não pronto (carregando, trocando de cena): guarda e aplica depois (D63). No host, durante a virada do dia,
+            // HeldMessages não guarda: o mundo novo vai junto com o valor certo.
+            if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; }
+            break;
+        }
         foreach (var w in Wallets)
         {
             if (type == w.DeltaMsg && NetSession.Current == NetSession.Mode.Host)
             {
                 var delta = r.GetLong();
-                if (!Ready()) return; // virada do dia: o mundo novo vai junto com o valor certo
                 var ui = ExternalData.Instance.UserInfo;
                 var total = Math.Clamp(w.Get(ui) + delta, 0, uint.MaxValue);
                 w.Set(ui, (uint)total);
@@ -134,7 +144,6 @@ public class MoneySync : MonoBehaviour
             if (type == w.StateMsg && NetSession.Current == NetSession.Mode.Client && from == Protocol.HostPlayerId)
             {
                 var total = r.GetLong();
-                if (!Ready()) return;
                 var ui = ExternalData.Instance.UserInfo;
                 // Mudança local que ainda não saiu (a mensagem chegou antes do Update deste quadro): mantém ela
                 // por cima do total do host; a base fica no total, então o Update ainda manda essa diferença.

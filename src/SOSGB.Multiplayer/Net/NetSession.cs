@@ -283,7 +283,19 @@ public static class NetSession
 
         if (proto != Protocol.Version)
         {
-            Reject(peer, $"versão do protocolo diferente (host {Protocol.Version}, você {proto}; mod {Plugin.Version} × {modVersion})");
+            Reject(peer, $"versão do mod diferente: o host usa {Plugin.Version}, você usa {modVersion}. Instalem a mesma versão.");
+            return;
+        }
+        if (PlayerProfiles.GuidInUse(guid))
+        {
+            // Dois jogadores com o mesmo GUID dividiriam (e apagariam) o mesmo perfil: mochila, corações, noivado
+            // (revisão do núcleo). Acontece se alguém copiar a pasta BepInEx de outro jogador.
+            Reject(peer, "o seu PlayerGuid é igual ao de outro jogador (pasta BepInEx copiada?). Apague a linha PlayerGuid do .cfg e entre de novo.");
+            return;
+        }
+        if (Players.Count >= Protocol.MaxPlayers)
+        {
+            Reject(peer, "o mundo está cheio.");
             return;
         }
         var id = (byte)Enumerable.Range(1, Protocol.MaxPlayers - 1).First(i => !Players.ContainsKey((byte)i));

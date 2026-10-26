@@ -43,24 +43,60 @@ public static class WorldSnapshot
 
     public static string DumpPath => Path.Combine(Paths.BepInExRootPath, "worldsnap.sav");
 
+    private static float _armedAt;
+    private const float CaptureTimeout = 30f; // segundos reais
+
+    /// <summary>Terminou uma captura (de entrada, de virada ou de recuperação): quem esperava pode capturar agora.</summary>
+    public static event Action CaptureFinished;
+
+    /// <summary>
+    /// A captura está armada? Nunca fica armada para sempre (revisão do núcleo): se o jogo não chamar o retorno do save,
+    /// todo save automático iria para a memória com "sucesso" e ninguém mais entraria no mundo.
+    /// </summary>
+    private static bool Armed()
+    {
+        if (_captureArmed && UnityEngine.Time.unscaledTime - _armedAt > CaptureTimeout)
+        {
+            _captureArmed = false;
+            Plugin.Logger.LogWarning("[WorldSnapshot] a captura do mundo não terminou em 30 s; desarmada");
+            CaptureFinished?.Invoke();
+        }
+        return _captureArmed;
+    }
+
     public static void Capture(int slot, Action<bool> done)
     {
         _captureArmed = true;
+        _armedAt = UnityEngine.Time.unscaledTime;
         Captured = null;
-        var field = (FieldMasterId)FieldManager.Instance.CurrentFieldId;
-        SaveLoadManager.Instance.Save(slot, field, (Action<int, SaveLoadResult>)((s, r) =>
+        try
+        {
+            var field = (FieldMasterId)FieldManager.Instance.CurrentFieldId;
+            SaveLoadManager.Instance.Save(slot, field, (Action<int, SaveLoadResult>)((s, r) =>
+            {
+                _captureArmed = false;
+                try
+                {
+                    if (Captured != null) File.WriteAllBytes(DumpPath, Captured); // só para inspeção
+                    Plugin.Logger.LogInfo($"[WorldSnapshot] captura: {r}, {Captured?.Length ?? 0} bytes");
+                    done(Captured != null);
+                }
+                finally { CaptureFinished?.Invoke(); }
+            }));
+        }
+        catch (Exception e)
         {
             _captureArmed = false;
-            if (Captured != null) File.WriteAllBytes(DumpPath, Captured); // só para inspeção
-            Plugin.Logger.LogInfo($"[WorldSnapshot] captura: {r}, {Captured?.Length ?? 0} bytes");
-            done(Captured != null);
-        }));
+            Plugin.Logger.LogWarning($"[WorldSnapshot] captura falhou: {e.Message}");
+            done(false);
+            CaptureFinished?.Invoke();
+        }
     }
 
     /// <summary>Recebe um snapshot vindo da rede (convidado, Fase 3.1).</summary>
     public static void SetCaptured(byte[] bytes) => Captured = bytes;
 
-    public static bool Capturing => _captureArmed;
+    public static bool Capturing => Armed();
 
     /// <summary>Depois de o save (snapshot) ser lido e ANTES da cena Game carregar: dá para ajustar o UserInfo
     /// (ex.: o convidado coloca a própria aparência/gênero, e o jogo monta o personagem já certo — D28).</summary>
@@ -76,7 +112,7 @@ public static class WorldSnapshot
     /// </summary>
     public static void CaptureRecovery(string path)
     {
-        if (_captureArmed) return;
+        if (Armed()) return;
         Capture(ExternalData.Instance.UserInfo.Slot, ok =>
         {
             if (!ok || Captured == null) return;
@@ -126,7 +162,16 @@ public static class WorldSnapshot
 
         private static void Prefix(int sceneMode)
         {
-            if (sceneMode != SceneMode.Title || !HoldingHostWorld) return;
+            if (sceneMode != SceneMode.Title) return;
+            // Voltar ao título encerra a sessão (revisão do núcleo): senão o modo continuava "convidado"/"host" e o save
+            // que a pessoa carregasse depois mandaria o dinheiro, o correio e a mochila DELE para o mundo do grupo.
+            if (Net.NetSession.Current != Net.NetSession.Mode.Offline)
+            {
+                Plugin.Logger.LogInfo("[WorldSnapshot] voltou ao título: encerrando a sessão multiplayer");
+                Net.DaySync.ForgetForTitle();
+                Net.NetSession.Stop();
+            }
+            if (!HoldingHostWorld) return;
             HoldingHostWorld = false;
             Plugin.Logger.LogInfo("[WorldSnapshot] voltou ao título: o mundo do host saiu da memória (saves liberados)");
         }
@@ -137,7 +182,7 @@ public static class WorldSnapshot
     {
         private static bool Prefix(Il2CppStructArray<byte> datas, int size, int slot, ref Result __result)
         {
-            if (!_captureArmed)
+            if (!Armed())
             {
                 // D23: no multiplayer, o save oficial só acontece na virada do dia, feito pelo host.
                 if (Net.NetSession.Current == Net.NetSession.Mode.Host && !Net.DaySync.InDayChange)
@@ -173,7 +218,7 @@ public static class WorldSnapshot
     {
         private static bool Prefix(ref Result __result)
         {
-            if (!_captureArmed && !SavesBlocked) return true;
+            if (!Armed() && !SavesBlocked) return true;
             __result = Result.Succeess;
             return false; // o cabeçalho do slot também não vai para o disco durante a captura
         }

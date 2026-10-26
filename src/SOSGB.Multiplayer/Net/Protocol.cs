@@ -1,5 +1,28 @@
 // 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md e docs/PROTOCOLO.md.
+using LiteNetLib.Utils;
+
 namespace SOSGB.Multiplayer.Net;
+
+/// <summary>
+/// Blocos de bytes com o tamanho em int (revisão do núcleo). O PutBytesWithLength do LiteNetLib guarda o tamanho em
+/// ushort e CORTA, sem avisar, o que passar de 64 KB (estado comprimido de um mapa inteiro, correio grande...).
+/// </summary>
+public static class NetBlob
+{
+    public static void PutBlob(this NetDataWriter w, byte[] data)
+    {
+        w.Put(data.Length);
+        w.Put(data);
+    }
+
+    public static byte[] GetBlob(this NetDataReader r)
+    {
+        var n = r.GetInt();
+        var b = new byte[n];
+        r.GetBytes(b, n);
+        return b;
+    }
+}
 
 /// <summary>
 /// Constantes do protocolo de rede. Toda mudança incompatível incrementa <see cref="Version"/>.
@@ -46,7 +69,7 @@ public enum MsgType : byte
     /// <summary>Host → todos, 2×/s: [long ticks][bool rodando] — relógio do host (3.2) e pausa efetiva (3.3)</summary>
     ClockState = 11,
 
-    /// <summary>Host → todos: [byte dormindo][byte total] — contador "dormindo X/Y" (3.4, D12)</summary>
+    /// <summary>Host → todos: [byte dormindo][byte total][bool virada começou] — contador "dormindo X/Y" (3.4, D12; o bool é da D63)</summary>
     SleepStatus = 12,
 
     /// <summary>Qualquer → todos: [byte id][byte código] — dormiu/desmaiou/entrou em evento (avisos, D26)</summary>
@@ -84,10 +107,10 @@ public enum MsgType : byte
     /// <summary>Convidado → host: [bool dormindo] — o convidado deitou (3.4, D12)</summary>
     SleepReady = 23,
 
-    /// <summary>Convidado → host: [string json] — perfil individual do convidado (3.6, D24)</summary>
+    /// <summary>Convidado → host: [int n][gzip do json] — perfil individual do convidado (3.6, D24; comprimido na D63)</summary>
     ProfileUpload = 24,
 
-    /// <summary>Host → convidado: [string json ou vazio] — perfil guardado do convidado, mandado ao entrar (3.6)</summary>
+    /// <summary>Host → convidado: [int n][gzip do json ou vazio] — perfil guardado do convidado, mandado ao entrar (3.6; comprimido na D63)</summary>
     ProfileData = 25,
 
     /// <summary>Convidado → host: [long diferença] — o dinheiro mudou no convidado (compra, venda...). 4.1, D36</summary>

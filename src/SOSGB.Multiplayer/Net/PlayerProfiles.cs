@@ -21,7 +21,9 @@ namespace SOSGB.Multiplayer.Net;
 ///  - Identidade: [Net] PlayerGuid (gerado automaticamente), enviado no Hello.
 ///  - Primeira entrada (o host não conhece o GUID): o convidado começa DO ZERO (D30, FreshProfile), como os
 ///    farmhands do Stardew. Do save próprio só vem o visual do personagem.
-///  - O convidado envia o perfil ao host (ProfileUpload) ao dormir, a cada 60 s e ao sair.
+///  - O convidado envia o perfil ao host (ProfileUpload, comprimido) ao dormir, ao sair, ~1,5 s depois de a mochila
+///    ou as ferramentas mudarem e a cada 60 s (antes só a cada 60 s: quem caía logo depois de guardar itens no
+///    armazém voltava com eles também na mochila).
 ///  - O host guarda em memória e grava em arquivo na virada do dia (junto do save oficial, D23):
 ///    %APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\profiles_&lt;fazenda&gt;_&lt;host&gt;.json
 ///  - Ao (re)entrar, o host manda o perfil guardado (ProfileData).
@@ -33,6 +35,7 @@ public class PlayerProfiles : MonoBehaviour
     public PlayerProfiles(IntPtr ptr) : base(ptr) { }
 
     private const float UploadInterval = 60f;
+    private const float ChangeUploadDelay = 1.5f; // mochila/ferramentas mudaram: manda o perfil logo (revisão do núcleo)
 
     // ---- host ----
     private static readonly Dictionary<string, string> Stored = new(); // guid → JSON do perfil
@@ -53,6 +56,9 @@ public class PlayerProfiles : MonoBehaviour
     private static bool _firstWorldDone;
     private static string _lastUploaded;
     private float _nextUpload;
+    private long _invSig;
+    private float _invChangedAt = -1;
+    private float _nextInvCheck;
     private static bool _subscribed;
 
     private void Awake()
@@ -113,7 +119,9 @@ public class PlayerProfiles : MonoBehaviour
         if (_nextRecovery < 0) { _nextRecovery = Time.unscaledTime + minutes * 60f; return; }
         if (Time.unscaledTime < _nextRecovery) return;
         _nextRecovery = Time.unscaledTime + minutes * 60f;
-        SaveStore(); // perfis dos convidados junto
+        // Perfis num arquivo À PARTE, junto da cópia de recuperação: gravar o arquivo oficial no meio do dia deixava os
+        // perfis à frente do save oficial se o host travasse (itens colhidos à tarde na mochila e no pé; revisão do núcleo).
+        SaveStore(StorePath().Replace("profiles_", "recovery_profiles_"));
         WorldSnapshot.CaptureRecovery(Path.Combine(Path.GetDirectoryName(StorePath()),
             Path.GetFileName(StorePath()).Replace("profiles_", "recovery_").Replace(".json", ".sav")));
     }
@@ -156,10 +164,46 @@ public class PlayerProfiles : MonoBehaviour
             _nextUpload = Time.unscaledTime + 5f;
             return;
         }
-        if (_firstWorldDone && Time.unscaledTime >= _nextUpload)
+        if (!_firstWorldDone) return;
+        if (Time.unscaledTime >= _nextInvCheck)
         {
+            _nextInvCheck = Time.unscaledTime + 0.5f;
+            var sig = InventorySignature();
+            if (sig != _invSig) { _invSig = sig; _invChangedAt = Time.unscaledTime; }
+        }
+        var changedReady = _invChangedAt >= 0 && Time.unscaledTime - _invChangedAt >= ChangeUploadDelay;
+        if (changedReady || Time.unscaledTime >= _nextUpload)
+        {
+            _invChangedAt = -1;
             _nextUpload = Time.unscaledTime + UploadInterval;
             Upload();
+        }
+    }
+
+    /// <summary>Assinatura barata da mochila e das ferramentas (item, quantidade, qualidade): mudou → manda o perfil.</summary>
+    private static long InventorySignature()
+    {
+        unchecked
+        {
+            var h = (long)1469598103934665603;
+            var inv = InventoryManager.Instance;
+            if (inv == null) return 0;
+            foreach (var sm in new StorageManager[] { inv.BagItemStorage, inv.BagToolStorage })
+            {
+                var datas = sm?.ItemDatas;
+                if (datas == null) continue;
+                for (var i = 0; i < datas.Length; i++)
+                {
+                    var d = datas[i];
+                    if (d == null || d.ItemId == 0) continue;
+                    h = (h ^ i) * 1099511628211;
+                    h = (h ^ d.ItemId) * 1099511628211;
+                    h = (h ^ d.Stack) * 1099511628211;
+                    h = (h ^ d.QualityValue) * 1099511628211;
+                }
+                h = (h ^ 0x5bd1e995) * 1099511628211;
+            }
+            return h;
         }
     }
 
@@ -201,7 +245,10 @@ public class PlayerProfiles : MonoBehaviour
         if (NetSession.Current != NetSession.Mode.Client || !_firstWorldDone || _worldLoading) return;
         var json = Capture();
         _lastUploaded = json;
-        NetSession.SendGame(MsgType.ProfileUpload, w => w.Put(json), DeliveryMethod.ReliableOrdered);
+        // Comprimido e com tamanho int: o texto puro passava de ~40 KB num convidado novo e o limite de um texto no
+        // pacote é 64 KB (estourava depois de semanas de jogo e travava a noite; revisão do núcleo).
+        var packed = LetterSync.Pack(json);
+        NetSession.SendGame(MsgType.ProfileUpload, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
     }
 
     // ---------- host ----------
@@ -211,11 +258,11 @@ public class PlayerProfiles : MonoBehaviour
         switch (type)
         {
             case MsgType.ProfileUpload when NetSession.Current == NetSession.Mode.Host:
-                if (GuidOf.TryGetValue(from, out var guid)) Stored[guid] = r.GetString();
+                if (GuidOf.TryGetValue(from, out var guid)) Stored[guid] = LetterSync.Unpack(r.GetBlob());
                 break;
 
             case MsgType.ProfileData when NetSession.Current == NetSession.Mode.Client:
-                var json = r.GetString();
+                var json = LetterSync.Unpack(r.GetBlob());
                 _profileAnswered = true;
                 if (!string.IsNullOrEmpty(json)) _pending = json; // progresso deste jogador neste mundo
                 else _makeFresh = true;                           // primeira vez neste mundo (D30)
@@ -228,7 +275,8 @@ public class PlayerProfiles : MonoBehaviour
     public static void SendStoredProfile(byte playerId)
     {
         var json = GuidOf.TryGetValue(playerId, out var g) && Stored.TryGetValue(g, out var p) ? p : "";
-        NetSession.SendTo(playerId, MsgType.ProfileData, w => w.Put(json), DeliveryMethod.ReliableOrdered);
+        var packed = LetterSync.Pack(json);
+        NetSession.SendTo(playerId, MsgType.ProfileData, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
     }
 
     private static string StorePath()
@@ -243,25 +291,58 @@ public class PlayerProfiles : MonoBehaviour
         return Path.Combine(dir, $"profiles_{Clean(ui.FarmName)}_{Clean(ui.PlayerName)}.json");
     }
 
+    private static bool _storeUnreadable; // o arquivo existe mas não deu para ler: nunca sobrescrever (perderia todos)
+
     private static void LoadStore()
     {
         Stored.Clear();
-        _storePath = StorePath();
-        if (!File.Exists(_storePath)) return;
-        foreach (var kv in JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(_storePath)))
-            Stored[kv.Key] = kv.Value;
-        Plugin.Logger.LogInfo($"[Profiles] {Stored.Count} perfil(is) carregado(s) de {_storePath}");
+        _storeUnreadable = false;
+        try
+        {
+            _storePath = StorePath();
+            foreach (var path in new[] { _storePath, _storePath + ".bak" })
+            {
+                if (!File.Exists(path)) continue;
+                try
+                {
+                    foreach (var kv in JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path)))
+                        Stored[kv.Key] = kv.Value;
+                    Plugin.Logger.LogInfo($"[Profiles] {Stored.Count} perfil(is) carregado(s) de {path}");
+                    return;
+                }
+                catch (Exception e) { Plugin.Logger.LogWarning($"[Profiles] não deu para ler {path}: {e.Message}"); }
+            }
+            _storeUnreadable = File.Exists(_storePath);
+            if (_storeUnreadable) GameNotify.Show("Multiplayer: o arquivo de perfis dos amigos está corrompido; ele não será sobrescrito (mande o log).");
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[Profiles] carregar perfis: {e.Message}"); }
     }
 
-    /// <summary>Host: grava os perfis em disco (na virada do dia, junto do save oficial — D23).</summary>
-    public static void SaveStore()
+    /// <summary>
+    /// Host: grava os perfis em disco (na virada do dia, junto do save oficial — D23). Grava num arquivo temporário e
+    /// troca, guardando o anterior como .bak: uma queda no meio da gravação não corrompe os perfis de todos.
+    /// </summary>
+    public static void SaveStore(string path = null)
     {
         if (NetSession.Current != NetSession.Mode.Host) return;
         _storePath ??= StorePath();
-        File.WriteAllText(_storePath, JsonSerializer.Serialize(Stored));
-        Plugin.Logger.LogInfo($"[Profiles] {Stored.Count} perfil(is) gravado(s) em {_storePath}");
-        DevBridge.PushEvent($"perfis-gravados:{Stored.Count}");
+        path ??= _storePath;
+        if (path == _storePath && _storeUnreadable) { Plugin.Logger.LogWarning("[Profiles] arquivo de perfis ilegível: não sobrescrito"); return; }
+        try
+        {
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(Stored));
+            if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
+            else File.Move(tmp, path);
+            Plugin.Logger.LogInfo($"[Profiles] {Stored.Count} perfil(is) gravado(s) em {path}");
+            DevBridge.PushEvent($"perfis-gravados:{Stored.Count}");
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[Profiles] gravar perfis: {e.Message}"); }
     }
+
+    /// <summary>Host: o GUID já está em uso por outro jogador online (ou é o do próprio host)?</summary>
+    public static bool GuidInUse(string guid) =>
+        !string.IsNullOrEmpty(guid) && (guid == Plugin.EffectivePlayerGuid || GuidOf.ContainsValue(guid));
 
     /// <summary>Host: perfis guardados (guid → JSON das partes). Usado pelo registro de romance (D44).</summary>
     public static IEnumerable<KeyValuePair<string, string>> StoredProfiles() => Stored.ToList();

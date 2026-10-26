@@ -60,6 +60,7 @@ public class StorageSync : MonoBehaviour
 
     private static bool _subscribed;
     private float _nextCheck;
+    private static readonly HeldMessages Held = new("StorageSync");
 
     private void Awake()
     {
@@ -95,6 +96,7 @@ public class StorageSync : MonoBehaviour
         try
         {
             if (!Ready()) return;
+            if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
             foreach (var s in Stores) WatchLocalUi(s);
             if (Time.unscaledTime < _nextCheck) return;
             _nextCheck = Time.unscaledTime + 0.5f;
@@ -328,10 +330,10 @@ public class StorageSync : MonoBehaviour
         if (NetSession.Current == NetSession.Mode.Host)
         {
             foreach (var id in NetSession.Players.Keys)
-                if (id != NetSession.LocalId) NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
+                if (id != NetSession.LocalId) NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
         }
         else
-            NetSession.SendGame(MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
+            NetSession.SendGame(MsgType.StorageData, w => { w.Put(idx); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
         Plugin.Logger.LogInfo($"[StorageSync] {s.Name} enviado ({packed.Length} bytes comprimidos)");
         DevBridge.PushEvent($"armazem{s.Index}:enviado");
     }
@@ -369,9 +371,10 @@ public class StorageSync : MonoBehaviour
             }
             case MsgType.StorageData:
             {
+                if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; } // D63: guarda em vez de descartar
                 var s = ByIndex(r.GetByte());
-                var data = r.GetBytesWithLength();
-                if (s == null || !Ready() || s.Get() == null) return;
+                var data = r.GetBlob();
+                if (s == null || s.Get() == null) return;
                 if (NetSession.Current == NetSession.Mode.Host)
                 {
                     // Só aceita de quem está com a trava (ou de qualquer um, se ninguém está).
@@ -379,7 +382,7 @@ public class StorageSync : MonoBehaviour
                     Apply(s, Unpack(data));
                     var idx = s.Index;
                     foreach (var id in NetSession.Players.Keys)
-                        if (id != NetSession.LocalId && id != from) NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(data); }, DeliveryMethod.ReliableOrdered);
+                        if (id != NetSession.LocalId && id != from) NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBlob(data); }, DeliveryMethod.ReliableOrdered);
                     Plugin.Logger.LogInfo($"[StorageSync] {s.Name} atualizado por #{from}");
                 }
                 else if (from == Protocol.HostPlayerId)
@@ -434,7 +437,7 @@ public class StorageSync : MonoBehaviour
     {
         var packed = Pack(Capture(s));
         var idx = s.Index;
-        NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
+        NetSession.SendTo(id, MsgType.StorageData, w => { w.Put(idx); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
     }
 
     /// <summary>Testes: StorageManager de um armazém pelo índice (0 casa, 1 deck, 2 peças do Bazaar).</summary>

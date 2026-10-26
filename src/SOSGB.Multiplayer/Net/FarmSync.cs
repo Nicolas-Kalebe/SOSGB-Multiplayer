@@ -44,6 +44,7 @@ public class FarmSync : MonoBehaviour
     private static bool _subscribed;
     private float _nextTick;
     public static int SentOps, ReceivedOps;
+    private static readonly HeldMessages Held = new("FarmSync");
 
     private void Awake()
     {
@@ -80,7 +81,9 @@ public class FarmSync : MonoBehaviour
     {
         try
         {
-            if (!Ready() || Time.unscaledTime < _nextTick) return;
+            if (!Ready()) return;
+            if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava/trocava de mapa (D63)
+            if (Time.unscaledTime < _nextTick) return;
             _nextTick = Time.unscaledTime + 0.5f;
             Flush();
         }
@@ -110,7 +113,7 @@ public class FarmSync : MonoBehaviour
         if (!IsResident(root)) _dirtyNonResident = true;
         var packed = Pack(root, ops);
         if (NetSession.Current == NetSession.Mode.Host) SendToClients(packed, except: NetSession.LocalId);
-        else NetSession.SendGame(MsgType.FieldOps, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+        else NetSession.SendGame(MsgType.FieldOps, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
         SentOps += ops.Count;
         Plugin.Logger.LogInfo($"[FarmSync] {ops.Count} mudança(s) no mapa {root} enviada(s) ({packed.Length} bytes)");
         DevBridge.PushEvent($"fazenda:enviado:{ops.Count}");
@@ -120,7 +123,7 @@ public class FarmSync : MonoBehaviour
     {
         foreach (var id in NetSession.Players.Keys)
             if (id != NetSession.LocalId && id != except)
-                NetSession.SendTo(id, MsgType.FieldOps, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+                NetSession.SendTo(id, MsgType.FieldOps, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
     }
 
     private static void SendSnapshot(uint root)
@@ -129,7 +132,7 @@ public class FarmSync : MonoBehaviour
         if (sd == null) return;
         var packed = LetterSync.Pack(FieldState.ToJson(sd));
         if (NetSession.Current == NetSession.Mode.Host) SendSnapshotToClients(packed, except: NetSession.LocalId);
-        else NetSession.SendGame(MsgType.FieldSnapshot, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+        else NetSession.SendGame(MsgType.FieldSnapshot, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
         Plugin.Logger.LogInfo($"[FarmSync] saí do mapa {root}: mapa inteiro enviado ({packed.Length} bytes)");
         DevBridge.PushEvent($"fazenda:mapa-enviado:{root}");
     }
@@ -138,7 +141,7 @@ public class FarmSync : MonoBehaviour
     {
         foreach (var id in NetSession.Players.Keys)
             if (id != NetSession.LocalId && id != except)
-                NetSession.SendTo(id, MsgType.FieldSnapshot, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+                NetSession.SendTo(id, MsgType.FieldSnapshot, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
     }
 
     private static void OnSnapshot(byte from, byte[] packed)
@@ -161,16 +164,18 @@ public class FarmSync : MonoBehaviour
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
+        if (type != MsgType.FieldSnapshot && type != MsgType.FieldOps) return;
+        // Carregando o mundo ou trocando de mapa: guarda e aplica quando ficar pronto (antes era descartado, D63).
+        if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; }
         if (type == MsgType.FieldSnapshot)
         {
-            try { OnSnapshot(from, r.GetBytesWithLength()); }
+            try { OnSnapshot(from, r.GetBlob()); }
             catch (Exception e) { Plugin.Logger.LogWarning($"[FarmSync] mapa recebido: {e.Message}"); }
             return;
         }
         if (type != MsgType.FieldOps) return;
-        var packed = r.GetBytesWithLength();
+        var packed = r.GetBlob();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
-        if (!Ready()) return; // carregando mundo/virada do dia: o mundo novo já vem certo
         try
         {
             var (root, ops) = Unpack(packed);

@@ -21,16 +21,23 @@ public class NetRunner : MonoBehaviour
         catch (Exception e) { Plugin.Logger.LogError($"[Net] {e}"); }
     }
 
-    /// <summary>Tarefa 2.6: hospeda ou entra automaticamente na primeira vez que um save é carregado.</summary>
+    /// <summary>
+    /// Tarefa 2.6: hospeda ou entra automaticamente quando um save é carregado. Vale a escolha FEITA NO PAINEL do título
+    /// (antes o modo era lido uma vez ao abrir o jogo e "Sozinho" decidia no primeiro quadro: trocar no título só valia
+    /// depois de reiniciar). Voltar ao título libera de novo para o próximo save.
+    /// </summary>
     private void TryAutoStart()
     {
-        if (_autoStartDone) return;
-        var mode = Plugin.EffectiveNetAutoStart;
-        if (mode == "off") { _autoStartDone = true; return; }
-        if (!BokuMono.SceneManager.IsInstance || BokuMono.SceneManager.Instance.CurrentSceneMode != BokuMono.SceneMode.Game) return;
+        if (!BokuMono.SceneManager.IsInstance) return;
+        var scene = BokuMono.SceneManager.Instance.CurrentSceneMode;
+        if (scene == BokuMono.SceneMode.Title) { _autoStartDone = false; return; }
+        if (_autoStartDone || scene != BokuMono.SceneMode.Game) return;
         if (!BokuMono.GameController.IsInstance || BokuMono.GameController.Instance.GetPlayerTransform() == null) return;
 
         _autoStartDone = true;
+        if (NetSession.Current != NetSession.Mode.Offline) return; // já conectado (ex.: F9 antes de carregar)
+        var mode = Plugin.EffectiveNetAutoStart;
+        if (mode == "off") return;
         if (mode == "host") NetSession.Host(Plugin.NetPort.Value);
         else if (mode == "join") NetSession.Join(Environment.GetEnvironmentVariable("SOSGB_JOIN_ADDRESS") ?? Plugin.NetJoinAddress.Value, Plugin.NetPort.Value);
         Plugin.Logger.LogInfo($"[Net] AutoStart = {mode}");

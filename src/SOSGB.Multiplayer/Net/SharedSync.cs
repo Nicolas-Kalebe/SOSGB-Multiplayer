@@ -539,6 +539,7 @@ public class SharedSync : MonoBehaviour
         new() { Name = name, Available = available, Capture = capture, Apply = apply };
 
     private static readonly Dictionary<string, string> Baseline = new();
+    private static readonly HeldMessages Held = new("SharedSync");
     private static int _cursor = -1;
     private static bool _subscribed;
     private float _nextTick;
@@ -614,7 +615,9 @@ public class SharedSync : MonoBehaviour
     {
         try
         {
-            if (!Ready() || Time.unscaledTime < _nextTick) return;
+            if (!Ready()) return;
+            if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
+            if (Time.unscaledTime < _nextTick) return;
             // Rodízio: uma parte por tick, para espalhar o custo (com ~19 partes, cada uma é conferida a cada ~5 s;
             // pets e animais mudam pouco, e o progresso do mundo não tem pressa).
             _nextTick = Time.unscaledTime + 0.25f;
@@ -639,7 +642,7 @@ public class SharedSync : MonoBehaviour
                 var packed = LetterSync.Pack(json);
                 var name = p.Name;
                 if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: NetSession.LocalId);
-                else NetSession.SendGame(MsgType.SharedState, w => { w.Put(name); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
+                else NetSession.SendGame(MsgType.SharedState, w => { w.Put(name); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
                 Sent++;
                 Plugin.Logger.LogInfo($"[SharedSync] {name} mudou: enviado ({packed.Length} bytes)");
                 DevBridge.PushEvent($"compartilhado:enviado:{name}");
@@ -668,16 +671,16 @@ public class SharedSync : MonoBehaviour
     {
         foreach (var id in NetSession.Players.Keys)
             if (id != NetSession.LocalId && id != except)
-                NetSession.SendTo(id, MsgType.SharedState, w => { w.Put(name); w.PutBytesWithLength(packed); }, DeliveryMethod.ReliableOrdered);
+                NetSession.SendTo(id, MsgType.SharedState, w => { w.Put(name); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
     }
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
         if (type != MsgType.SharedState) return;
+        if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; } // D63: guarda em vez de descartar
         var name = r.GetString();
-        var packed = r.GetBytesWithLength();
+        var packed = r.GetBlob();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
-        if (!Ready()) return;
         _applyingFromGuest = NetSession.Current == NetSession.Mode.Host;
         _filtered = false;
         string res;

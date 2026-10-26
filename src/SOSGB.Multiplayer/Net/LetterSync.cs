@@ -26,6 +26,7 @@ public class LetterSync : MonoBehaviour
     private static ulong _baseline;
     private static bool _hasBaseline;
     private static bool _subscribed;
+    private static readonly HeldMessages Held = new("LetterSync");
     private float _nextCheck;
 
     private void Awake()
@@ -51,7 +52,9 @@ public class LetterSync : MonoBehaviour
     {
         try
         {
-            if (!Ready() || Time.unscaledTime < _nextCheck) return;
+            if (!Ready()) return;
+            if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
+            if (Time.unscaledTime < _nextCheck) return;
             _nextCheck = Time.unscaledTime + 1f;
             var json = Capture();
             var sig = Fnv(json);
@@ -151,10 +154,10 @@ public class LetterSync : MonoBehaviour
         {
             foreach (var id in NetSession.Players.Keys)
                 if (id != NetSession.LocalId && id != except)
-                    NetSession.SendTo(id, MsgType.LetterData, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+                    NetSession.SendTo(id, MsgType.LetterData, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
         }
         else
-            NetSession.SendGame(MsgType.LetterData, w => w.PutBytesWithLength(packed), DeliveryMethod.ReliableOrdered);
+            NetSession.SendGame(MsgType.LetterData, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
         Plugin.Logger.LogInfo($"[LetterSync] correio enviado ({packed.Length} bytes comprimidos)");
         DevBridge.PushEvent("correio:enviado");
     }
@@ -162,8 +165,8 @@ public class LetterSync : MonoBehaviour
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
         if (type != MsgType.LetterData) return;
-        var data = r.GetBytesWithLength();
-        if (!Ready()) return;
+        if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; } // D63: guarda em vez de descartar
+        var data = r.GetBlob();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
         Apply(Unpack(data));
         if (NetSession.Current == NetSession.Mode.Host) Send(data, except: from);

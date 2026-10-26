@@ -11,6 +11,8 @@ GAME_PATH="${GAME_PATH:-/l/Games/STORY OF SEASONS Grand Bazaar}"
 PORT="${1:-47801}"
 SLOT="${2:-2}"
 NET="${3:-off}"
+# Cada instância precisa de um PlayerGuid próprio (o host recusa GUID repetido; o .cfg é o mesmo nas duas).
+export SOSGB_PLAYER_GUID="${SOSGB_PLAYER_GUID:-instancia-$PORT}"
 
 # O instance.py abre, espera a cena Game e reabre sozinho se a instância travar (tela inicial, queda).
 python "$ROOT/scripts/instance.py" launch --port "$PORT" --slot "$SLOT" --net "$NET" && {

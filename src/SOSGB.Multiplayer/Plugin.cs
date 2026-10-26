@@ -36,7 +36,8 @@ public class Plugin : BasePlugin
     // Valores efetivos (config ou variável de ambiente; ver tarefa 1.6).
     internal static int BridgePort;
     internal static int EffectiveAutoLoadSlot;
-    internal static string EffectiveNetAutoStart;
+    /// <summary>Modo ao carregar um save: variável de teste ou o valor ATUAL do .cfg (o painel do título muda na hora).</summary>
+    internal static string EffectiveNetAutoStart => System.Environment.GetEnvironmentVariable("SOSGB_NET_AUTOSTART") ?? NetAutoStart.Value;
     internal static string InstanceTag = "";
     internal static string EffectivePlayerGuid;
 
@@ -112,7 +113,6 @@ public class Plugin : BasePlugin
         // Variáveis de ambiente permitem que cada instância tenha a sua porta e o seu slot.
         BridgePort = EnvInt("SOSGB_BRIDGE_PORT") ?? DevBridgePort.Value;
         EffectiveAutoLoadSlot = EnvInt("SOSGB_AUTOLOAD_SLOT") ?? AutoLoadSlot.Value;
-        EffectiveNetAutoStart = System.Environment.GetEnvironmentVariable("SOSGB_NET_AUTOSTART") ?? NetAutoStart.Value;
         InstanceTag = System.Environment.GetEnvironmentVariable("SOSGB_BRIDGE_PORT") != null ? $"-{BridgePort}" : "";
 
         DevMode = DevBridgeEnabled.Value || System.Environment.GetEnvironmentVariable("SOSGB_DEVBRIDGE") == "1";

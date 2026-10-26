@@ -54,6 +54,7 @@ public class MissionSync : MonoBehaviour
     private static bool _hostNewShop; // convidado: último "loja nova" visto do host (só a passagem para true vale)
     private float _nextCheck;
     public static int Sent, Received;
+    private static readonly HeldMessages Held = new("MissionSync");
 
     private void Awake()
     {
@@ -98,7 +99,9 @@ public class MissionSync : MonoBehaviour
     {
         try
         {
-            if (!Ready() || Time.unscaledTime < _nextCheck) return;
+            if (!Ready()) return;
+            if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
+            if (Time.unscaledTime < _nextCheck) return;
             _nextCheck = Time.unscaledTime + 1f;
             var now = Capture();
             if (!_hasBaseline) { SetBaseline(now); if (NetSession.Current == NetSession.Mode.Host) _forceSnapshot = true; return; }
@@ -177,8 +180,8 @@ public class MissionSync : MonoBehaviour
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
         if (type != MsgType.MissionData) return;
+        if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; } // D63 (na virada do dia do host: o mundo novo traz os pedidos)
         var orders = Read(r, out var kind, out var newShop);
-        if (!Ready()) return; // virada do dia: o mundo novo traz os pedidos
         Received++;
         try
         {
