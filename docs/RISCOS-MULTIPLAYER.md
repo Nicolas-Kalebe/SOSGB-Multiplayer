@@ -24,7 +24,11 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 | `BazaarSales`, `TotalSellShopPrice`, contadores `*OneDayAchievement`, `SuspiciousHoneyCount`, `SuspiciousMushroomCount`, `BarrelJumpCount` | Contadores de títulos/conquistas | ⏳ (afetam títulos, não o jogo do dia a dia) |
 | `NpcFoodData`, `ScheduleData` | Rotina e comida dos NPCs | ➖ mundo do host a cada dia |
 | `FamilyData`, `DateEventSaveData` | Casamento, filhos, encontros | ⏳ ver D44/D45 (romance individual) |
-| `ExcavateData`, `HorseRacingData`, `AccessObjectHistory`, `AnimalHistory`, `HarvestedIrregularCropIdList`, `PictureBookCompleteData` | Escavação, corridas, históricos | ⏳ baixa prioridade |
+| `ExcavateData` | Limite diário de achados ao cavar a terra (por grupo de lugar) | ➖ cada jogo conta o seu e zera todo dia (cada jogador tem os próprios achados) |
+| `HarvestedIrregularCropIdList` | Colheitas irregulares já feitas | ➖ só para conquista da Steam (`AchievementMaster`) |
+| `PictureBookCompleteData` | Livro ilustrado | ✅ vem junto do `itemhistory` (D43) |
+| `AnimalHistory`, `AccessObjectHistory` | Animais que já teve, objetos já acessados | ⏳ baixa prioridade (registros) |
+| `HorseRacingData` | Corridas de cavalo | ⏳ ver P13 (festivais com competição) |
 | `TrophyRackData` | Troféus | ⏳ o `FromSaveData` acumula (D42); precisa de outro caminho |
 | `SaveDataSeed` | Semente do sorteio (clima, etc.) | ✅ vem no mundo do host, igual para todos |
 | Demais (fazenda, animais, pets, cavalo, armazéns, deck, correio, moinhos, cogumelos, abelhas, vasos, ampliações, prêmios, adega, banho, receitas, Corobockles, peixes, reforços, lojas, festivais, decoração e progresso do Bazaar, flags de evento, histórico de itens) | | ✅ D36–D55 |

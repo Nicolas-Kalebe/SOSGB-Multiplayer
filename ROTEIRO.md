@@ -123,7 +123,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
-| 7.1 🟡 | **Bazaar** em grupo: barraca, vendas e caixa compartilhados (`BazaarManager`). Feito: deck e peças compartilhados, progresso no SharedSync (D46). Sessão de venda medida (D47): relógio normal, aviso de barraca aberta. Uma barraca por vez (trava, D51, testada). Todos veem os mesmos clientes e a barraca de quem vende (D55, testado). Falta: ajudar na barraca (repor, sino; D56) e vender em grupo com os amigos | GG | Teste do usuário |
+| 7.1 🟡 | **Bazaar** em grupo: barraca, vendas e caixa compartilhados (`BazaarManager`). Feito: deck e peças compartilhados, progresso no SharedSync (D46). Sessão de venda medida (D47): relógio normal, aviso de barraca aberta. Uma barraca por vez (trava, D51, testada). Todos veem os mesmos clientes e a barraca de quem vende (D55, testado). Ajudante dentro da barraca com os botões do jogo (D56: vender, repor, sino; testado pela IA com duas instâncias e teclas de verdade). Revisão independente e 10 correções (D60): o ajudante assume a barraca se o dono sai. Falta: vender em grupo com os amigos (P14) | GG | Teste do usuário |
 | 7.2 🟡 | **Festivais**: todos entram juntos, início por confirmação. Feito: resultados e participação compartilhados (`FestivalExecutor` no SharedSync, D43). Falta testar um festival em grupo | G | Teste do usuário |
 | 7.3 ✅ | Tempo corre em menus (D50): só o menu de pausa pausa; quem estava numa tela é adiantado ao sair; pulos de tempo propagam | G | Teste da IA: duas instâncias |
 
@@ -142,7 +142,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 8.4c ✅ | Esconder/desabilitar a opção "Salvar" no multiplayer: "Salvar" e "Carregar" mostram aviso (D48) | P |
 | 8.4b | "Salvar agora" do host com barreira (pausa todos, espera estado limpo) — opcional (D23) | M |
 | 8.4 | Etiqueta "Para: Jogador X" nas cartas (D10a, opcional) | P |
-| 8.5 🟡 | Guia de instalação para os amigos + pacote de release (`DevBridge.Enabled = false`): guia atualizado e pacote v0.4 montados; falta a versão 1.0 | M |
+| 8.5 🟡 | Guia de instalação para os amigos + pacote de release (`DevBridge.Enabled = false`): guia atualizado; pacote montado por `scripts/make-package.py` (v0.5.1); falta a versão 1.0 | M |
 | 8.6 | Checklist de release e versão 1.0 | P |
 
 **Bônus (pós-1.0):** casamento entre jogadores.
@@ -160,8 +160,9 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ## Estado atual
 
-- **Fase:** 4, 5 e boa parte da 6 concluídas pela IA (D36–D45); 7 começou (deck e progresso do Bazaar, D46; sessão de venda em proposta, D47); 8.4c feita. Falta teste com os amigos (5.6, Bazaar, festivais, casamento). Antes dela, a noite de 2026-10-25 foi de correções e qualidade de vida pedidas pelo usuário (ver itens "Corrigido/Feito" acima).
-- **Pacote de teste para amigos:** v0.4 (`Downloads\SOSGB-Multiplayer-v0.4-amiga.zip`, fora do repositório; mod 0.4.0, protocolo 18). Inclui a economia, a fazenda, os animais e o progresso do mundo compartilhados.
+- **Fase:** 4, 5 e boa parte da 6 concluídas pela IA (D36–D45); 7 adiantada: Bazaar em grupo com clientes iguais para todos (D55) e ajudante na barraca (D56); 8.4c feita. Falta teste com os amigos (5.6, Bazaar, festivais, casamento).
+- **Noite de 2026-10-26 (IA sozinha, pedido do usuário):** levantamento de conflitos pela wiki e pelo save (D57: Happy Energy, pedidos dos moradores, tutoriais, BRAND, pets de presente); impasse da virada do dia depois da meia-noite (D58, sério: convidados dormiam para sempre); save do convidado protegido depois de uma queda (D59); duas revisões independentes do código com correções (D60 e seguintes); Happy Bingo compartilhado (D61).
+- **Pacote de teste para amigos:** v0.5.1 (`Downloads\SOSGB-Multiplayer-v0.5.1-amiga.zip`, fora do repositório; montado com `python scripts/make-package.py --version 0.5.1 --ip <IP do host>`; protocolo 23). Host e amigos precisam da mesma versão.
 - **Pendências com o usuário:** ver [`PERGUNTAS.md`](PERGUNTAS.md) (P3 log da amiga, P5 memória, P8 espectar, P9 trava de NPC). P7 e P10 respondidas (D50, D47/D51). P2 e P6 feitas pela IA (D33). P1 e P4 respondidas: convidado começa do zero (D30, feito) e aparência (D31 → corrigida na D32).
-- **Próxima tarefa sugerida:** testar a trava da barraca (D51) e investigar o modo "repor a barraca juntos". Para testar no sábado: `python scripts/instance.py launch --file sabado` (save de teste em `BepInEx\\devsaves`).
-- **Última atualização:** 2026-10-25
+- **Próxima tarefa sugerida:** teste com o usuário (duas pessoas): ajudante no Bazaar (P14), balões de desejo dos clientes no jogo do ajudante, pedidos dos moradores e Happy Energy em rede (D57). Para testar no sábado: `python scripts/instance.py launch --file sabado` (save de teste em `BepInEx\\devsaves`).
+- **Última atualização:** 2026-10-26
