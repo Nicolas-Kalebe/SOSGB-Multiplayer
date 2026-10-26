@@ -1,4 +1,4 @@
-# INSTALAÇÃO E COMO JOGAR (v0.4 — teste)
+# INSTALAÇÃO E COMO JOGAR (v0.5.1 — teste)
 
 > 🤖 **AUTODOCUMENTAÇÃO OBRIGATÓRIA.** Este projeto se documenta sozinho: registre toda decisão com contexto em [`DECISOES.md`](../DECISOES.md), mantenha um `CONTEXTO.md` em cada pasta e abra todo `.md` com este aviso. Regras completas em [`AGENTS.md`](../AGENTS.md).
 
@@ -57,14 +57,17 @@ Em `[Game]`, `SkipIntroLogos = true` (padrão) pula as logos de abertura e vai d
 - **Natureza compartilhada:** o que um pega (minério, flor, bichinho, ovo) some para todos.
 - Na **primeira vez**, o convidado **começa do zero** no mundo do host, como no Stardew ([D30](../DECISOES.md)): corações zerados, mochila vazia, ferramentas básicas. O que ele jogou sozinho no save dele não conta; do save dele só vem o visual do personagem. Por isso ele ainda precisa ter um save (qualquer um) para entrar.
 - Os corações, a mochila e as ferramentas do convidado são dele e ficam guardados no PC do host (`%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\`).
-- Se alguém abrir um menu, o tempo para para todos ([D9](../DECISOES.md)).
+- **Do grupo (compartilhado):** dinheiro e Happy Energy (uma carteira só), armazém, deck do Bazaar, fazenda, animais, pets, cavalo, moinhos, correio, pedidos dos moradores (o progresso de todos soma), Happy Bingo (prêmio resgatado por um fica resgatado para todos), tutoriais já lidos e selo BRAND ([D36](../DECISOES.md)–[D61](../DECISOES.md)).
+- **Bazaar em grupo:** uma pessoa abre a barraca e vende; todos veem os mesmos clientes. Quem quiser ajudar vai até a barraca e escolhe "Abrir loja": Enter no item com "!!" vende, Tab num espaço vazio repõe com um item do deck, Shift toca o sino. A venda acontece no jogo de quem é dono da barraca. Se o dono sair ou fechar a loja antes, quem ajudava assume a barraca ([D56](../DECISOES.md)/[D60](../DECISOES.md)).
+- **Se a conexão cair:** o mundo é do host, então nada é salvo no seu PC (nem pela cama). Volte ao título para entrar de novo ou jogar o seu save ([D59](../DECISOES.md)).
+- Dormir ou desmaiar depois da meia-noite funciona normalmente: o dia vira quando todos dormem ([D58](../DECISOES.md)).
 
 ## Limitações conhecidas
 
 - Os NPCs andam de forma independente em cada jogo (cada um vê o NPC no lugar calculado pelo próprio jogo).
-- **Venda no Bazaar e festivais em grupo ainda não foram testados** ([D47](../DECISOES.md)).
+- **Festivais em grupo ainda não foram testados.** O Bazaar em grupo foi testado pela IA com duas cópias do jogo, mas ainda não com duas pessoas ([D56](../DECISOES.md)).
 - O tempo **só para** quando alguém abre o **menu de pausa** (Esc), e aí para para todos. Em outros menus, diálogos e eventos o tempo continua para os outros; quem estava na tela é adiantado ao sair ([D50](../DECISOES.md)).
-- **Bazaar:** uma pessoa vende por vez (a barraca fica bloqueada para os outros enquanto alguém vende) ([D51](../DECISOES.md)).
+- **Bazaar:** uma barraca por vez ([D51](../DECISOES.md)); os outros ajudam dentro dela (ver "Bazaar em grupo"). Enquanto alguém vende, o "Ver estoque" e a decoração da barraca ficam com quem vende.
 - Cada jogador aparece com a **própria aparência** (rosto, cabelo, roupa, gênero) e o **nome em cima** ([D32](../DECISOES.md)). Quando alguém entra ou troca de visual, o seu personagem **pisca** com outra aparência por 1 a 2 segundos: é normal. Se der problema, desligue em `[Visual] OwnAppearance = false` (aí todos aparecem com o seu modelo).
 - Casamento de convidado: o cônjuge mora na casa só no jogo de quem casou; eventos de casado e filhos não foram testados para convidados ([D45](../DECISOES.md)).
 
@@ -81,5 +84,6 @@ Mande o arquivo `<jogo>\BepInEx\LogOutput.log` de quem teve o problema.
 
 ### Para desenvolvedores: montar o pacote
 
+Use `python scripts/make-package.py --version 0.5.1 --ip <IP do host>` (gera `Downloads/SOSGB-Multiplayer-v<versão>-amiga.zip`; ver `scripts/CONTEXTO.md`).
 Pacote = da pasta do jogo do desenvolvedor: `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`, `dotnet/`, `BepInEx/core/`, `BepInEx/patchers/`, `BepInEx/plugins/SOSGB.Multiplayer/` + um `.cfg` com `AutoStart = join` + `LEIA-ME.txt`.
 **Nunca** incluir `BepInEx/interop/`, `BepInEx/unity-libs/` (gerados a partir do jogo), logs, `savedump/`, screenshots, nem um `.cfg` com `[DevBridge] Enabled = true`.

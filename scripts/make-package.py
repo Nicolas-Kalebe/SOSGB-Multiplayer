@@ -66,17 +66,22 @@ LEIA = """SOSGB Multiplayer v{version} (TESTE) — como instalar
 
 7) Dentro do jogo: lista de jogadores no canto inferior esquerdo, F9 abre o menu, F10 esconde a lista.
 
-Novidades da v0.5:
+Novidades desta versão:
 - Bazaar em grupo: uma pessoa abre a barraca e vende. Os outros veem os MESMOS clientes e a barraca
   aberta. Quem quiser AJUDAR: vá até a barraca e escolha "Abrir loja" no menu dela:
     * Enter no item onde o cliente está com "!!" = vender (a venda é feita no jogo de quem é dono);
     * Tab num espaço vazio + Enter = repor com um item do deck;
     * Shift = tocar o sino (chama clientes para a barraca do dono).
-  No fim do turno o aviso mostra quanto a barraca vendeu.
+  No fim do turno o aviso mostra quanto a barraca vendeu. Se o dono sair ou fechar a loja antes,
+  quem ajudava assume a barraca.
 - Agora também é compartilhado: Happy Energy (como o dinheiro), pedidos dos moradores (o progresso
   de todos soma), tutoriais já lidos, selo BRAND, moinho (o que está processando), cogumelos,
-  competições dos festivais e o progresso do Bazaar (nível, vendas, reputação).
+  competições dos festivais, o progresso do Bazaar (nível, vendas, reputação) e o Happy Bingo
+  (prêmio resgatado por um fica resgatado para todos).
 - Corrigido: pets aparecendo em dobro.
+- Corrigido: dormir ou desmaiar depois da meia-noite travava a virada do dia (quem entrou ficava
+  dormindo para sempre).
+- Se a conexão cair, nada do mundo do host é salvo no seu PC: volte ao título e entre de novo.
 - O tempo só para quando alguém abre o MENU DE PAUSA (Esc); nos outros menus o tempo segue.
 - Host e amigos precisam estar na MESMA versão do mod (v{version}).
 
