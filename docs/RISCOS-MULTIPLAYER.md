@@ -19,7 +19,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 | `TutorialSaveData`, `PlayableTutorialReadData` | Tutoriais já lidos | 🛠️ D57: união (quem leu, ninguém vê de novo; sem isso o convidado via o mesmo tutorial todo dia) |
 | `EventReadData` | Eventos já vistos (`EventManager.EventInfo`: lidos, histórico, tipos de casamento) | ❓ P15: hoje ficam no mundo do host (o convidado não vê o que o host viu e revê o que só ele viu); proposta de guardar por jogador |
 | `BrandItemIds`, `BrandAnimalIds` | Selo BRAND (preço 3x) ganho nos festivais | 🛠️ D57: união |
-| `BingoData` | Happy Bingo (cartelas) | ⏳ grande (~300 KB); fica do host por enquanto |
+| `BingoData` | Happy Bingo (cartelas) | 🛠️ D61: mescla (maior progresso por quadrado, prêmios resgatados em união); fechava o resgate repetido do mesmo prêmio pelo convidado |
 | `AchievementSaveData` | Conquistas **da Steam** (`AchievementManager` + `SteamAchievementHandler`; só uma lista de IDs desbloqueados) | ➖ cada jogador desbloqueia na própria conta Steam; sem efeito no jogo |
 | `BazaarSales`, `TotalSellShopPrice`, contadores `*OneDayAchievement`, `SuspiciousHoneyCount`, `SuspiciousMushroomCount`, `BarrelJumpCount` | Contadores de títulos/conquistas | ⏳ (afetam títulos, não o jogo do dia a dia) |
 | `NpcFoodData`, `ScheduleData` | Rotina e comida dos NPCs | ➖ mundo do host a cada dia |
@@ -49,7 +49,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 - **Títulos e conquistas pelo correio** → correio compartilhado (D39). As "conquistas" do save são as da Steam (sem prêmio no jogo); os prêmios do jogo são `awards` (compartilhado, D42). ➖
 
 ### Baixa prioridade
-- Happy Bingo (por enquanto do host), insetos e peixes guardiões (cada jogo sorteia; enciclopédia comum), Wonderstones, Power Berry (vigor máximo compartilhado), recicláveis e medalhas (itens de mochila), contagem de Ano Novo e aniversários.
+- Happy Bingo (🛠️ D61), insetos e peixes guardiões (cada jogo sorteia; enciclopédia comum), Wonderstones, Power Berry (vigor máximo compartilhado), recicláveis e medalhas (itens de mochila), contagem de Ano Novo e aniversários.
 
 ## Fontes
 - Guia do remake na Fogu: https://fogu.com/sos6/index.html (bazar, moinhos, calendário, festivais, casamento, mineração, Happy Shoppe, Felix's Findings, Garon, Wilbur)

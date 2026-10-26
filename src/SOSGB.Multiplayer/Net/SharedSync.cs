@@ -134,7 +134,80 @@ public class SharedSync : MonoBehaviour
         Make("horse", () => AnimalManager.IsInstance && AnimalManager.Instance.RideableAnimalController != null,
             () => StringExtensions.ToJson(AnimalManager.Instance.RideableAnimalController.ToSaveData()),
             ApplyHorse),
+        // Happy Bingo (D61): MESCLA — progresso de cada quadrado fica com o maior, prêmio resgatado por qualquer um fica
+        // resgatado para todos. Sem isto o progresso do convidado sumia na virada e ele podia resgatar de novo, todo dia,
+        // um prêmio de linha completa (o mundo do host não sabia do resgate).
+        Make("bingo", () => BokuMono.Bingo.BingoManager.IsInstance,
+            CaptureBingo,
+            MergeBingo),
     };
+
+    // ----- Happy Bingo: só o que muda jogando (estado/progresso dos quadrados, prêmios resgatados), por cartela -----
+
+    private static BokuMono.Bingo.BingoLine LineOf(BokuMono.Bingo.BingoCard c, int i) => i switch
+    {
+        0 => c.HorizontalLine,
+        1 => c.VerticalLine,
+        2 => c.DiagonalLine,
+        _ => c.CompleteLine,
+    };
+
+    private static string CaptureBingo()
+    {
+        var cards = new JsonArray();
+        foreach (var c in BokuMono.Bingo.BingoManager.Instance.GetAllBingoCard())
+        {
+            if (c == null) continue;
+            var sq = new JsonArray();
+            if (c.Squares != null)
+                foreach (var s in c.Squares)
+                    if (s != null) sq.Add(new JsonArray(s.Slot, s.Id, s.State, s.Progress));
+            var ln = new JsonArray();
+            for (var i = 0; i < 4; i++)
+            {
+                var got = new JsonArray();
+                var l = LineOf(c, i);
+                if (l?.IsReceived != null) foreach (var b in l.IsReceived) got.Add(b);
+                ln.Add(got);
+            }
+            cards.Add(new JsonObject { ["id"] = c.CardId, ["sq"] = sq, ["ln"] = ln });
+        }
+        return new JsonObject { ["cards"] = cards }.ToJsonString();
+    }
+
+    private static void MergeBingo(string json)
+    {
+        if (JsonNode.Parse(json)?["cards"] is not JsonArray cards) return;
+        var bmg = BokuMono.Bingo.BingoManager.Instance;
+        foreach (var cn in cards)
+        {
+            if (cn is not JsonObject co || co["id"] == null) continue;
+            var card = bmg.GetBingoCard(co["id"]!.GetValue<uint>());
+            if (card == null) continue; // cartela que este jogo não tem: chega com o mundo, na virada
+            if (co["sq"] is JsonArray sq && card.Squares != null)
+                foreach (var sn in sq)
+                {
+                    if (sn is not JsonArray a || a.Count < 4) continue;
+                    int slot = a[0]!.GetValue<int>(), state = a[2]!.GetValue<int>(), progress = a[3]!.GetValue<int>();
+                    var id = a[1]!.GetValue<uint>();
+                    foreach (var s in card.Squares)
+                    {
+                        // Missão trocada (redesenho da cartela) num dos jogos: não mistura progresso de missões diferentes.
+                        if (s == null || s.Slot != slot || s.Id != id) continue;
+                        if (progress > s.Progress) s.Progress = progress;
+                        if (state > s.State) s.State = state; // Nenhum 0 → pronto para carimbar 1 → feito 2
+                    }
+                }
+            if (co["ln"] is JsonArray ln)
+                for (var i = 0; i < 4 && i < ln.Count; i++)
+                {
+                    var l = LineOf(card, i);
+                    if (l?.IsReceived == null || ln[i] is not JsonArray got) continue;
+                    for (var k = 0; k < got.Count && k < l.IsReceived.Length; k++)
+                        if (got[k]?.ToString() == "true" && !l.IsReceived[k]) l.IsReceived[k] = true;
+                }
+        }
+    }
 
     // ----- Pets e cavalo: animal por animal -----
     // O FromSaveData do PetAnimalController / RideableAnimalController RECRIA os animais (parâmetros e personagens)
