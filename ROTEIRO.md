@@ -137,6 +137,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 |---|---|---|
 | 8.1 ✅ (IMGUI, D27) | Menu no jogo para **Hospedar / Entrar** (talvez reaproveitando a UI de rede que sobrou: `NetworkMenuCategory`) | G |
 | 8.2 🟡 | Nomes dos jogadores, indicadores na tela, lista de quem está online (✅ lista com localização e ping; ✅ nome acima do avatar) | M |
+| 8.8 | **Mapa do jogo (M) com a localização dos outros jogadores** (pedido do usuário, 2026-10-26: "quero o mapa com localização do outro player"). Caminho: a página do mapa já tem o marcador do jogador local (`UIMapArea.playerPosition`, posto por `SetPlayerPosition`); clonar um marcador por jogador remoto, com nome/cor, usando o mapa e a posição que o `PlayerSync` já recebe. Quem está dentro de um prédio fica no ponto do prédio, como os moradores (`AddCharaToAnchor`) | M |
 | 8.7 ✅ | **Aparência própria de cada jogador (D28/D32)**, inclusive gênero diferente. ⏳ falta teste em rede | G |
 | 8.3 | Reativar para convidados: eventos de casado, cerimônia, filhos, ajuda na fazenda (D12a) | GG |
 | 8.4c ✅ | Esconder/desabilitar a opção "Salvar" no multiplayer: "Salvar" e "Carregar" mostram aviso (D48) | P |

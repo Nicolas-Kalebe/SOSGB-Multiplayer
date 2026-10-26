@@ -113,6 +113,8 @@
 
 ## 8. Player e mapas
 
+- **Tela do mapa (M):** `UIMapPage` → `UIMapArea`. Marcador do jogador local: `UIMapArea.playerPosition` (`RectTransform`), posto por `SetPlayerPosition(FieldMasterData mapaAtual, UIMapData)`; a montagem é `SetupPosition(...)` (assíncrona). Moradores: `SetNpcPosition` põe ícones `UIMapCharaIcon` (`Setup(idDoPersonagem)`) presos a pontos do mapa (`AddCharaToAnchor(id, UIMapAnchorData)`), não na posição exata. Base para mostrar os outros jogadores no mapa (ROTEIRO 8.8, ainda não investigado em tempo de jogo).
+
 - `PlayerCharacter` (~2600 linhas). `GameController.GetPlayer()` retorna **um** player.
 - Cenas Unity: só Launcher, Title e Game. Os mapas ("fields") carregam dentro da cena Game: `GameController.ChangeField(fieldId, spawnName, ...)`. Um mapa ativo por vez; a fazenda fica residente em `fieldCacheDict`.
 
