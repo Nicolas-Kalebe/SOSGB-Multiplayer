@@ -49,7 +49,7 @@ public class StorageSync : MonoBehaviour
         // Barraca do Bazaar: só uma pessoa vende por vez (D51; evita duas barracas vendendo os mesmos itens). Não tem
         // conteúdo próprio; a trava vale enquanto a loja está aberta. Quem abre a loja com a barraca de outro é
         // ajudante (D56) e não pega a trava.
-        new() { Index = 3, Name = "a barraca do Bazaar", UiKey = -1, OpenNow = () => BazaarManager.IsInstance && BazaarManager.Instance.IsInShop && (Stores[3].Holder == NoHolder || Stores[3].Holder == NetSession.LocalId), Get = () => null },
+        new() { Index = 3, Name = "a barraca do Bazaar", UiKey = -1, OpenNow = () => BazaarManager.IsInstance && BazaarManager.Instance.IsInShop && !BazaarHelpSync.Active && (Stores[3].Holder == NoHolder || Stores[3].Holder == NetSession.LocalId), Get = () => null },
     };
 
     /// <summary>Quem está com a barraca do Bazaar aberta (NoHolder = ninguém).</summary>
@@ -66,9 +66,10 @@ public class StorageSync : MonoBehaviour
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
-        WorldSync.OnWorldReceived += () => { foreach (var s in Stores) { s.HasBaseline = false; s.LocalOpen = false; } };
-        NetSession.OnHosting += () => { foreach (var s in Stores) { s.HasBaseline = false; s.Holder = NoHolder; } };
-        NetSession.OnJoined += () => { foreach (var s in Stores) { s.HasBaseline = false; s.Holder = NoHolder; } };
+        // LastReceived é da sessão/mundo atual: a reversão do ajudante (D56) nunca pode trazer o deck de outra sessão.
+        WorldSync.OnWorldReceived += () => { foreach (var s in Stores) { s.HasBaseline = false; s.LocalOpen = false; s.LastReceived = null; } };
+        NetSession.OnHosting += () => { foreach (var s in Stores) { s.HasBaseline = false; s.Holder = NoHolder; s.LastReceived = null; } };
+        NetSession.OnJoined += () => { foreach (var s in Stores) { s.HasBaseline = false; s.Holder = NoHolder; s.LastReceived = null; } };
         NetSession.OnPlayerLeft += id =>
         {
             if (NetSession.Current != NetSession.Mode.Host) return;
@@ -147,18 +148,38 @@ public class StorageSync : MonoBehaviour
         bool open;
         if (s.OpenNow != null) { try { open = s.OpenNow(); } catch { open = false; } }
         else open = ui != null && (int)ui.UIMenuKey == s.UiKey && ui.IsMenu;
+        var me = NetSession.LocalId;
+        var seller = Stores[3].Holder;
+        var otherSelling = seller != NoHolder && seller != me;
+        if (open && s.LocalOpen && (s.Index == 1 || s.Index == 2) && otherSelling)
+        {
+            // Alguém começou a vender com esta tela aberta: fecha agora e segue pelo caminho normal de "fechou" (manda a
+            // versão final e solta a trava). Sem isto, as mudanças do deck no jogo de quem vende não eram enviadas
+            // ("vale o dele") e, ao fechar aqui, o deck antigo voltava com os itens que já estavam no balcão (revisão D56).
+            var sname = NetSession.Players.TryGetValue(seller, out var sp0) ? sp0.Name : "Outro jogador";
+            GameNotify.Show($"{sname} abriu a loja: {s.Name} fica com quem vende até a loja fechar.");
+            CloseStorageUi(ui);
+            open = false;
+        }
         if (open == s.LocalOpen) return;
         s.LocalOpen = open;
-        var me = NetSession.LocalId;
         if (open)
         {
             // D56: durante a venda o deck (e as peças) ficam com quem vende — dois jogos mexendo no deck ao mesmo tempo
             // poderiam duplicar itens.
-            var seller = Stores[3].Holder;
-            if ((s.Index == 1 || s.Index == 2) && seller != NoHolder && seller != me)
+            if ((s.Index == 1 || s.Index == 2) && otherSelling)
             {
                 var sname = NetSession.Players.TryGetValue(seller, out var sp) ? sp.Name : "Outro jogador";
                 GameNotify.Show($"{sname} está vendendo: {s.Name} fica com quem vende até a loja fechar.");
+                CloseStorageUi(ui);
+                s.LocalOpen = false;
+                return;
+            }
+            // Logo depois de ajudar, o deck deste jogo ainda vai voltar ao do dono (folga de alguns segundos, D56):
+            // mexer agora se perderia.
+            if ((s.Index == 1 || s.Index == 2) && BazaarHelpSync.SuppressWrites)
+            {
+                GameNotify.Show("O turno do Bazaar acabou de fechar. Espere alguns segundos para mexer no deck.");
                 CloseStorageUi(ui);
                 s.LocalOpen = false;
                 return;

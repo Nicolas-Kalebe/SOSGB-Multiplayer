@@ -20,7 +20,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 | `EventReadData` | Eventos já vistos (`EventManager.EventInfo`: lidos, histórico, tipos de casamento) | ❓ P15: hoje ficam no mundo do host (o convidado não vê o que o host viu e revê o que só ele viu); proposta de guardar por jogador |
 | `BrandItemIds`, `BrandAnimalIds` | Selo BRAND (preço 3x) ganho nos festivais | 🛠️ D57: união |
 | `BingoData` | Happy Bingo (cartelas) | ⏳ grande (~300 KB); fica do host por enquanto |
-| `AchievementSaveData` | Conquistas | ⏳ |
+| `AchievementSaveData` | Conquistas **da Steam** (`AchievementManager` + `SteamAchievementHandler`; só uma lista de IDs desbloqueados) | ➖ cada jogador desbloqueia na própria conta Steam; sem efeito no jogo |
 | `BazaarSales`, `TotalSellShopPrice`, contadores `*OneDayAchievement`, `SuspiciousHoneyCount`, `SuspiciousMushroomCount`, `BarrelJumpCount` | Contadores de títulos/conquistas | ⏳ (afetam títulos, não o jogo do dia a dia) |
 | `NpcFoodData`, `ScheduleData` | Rotina e comida dos NPCs | ➖ mundo do host a cada dia |
 | `FamilyData`, `DateEventSaveData` | Casamento, filhos, encontros | ⏳ ver D44/D45 (romance individual) |
@@ -33,20 +33,20 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 ## 2. Mecânicas apontadas pela wiki
 
 ### Alta prioridade
-- **Visitas da manhã com presentes** (ferramentas na 1ª semana; galinha grátis; pet grátis em 1 de verão; cavalo grátis em 14 de verão; receitas do Felix). Ferramentas são individuais: o convidado ganhar as dele está certo. **Animais** podiam duplicar se o evento rodasse em cada jogo → 🛠️ D57: só o host cria pets e cavalos novos no mundo (o host ignora pets/cavalos novos vindos de convidados). Galinhas novas já não são criadas ao vivo (D41).
+- **Visitas da manhã com presentes** (ferramentas na 1ª semana; galinha grátis; pet grátis em 1 de verão; cavalo grátis em 14 de verão; receitas do Felix). Ferramentas são individuais: o convidado ganhar as dele está certo. **Animais** podiam duplicar se o evento rodasse em cada jogo → 🛠️ D57/D60: nos dias desses presentes só o host cria pets e cavalos novos no mundo (nos outros dias o convidado pode comprar pet normalmente). Galinhas novas já não são criadas ao vivo (D41).
 - **Pedidos que desbloqueiam o mundo** (moinhos do Isaac, Emp-ore-ium, colmeias e cogumelos, galinhas perdidas...) → 🛠️ D57 (`MissionData` compartilhado). ❓ Contadores (20 presentes, 200 colheitas...) somam a ajuda de todos.
 - **Rank do Bazaar e cenas da história** → ✅ progresso do Bazaar compartilhado (D54). Cenas: cada um vê no próprio jogo.
 - **Clima e vento** → ✅ vêm da semente do mundo do host (mesmo clima para todos).
 - **Upgrade de ferramenta nos moinhos** (o moinho é compartilhado, a ferramenta é individual): quem retirar a ferramenta pronta leva para a mochila dele. ❓ P12.
 - **Compras únicas** (ampliação da mochila, pulo duplo...): estoque compartilhado. Ampliações valem para todos (D38/expansion); habilidades viram flag de evento (união). ➖
 - **Happy Energy** → 🛠️ D57.
-- **Desmaio e cenas que avançam a hora** → ✅ D50 (o tempo segue o mais adiantado) e D33 (virada só quando todos dormem). Desmaio fora de casa: ⏳ conferir que conta como "dormiu".
+- **Desmaio e cenas que avançam a hora** → ✅ D50 (o tempo segue o mais adiantado) e D33 (virada só quando todos dormem). Desmaio: 🛠️ D58 — conta como "dormiu" (passa pela mesma trava da cama). O teste achou um impasse sério: dormindo ou desmaiando depois da meia-noite, o host não percebia o fim da virada e os convidados ficavam dormindo para sempre; corrigido.
 
 ### Média prioridade
 - **Festivais com competição** (Pet Show, Horse Derby, Animal/Crop Show, Cook-off): cada jogo roda o próprio minigame; resultados compartilhados (D43). ❓ Quem inscreve o pet/cavalo compartilhado.
 - **Casamento com vários cônjuges na mesma casa** → ⏳ D45.
 - **Coleta e mineração fora da fazenda** (regenera às 17h) → ✅ natureza compartilhada (D43, FieldSnapshot).
-- **Títulos e conquistas pelo correio** → correio compartilhado (D39); risco de prêmio em dobro, ⏳ observar.
+- **Títulos e conquistas pelo correio** → correio compartilhado (D39). As "conquistas" do save são as da Steam (sem prêmio no jogo); os prêmios do jogo são `awards` (compartilhado, D42). ➖
 
 ### Baixa prioridade
 - Happy Bingo (por enquanto do host), insetos e peixes guardiões (cada jogo sorteia; enciclopédia comum), Wonderstones, Power Berry (vigor máximo compartilhado), recicláveis e medalhas (itens de mochila), contagem de Ano Novo e aniversários.

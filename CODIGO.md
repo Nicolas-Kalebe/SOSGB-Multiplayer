@@ -218,6 +218,12 @@ Armadilhas das flags de evento:
 - `GameController.ChangeField((FieldMasterId)id, ...)` troca de mapa. Ao pedir `10001`, o jogo foi para **`10002`**: o ID efetivo é "sazonal" (varia com estação/estado). Use o `FieldManager.CurrentFieldId` real, não o pedido.
 - Trocar de mapa nesse teste **não** disparou save automático.
 
+### Bazaar: fim do turno e estados dos espaços (D60)
+- **No fim do turno o jogo devolve ao deck o que sobrou nos balcões** (testado: 103000x5 e 110000x5 no balcão; ao fechar a tela de resultados com Esc, o balcão ficou vazio e os dois voltaram ao deck). A tela "Resultados do Turno" fecha com **Esc** (Enter não fecha). `IsInShop` continua verdadeiro durante a tela de resultados.
+- `BazaarManager.ShopShelfAccessState`: Put 0 (espaço vazio), Exchange 1 (item sem cliente), Sell 2 (cliente esperando, "!!"), Talk 3, None 4, SelectPut 5 (mini deck aberto), SellWait 6. `GetShopShelfAccessState(k)` é do balcão ATUAL.
+- `ExhibitionShelfManager.PutIn(item, espaço, out resto)` devolve `bool`; `StorageManager.IsFull()` existe. A mochila é `InventoryManager.BagItemStorage`.
+- `SceneManager.LoadScene` tem duas versões (`int` pública e `SceneParam` privada): `[HarmonyPatch(typeof(SceneManager), "LoadScene")]` dá "Ambiguous match" e **derruba o plugin inteiro** no `PatchAll` (nenhum patch do mod entra). Use `TargetMethod` escolhendo pela assinatura.
+
 ### Dormir e virar o dia (tarefas 3.4/3.5)
 - ⚠️ Chamar `PlayerCharacter.ActionSleep()` fora da cama deixa o personagem preso em `ForceCleanMove` (andando até um destino que não existe), sem volta nem com `InitializeUpdateState`. O fluxo real é: interagir com a cama → diálogo → "Hora de dormir!" → `ActionSleep` → `GameController.StartNextDay`.
 - `GameController.StartNextDay()` (público, `UniTask`) vira o dia **na hora** (data → dia seguinte, 06:00). Ordem observada: `StartNextDay` → `PreChangeDate` → save automático.

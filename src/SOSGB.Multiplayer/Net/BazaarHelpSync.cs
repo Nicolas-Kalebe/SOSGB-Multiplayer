@@ -41,6 +41,8 @@ public class BazaarHelpSync : MonoBehaviour
 
     private static bool _pendingRevert;
     private static int _targetShelf = -1, _targetSlot = -1;
+    private static byte _owner = StorageSync.NoHolder;
+    private static bool _ownerLeft;
     private static bool _subscribed;
     public static int Requests, Executed;
 
@@ -49,6 +51,18 @@ public class BazaarHelpSync : MonoBehaviour
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
+        NetSession.OnPlayerLeft += id => { if (Active && id == _owner) _ownerLeft = true; };
+        // Sessão nova ou mundo novo: nada da sessão anterior (reversão do deck, estados dos espaços) vale mais.
+        NetSession.OnHosting += ResetSession;
+        NetSession.OnJoined += ResetSession;
+        WorldSync.OnWorldReceived += ResetSession;
+    }
+
+    private static void ResetSession()
+    {
+        _pendingRevert = false;
+        _endedAt = -100;
+        OwnerStates = Array.Empty<byte>();
     }
 
     private static BazaarManager Bm => BazaarManager.IsInstance ? BazaarManager.Instance : null;
@@ -61,11 +75,21 @@ public class BazaarHelpSync : MonoBehaviour
             if (NetSession.Current == NetSession.Mode.Offline || bm == null)
             {
                 if (Active) Stop("sessão encerrada");
+                _pendingRevert = false; // sem sessão não há "deck do dono" para onde voltar
                 return;
             }
             // A loja abriu com a barraca de outro jogador → modo ajudante; fechou → sai.
             if (!Active && bm.IsInShop && OtherOwner()) Start();
             else if (Active && !bm.IsInShop) Stop("loja fechada");
+            else if (Active && !OtherOwner())
+            {
+                // O dono saiu da barraca com a loja deste jogo ainda aberta. Caiu/saiu do mundo: este jogador assume a
+                // barraca com os itens que estão nos balcões (só existiam no jogo dele). Fechou a loja: assume vazia
+                // (os itens voltaram ao deck dele). Sem isto o ajudante ficava preso sem vender (revisão da D56).
+                var left = _ownerLeft;
+                Stop(left ? "o dono saiu do mundo; assumindo a barraca" : "o dono fechou a loja; assumindo a barraca", takeover: true, keepShelf: left);
+                GameNotify.Show(left ? "O dono da barraca saiu. A barraca agora é sua, com os itens dos balcões." : "O dono fechou a loja. A barraca agora é sua.");
+            }
             if (Active && _stepAsideAt > 0 && Time.unscaledTime >= _stepAsideAt) { _stepAsideAt = -1; StepAside(bm); }
             if (_pendingRevert && !SuppressWrites)
             {
@@ -86,24 +110,57 @@ public class BazaarHelpSync : MonoBehaviour
     {
         if (Active) return;
         Active = true;
+        _owner = StorageSync.BazaarHolder;
+        _ownerLeft = false;
+        // Os balcões deste jogo passam a espelhar os do dono. Normalmente estão vazios (no fim de cada turno o jogo
+        // devolve ao deck o que sobrou; testado); só teriam itens se os dois abriram a loja juntos.
+        if (LocalShelfCount() > 0) Plugin.Logger.LogWarning("[BazaarHelp] os balcões deste jogo tinham itens ao virar ajudante (abriram a loja juntos?)");
         InstallPatches();
         RefreshMiniDeck();
         _stepAsideAt = Time.unscaledTime + 4f;
-        var h = StorageSync.BazaarHolder;
-        var name = NetSession.Players.TryGetValue(h, out var p) ? p.Name : "o dono";
+        var name = NetSession.Players.TryGetValue(_owner, out var p) ? p.Name : "o dono";
         GameNotify.Show($"Ajudando na barraca de {name}: atenda com Enter e reponha com Tab.");
-        Plugin.Logger.LogInfo($"[BazaarHelp] modo ajudante ligado (dono #{h})");
+        Plugin.Logger.LogInfo($"[BazaarHelp] modo ajudante ligado (dono #{_owner})");
     }
 
-    private static void Stop(string why)
+    /// <summary>
+    /// Sai do modo ajudante. Normal (a loja deste jogo fechou): limpa os balcões espelhados e, depois da folga, volta ao
+    /// último deck recebido. Assumir a barraca (takeover): este jogo vira o dono, então o deck daqui passa a valer na hora
+    /// (sem folga nem reversão, senão itens postos agora voltariam ao deck e duplicariam).
+    /// </summary>
+    private static void Stop(string why, bool takeover = false, bool keepShelf = false)
     {
         if (!Active) return;
         Active = false;
         RemovePatches();
-        _endedAt = Time.unscaledTime;
-        _pendingRevert = true;
-        ClearLocalShelf();
+        OwnerStates = Array.Empty<byte>();
+        _stepAsideAt = -1;
+        if (takeover)
+        {
+            _endedAt = -100;
+            _pendingRevert = false;
+            if (!keepShelf) ClearLocalShelf();
+        }
+        else
+        {
+            _endedAt = Time.unscaledTime;
+            _pendingRevert = true;
+            ClearLocalShelf();
+        }
+        _owner = StorageSync.NoHolder;
+        _ownerLeft = false;
         Plugin.Logger.LogInfo($"[BazaarHelp] modo ajudante desligado ({why})");
+    }
+
+    private static int LocalShelfCount()
+    {
+        try
+        {
+            var n = 0;
+            foreach (var d in InventoryManager.Instance.ExhibitionShelf.ItemDatas) if (d != null && d.ItemId != 0 && d.Stack > 0) n++;
+            return n;
+        }
+        catch { return 0; }
     }
 
     /// <summary>Esvazia os balcões deste jogo (eram cópia dos do dono) para o jogo não "devolver" ao deck itens que não são dele.</summary>
@@ -303,6 +360,8 @@ public class BazaarHelpSync : MonoBehaviour
                 var inv = InventoryManager.Instance;
                 var deck = inv.DeckStorage;
                 var esm = inv.ExhibitionShelf;
+                var g = shelf * 4 + slot;
+                if (slot >= 4 || g >= esm.ItemDatas.Length) return;
                 var datas = deck.ItemDatas;
                 var from = -1;
                 for (var i = 0; i < datas.Length && from < 0; i++)
@@ -311,17 +370,29 @@ public class BazaarHelpSync : MonoBehaviour
                     if (d != null && d.ItemId == item.ItemId && d.QualityValue == item.QualityValue && d.FreshnessValue == item.FreshnessValue && d.Stack > 0) from = i;
                 }
                 if (from < 0) { Plugin.Logger.LogInfo($"[BazaarHelp] item {item.ItemId} não está mais no deck"); return; }
-                var take = deck.PutOut(from, Math.Min(item.Stack > 0 ? item.Stack : datas[from].Stack, datas[from].Stack));
-                if (take == null) return;
-                var g = shelf * 4 + slot;
-                var cur = esm.ItemDatas;
-                if (g < cur.Length && cur[g] != null && cur[g].ItemId != 0)
+                var cur = esm.ItemDatas[g];
+                var hasOld = cur != null && cur.ItemId != 0 && cur.Stack > 0;
+                var amount = Math.Min(item.Stack > 0 ? item.Stack : datas[from].Stack, datas[from].Stack);
+                // O item que estava no espaço volta ao deck: precisa de lugar (um espaço vazio, ou o do item escolhido se
+                // ele sair inteiro). Sem lugar, recusa antes de mexer em qualquer coisa (não perde itens; revisão da D56).
+                if (hasOld && deck.IsFull() && amount < datas[from].Stack)
                 {
-                    var old = esm.PutOut(g);
-                    if (old != null) deck.PutIn(old, out _, false);
+                    GameNotify.Show("O deck está cheio: não dá para trocar o item desse espaço.");
+                    return;
                 }
-                esm.PutIn(take, g, out var rem);
-                if (rem != null && rem.ItemId != 0 && rem.Stack > 0) deck.PutIn(rem, out _, false);
+                var take = deck.PutOut(from, amount);
+                if (take == null) return;
+                var old = hasOld ? esm.PutOut(g) : null;
+                if (!esm.PutIn(take, g, out var rem))
+                {
+                    // Não coube: desfaz (item escolhido volta ao deck, o antigo volta ao espaço).
+                    deck.PutIn(take, out _, false);
+                    if (old != null) esm.PutIn(old, g, out _);
+                    Plugin.Logger.LogWarning($"[BazaarHelp] pôr {take.ItemId} no balcão {shelf} espaço {slot} falhou; desfeito");
+                    return;
+                }
+                ReturnToDeck(deck, rem);
+                ReturnToDeck(deck, old);
                 bm.ReExhibit();
                 RefreshMiniDeck();
                 Executed++;
@@ -329,6 +400,16 @@ public class BazaarHelpSync : MonoBehaviour
             }
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarHelp] executar pedido: {e.Message}"); }
+    }
+
+    /// <summary>Devolve ao deck; se nem tudo couber, o resto vai para a mochila do dono (nunca some).</summary>
+    private static void ReturnToDeck(StorageManager deck, BokuMono.Data.ItemData it)
+    {
+        if (it == null || it.ItemId == 0 || it.Stack <= 0) return;
+        deck.PutIn(it, out var left, false);
+        if (left == null || left.ItemId == 0 || left.Stack <= 0) return;
+        try { InventoryManager.Instance.BagItemStorage.PutIn(left, out _, false); } catch { }
+        Plugin.Logger.LogWarning($"[BazaarHelp] deck cheio: {left.ItemId}x{left.Stack} foi para a mochila");
     }
 
     // ---------- estado dos espaços (avisos de vender/pôr/trocar) ----------
@@ -354,11 +435,16 @@ public class BazaarHelpSync : MonoBehaviour
                 var its = shelves[sh].GetShopItems();
                 for (var k = 0; k < its.Length && k < 4; k++)
                 {
-                    bm.UpdateCurrentShopShelf(its[k].GetSalePointObjId());
-                    var st = bm.GetShopShelfAccessState(k);
-                    // "Escolhendo item para este espaço" é do vendedor que abriu o mini deck, não do espaço.
-                    if (st == BazaarManager.ShopShelfAccessState.SelectPut) st = BazaarManager.ShopShelfAccessState.Put;
-                    res[sh * 4 + k] = (byte)st;
+                    // Um espaço com erro por dentro do jogo não pode apagar o estado dos outros (fica "sem espaço").
+                    try
+                    {
+                        bm.UpdateCurrentShopShelf(its[k].GetSalePointObjId());
+                        var st = bm.GetShopShelfAccessState(k);
+                        // "Escolhendo item para este espaço" é do vendedor que abriu o mini deck, não do espaço.
+                        if (st == BazaarManager.ShopShelfAccessState.SelectPut) st = BazaarManager.ShopShelfAccessState.Put;
+                        res[sh * 4 + k] = (byte)st;
+                    }
+                    catch (Exception e) { if (Plugin.DevMode) Plugin.Logger.LogWarning($"[BazaarHelp] estado do balcão {sh} espaço {k}: {e.Message}"); }
                 }
             }
         }
@@ -413,39 +499,53 @@ public class BazaarHelpSync : MonoBehaviour
         {
             _harmony ??= new Harmony(Plugin.Guid + ".bazaarhelp");
             var bmT = typeof(BazaarManager);
-            void P(System.Reflection.MethodBase target, string prefix) =>
+            void P(System.Reflection.MethodBase target, string prefix, string what)
+            {
+                if (target == null) throw new Exception("método do jogo não encontrado: " + what);
                 _harmony.Patch(target, prefix: new HarmonyMethod(typeof(BazaarHelpSync).GetMethod(prefix, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)));
-            P(AccessTools.Method(bmT, nameof(BazaarManager.ActionAccessShopShelf)), nameof(AccessPrefix));
-            P(AccessTools.Method(bmT, nameof(BazaarManager.SelectExhibit)), nameof(SelectPrefix));
-            P(AccessTools.Method(bmT, nameof(BazaarManager.Sell)), nameof(SellPrefix));
-            P(AccessTools.Method(bmT, nameof(BazaarManager.GetShopShelfAccessState)), nameof(AccessStatePrefix));
-            P(AccessTools.Method(bmT, nameof(BazaarManager.IsBuyStandby)), nameof(StandbyPrefix));
-            P(AccessTools.Method(typeof(UIBazaarMainPage), nameof(UIBazaarMainPage.OpenMiniDeck)), nameof(MiniDeckPrefix));
+            }
+            P(AccessTools.Method(bmT, nameof(BazaarManager.ActionAccessShopShelf)), nameof(AccessPrefix), "ActionAccessShopShelf");
+            P(AccessTools.Method(bmT, nameof(BazaarManager.SelectExhibit)), nameof(SelectPrefix), "SelectExhibit");
+            P(AccessTools.Method(bmT, nameof(BazaarManager.Sell)), nameof(SellPrefix), "Sell");
+            P(AccessTools.Method(bmT, nameof(BazaarManager.GetShopShelfAccessState)), nameof(AccessStatePrefix), "GetShopShelfAccessState");
+            P(AccessTools.Method(bmT, nameof(BazaarManager.IsBuyStandby)), nameof(StandbyPrefix), "IsBuyStandby");
+            P(AccessTools.Method(typeof(UIBazaarMainPage), nameof(UIBazaarMainPage.OpenMiniDeck)), nameof(MiniDeckPrefix), "OpenMiniDeck");
             var bell = AccessTools.Method(typeof(PlayerActionAtraction), nameof(PlayerActionAtraction.Action));
-            if (bell != null) P(bell, nameof(BellPrefix));
+            if (bell != null) P(bell, nameof(BellPrefix), "PlayerActionAtraction.Action");
             _patched = true;
             Plugin.Logger.LogInfo("[BazaarHelp] interceptações do ajudante instaladas");
         }
-        catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarHelp] instalar interceptações: {e.Message}"); }
+        catch (Exception e)
+        {
+            // Instalação pela metade deixaria interceptações soltas (a de IsBuyStandby some com o aviso de vender até
+            // quando este jogador for dono): tira tudo.
+            Plugin.Logger.LogWarning($"[BazaarHelp] instalar interceptações: {e.Message}; retirando as que entraram");
+            try { _harmony?.UnpatchSelf(); } catch { }
+        }
     }
 
     private static void RemovePatches()
     {
-        if (!_patched) return;
-        try { _harmony.UnpatchSelf(); Plugin.Logger.LogInfo("[BazaarHelp] interceptações do ajudante retiradas"); }
+        // Sempre tira tudo deste Harmony (mesmo se a instalação falhou no meio).
+        try { _harmony?.UnpatchSelf(); if (_patched) Plugin.Logger.LogInfo("[BazaarHelp] interceptações do ajudante retiradas"); }
         catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarHelp] tirar interceptações: {e.Message}"); }
         _patched = false;
     }
 
-    /// <summary>Enter num item: se há item no espaço, vira pedido "atender" ao dono; espaço vazio abre o mini deck (repor).</summary>
+    /// <summary>
+    /// Enter num espaço, pelo estado do espaço no jogo do dono: cliente esperando (Vender) → pedido "atender"; espaço
+    /// vazio (Pôr) → deixa o jogo abrir o mini deck (repor). Trocar um item sem cliente, conversar e "cliente chegando"
+    /// não fazem nada no ajudante (antes viravam "atender" que o dono descartava; trocar ainda não foi testado).
+    /// </summary>
     private static bool AccessPrefix(int idx)
     {
         if (!Active) return true;
         var shelf = Bm.GetCurrentShelfIndex();
         _targetShelf = shelf;
         _targetSlot = idx;
-        if (!LocalSlotHasItem(shelf, idx)) return true;
-        SendRequest(KindServe, shelf, idx);
+        var st = OwnerState(idx);
+        if (st == (int)BazaarManager.ShopShelfAccessState.Sell) { SendRequest(KindServe, shelf, idx); return false; }
+        if (st == (int)BazaarManager.ShopShelfAccessState.Put && !LocalSlotHasItem(shelf, idx)) return true;
         return false;
     }
 

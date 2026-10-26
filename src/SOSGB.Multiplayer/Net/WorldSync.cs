@@ -52,6 +52,7 @@ public static class WorldSync
                 Plugin.Logger.LogInfo($"[WorldSync] mundo recebido ({len} bytes); recarregando");
                 DevBridge.PushEvent($"world-recebido:{len}");
                 OnWorldReceived?.Invoke();
+                WorldSnapshot.HoldingHostWorld = true;
                 WorldSnapshot.SetCaptured(bytes);
                 WorldSnapshot.Load(GuestLoadSlot);
                 break;

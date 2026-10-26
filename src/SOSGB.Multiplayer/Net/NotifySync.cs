@@ -33,7 +33,12 @@ public class NotifySync : MonoBehaviour
         NetSession.OnPlayerLeftNamed += (id, name) => GameNotify.Show($"{name} saiu do mundo.");
         // O convidado recarrega o mundo logo depois de entrar; o aviso sai depois da recarga.
         NetSession.OnJoined += () => _pendingJoinNotice = true;
-        NetSession.OnDisconnectedFromHost += reason => GameNotify.Show($"Conexão com o host perdida ({reason}).");
+        NetSession.OnDisconnectedFromHost += reason =>
+        {
+            GameNotify.Show($"Conexão com o host perdida ({reason}).");
+            if (WorldSnapshot.HoldingHostWorld)
+                GameNotify.Show("Este mundo é do host: nada daqui será salvo. Volte ao título para entrar de novo ou jogar o seu save.");
+        };
         NetSession.OnGameMessage += OnMessage;
     }
 

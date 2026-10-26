@@ -1,7 +1,10 @@
 // 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md e DECISOES.md#d57.
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using BokuMono;
+using HarmonyLib;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using UnityEngine;
@@ -18,6 +21,9 @@ namespace SOSGB.Multiplayer.Net;
 ///  - Convidado → host: só as MUDANÇAS — o estado novo e a DIFERENÇA de progresso. O host SOMA o progresso (pedidos
 ///    como "colha 200" ou "dê 20 presentes" contam a ajuda de todos) e fica com o estado mais avançado
 ///    (Antes → Disponível → Aceito → Completo → Loja aberta). Depois manda a lista oficial a todos.
+///  - Exceção: pedidos que o jogo define por VALOR (afeição de animais e pets, venda do dia no Bazaar: métodos
+///    Overwrite* do MissionManager) não são contadores. Somar faria dois jogos calculando a mesma afeição de um animal
+///    compartilhado contarem em dobro. Esses vão com o valor e o host fica com o MAIOR (achado na revisão da D57).
 ///  - Host → todos: a lista inteira quando muda.
 ///  - O efeito no mundo (loja que abre, moinho que aparece) é aplicado pelo jogo do host na virada do dia, como sem
 ///    o mod; o convidado recebe o mundo pronto. A recompensa vai para a mochila de quem entregou (individual).
@@ -27,6 +33,10 @@ public class MissionSync : MonoBehaviour
     public MissionSync(IntPtr ptr) : base(ptr) { }
 
     private const byte KindDelta = 0, KindSnapshot = 1;
+    private const byte FlagAbsolute = 1;
+
+    /// <summary>Pedidos cujo progresso o jogo define por valor (vistos mudando dentro de um Overwrite* do MissionManager).</summary>
+    private static readonly HashSet<uint> AbsoluteIds = new();
 
     private struct Order
     {
@@ -41,6 +51,7 @@ public class MissionSync : MonoBehaviour
     private static bool _hasBaseline;
     private static bool _subscribed;
     private static bool _forceSnapshot;
+    private static bool _hostNewShop; // convidado: último "loja nova" visto do host (só a passagem para true vale)
     private float _nextCheck;
     public static int Sent, Received;
 
@@ -98,7 +109,8 @@ public class MissionSync : MonoBehaviour
                 if (Baseline.TryGetValue(kv.Key, out var old) && old.State == kv.Value.State && old.Progress == kv.Value.Progress
                     && old.Received == kv.Value.Received && old.Completed == kv.Value.Completed) continue;
                 var o = kv.Value;
-                if (NetSession.Current == NetSession.Mode.Client) o.Progress -= Baseline.TryGetValue(kv.Key, out var b) ? b.Progress : 0; // diferença
+                if (NetSession.Current == NetSession.Mode.Client && !AbsoluteIds.Contains(kv.Key))
+                    o.Progress -= Baseline.TryGetValue(kv.Key, out var b) ? b.Progress : 0; // diferença
                 changed.Add(o);
             }
             var newShop = MissionManager.Instance.IsNewOpenShop;
@@ -128,7 +140,11 @@ public class MissionSync : MonoBehaviour
         NetSession.SendGame(MsgType.MissionData, w =>
         {
             w.Put(kind); w.Put(newShop); w.Put(orders.Count);
-            foreach (var o in orders) { w.Put(o.Id); w.Put((byte)o.State); w.Put(o.Progress); w.Put(o.Received); w.Put(o.Completed); }
+            foreach (var o in orders)
+            {
+                w.Put(o.Id); w.Put((byte)o.State); w.Put(o.Progress); w.Put(o.Received); w.Put(o.Completed);
+                w.Put(AbsoluteIds.Contains(o.Id) ? FlagAbsolute : (byte)0);
+            }
         }, DeliveryMethod.ReliableOrdered);
         Sent++;
     }
@@ -140,7 +156,11 @@ public class MissionSync : MonoBehaviour
         var n = r.GetInt();
         var list = new List<Order>(n);
         for (var i = 0; i < n; i++)
-            list.Add(new Order { Id = r.GetUInt(), State = r.GetByte(), Progress = r.GetInt(), Received = r.GetLong(), Completed = r.GetLong() });
+        {
+            var o = new Order { Id = r.GetUInt(), State = r.GetByte(), Progress = r.GetInt(), Received = r.GetLong(), Completed = r.GetLong() };
+            if ((r.GetByte() & FlagAbsolute) != 0) AbsoluteIds.Add(o.Id);
+            list.Add(o);
+        }
         return list;
     }
 
@@ -169,7 +189,8 @@ public class MissionSync : MonoBehaviour
                 {
                     var od = Find(o.Id);
                     if (o.State > (int)od.State) od.State = (MissionManager.OrderState)o.State;
-                    if (o.Progress != 0) od.SetProgress(Math.Max(0, od.ProgressValue + o.Progress));
+                    if (AbsoluteIds.Contains(o.Id)) { if (o.Progress > od.ProgressValue) od.SetProgress(o.Progress); }
+                    else if (o.Progress != 0) od.SetProgress(Math.Max(0, od.ProgressValue + o.Progress));
                     if (o.Received != 0 && (od.ReceivedTicks == 0 || o.Received < od.ReceivedTicks)) od.ReceivedTicks = o.Received;
                     if (o.Completed > od.CompleteTicks) od.CompleteTicks = o.Completed;
                 }
@@ -187,10 +208,13 @@ public class MissionSync : MonoBehaviour
                 foreach (var o in orders)
                 {
                     var od = Find(o.Id);
-                    var pending = local.TryGetValue(o.Id, out var lo) && Baseline.TryGetValue(o.Id, out var bo) ? lo.Progress - bo.Progress : 0;
-                    var pendingState = local.TryGetValue(o.Id, out var ls) && Baseline.TryGetValue(o.Id, out var bs) && ls.State != bs.State ? ls.State : -1;
+                    var hasLocal = local.TryGetValue(o.Id, out var lo);
+                    var pending = hasLocal && Baseline.TryGetValue(o.Id, out var bo) ? lo.Progress - bo.Progress : 0;
+                    var pendingState = hasLocal && Baseline.TryGetValue(o.Id, out var bs) && lo.State != bs.State ? lo.State : -1;
                     od.State = (MissionManager.OrderState)Math.Max(o.State, pendingState);
-                    if (od.ProgressValue != o.Progress + pending) od.SetProgress(Math.Max(0, o.Progress + pending));
+                    // Valor (afeição etc.): o maior entre o do host e o daqui; contador: o do host + o que ainda não foi mandado.
+                    var value = AbsoluteIds.Contains(o.Id) ? Math.Max(o.Progress, hasLocal ? lo.Progress : 0) : Math.Max(0, o.Progress + pending);
+                    if (od.ProgressValue != value) od.SetProgress(value);
                     // Mudança de estado feita aqui e ainda não enviada: mantém as datas locais (vão junto no próximo envio).
                     if (pendingState <= o.State)
                     {
@@ -198,11 +222,14 @@ public class MissionSync : MonoBehaviour
                         od.CompleteTicks = o.Completed;
                     }
                 }
-                MissionManager.Instance.IsNewOpenShop = newShop;
+                // "Loja nova" é um aviso: só a passagem para true no host acende aqui. Repetir o true do host a cada
+                // lista faria o aviso voltar depois que este jogador já viu (o host não recebe o false de ninguém).
+                if (newShop && !_hostNewShop) MissionManager.Instance.IsNewOpenShop = true;
+                _hostNewShop = newShop;
                 // A base fica na lista do host: a diferença local que sobrou ainda vai ser mandada.
                 Baseline.Clear();
                 foreach (var o in orders) Baseline[o.Id] = o;
-                _baselineNewShop = newShop;
+                _baselineNewShop = MissionManager.Instance.IsNewOpenShop;
                 _hasBaseline = true;
                 DevBridge.PushEvent("pedidos:recebidos");
             }
@@ -216,6 +243,34 @@ public class MissionSync : MonoBehaviour
         if (MissionManager.IsInstance && MissionManager.Instance.OrderDatas != null)
             foreach (var od in MissionManager.Instance.OrderDatas)
                 if (od != null && (int)od.State is >= 1 and <= 2) active.Add($"{od.Id}:{od.State}:{od.ProgressValue}");
-        return new { tracked = Baseline.Count, sent = Sent, received = Received, active };
+        return new { tracked = Baseline.Count, sent = Sent, received = Received, active, absolute = AbsoluteIds.ToList() };
+    }
+
+    /// <summary>
+    /// Descobre os pedidos definidos por valor: guarda o progresso antes de um Overwrite* do MissionManager e vê quais
+    /// mudaram depois. Só lê; não muda nada do jogo.
+    /// </summary>
+    [HarmonyPatch]
+    private static class OverwritePatch
+    {
+        private static IEnumerable<MethodBase> TargetMethods() =>
+            new[] { nameof(MissionManager.OverwriteAnimalParamValue), nameof(MissionManager.OverwritePetParamValue), nameof(MissionManager.OverwriteOneDayBazaarSale) }
+                .Select(n => (MethodBase)AccessTools.Method(typeof(MissionManager), n)).Where(m => m != null);
+
+        private static void Prefix(out Dictionary<uint, int> __state)
+        {
+            __state = null;
+            if (NetSession.Current == NetSession.Mode.Offline || !MissionManager.IsInstance || MissionManager.Instance.OrderDatas == null) return;
+            __state = new Dictionary<uint, int>();
+            foreach (var od in MissionManager.Instance.OrderDatas) if (od != null) __state[od.Id] = od.ProgressValue;
+        }
+
+        private static void Postfix(Dictionary<uint, int> __state)
+        {
+            if (__state == null) return;
+            foreach (var od in MissionManager.Instance.OrderDatas)
+                if (od != null && __state.TryGetValue(od.Id, out var before) && before != od.ProgressValue && AbsoluteIds.Add(od.Id))
+                    Plugin.Logger.LogInfo($"[MissionSync] pedido {od.Id} é por valor (não soma)");
+        }
     }
 }

@@ -11,11 +11,11 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `PlayerSync.cs` | Envia o estado do jogador local (10×/s: posição, 12 camadas e parâmetros do Animator) e mantém os avatares (clone visual do modelo com o override controller real; recriados quando o mundo recarrega; visíveis só no mesmo mapa) |
 | `WorldSync.cs` | 3.1: convidado pede o mundo, host captura (`WorldSnapshot`) e envia, convidado recarrega com ele |
 | `ClockSync.cs` | Relógio do grupo (D50): só o menu de pausa pausa; quem está em outra tela é adiantado ao sair; o tempo segue o mais adiantado (`ClockJump`); quem dorme não pausa (D33) |
-| `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo |
+| `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`; o desmaio passa pelo mesmo caminho), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo. Fim da virada reconhecido pelo `PlayerCharacter.StartNextDay` (depois da meia-noite o número do dia não muda, D58) |
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
 | `BazaarViewSync.cs` | D55: quem vende no Bazaar manda os clientes e os balcões; os outros no mesmo mapa assumem os clientes de mesmo número (cópias sem IA), abrem a barraca e mostram os itens; devolvem tudo quando a loja fecha |
-| `BazaarHelpSync.cs` | D56: ajudante na barraca do Bazaar — interceptações instaladas só enquanto ajuda (Enter → pedido "atender", mini deck → pedido "pôr item", estados dos espaços do dono); o dono executa os pedidos; lista do mini deck refeita quando o deck muda |
-| `MissionSync.cs` | D57: pedidos dos moradores compartilhados (progresso somado, estado mais avançado; host manda a lista oficial) |
+| `BazaarHelpSync.cs` | D56: ajudante na barraca do Bazaar — interceptações instaladas só enquanto ajuda (Enter → pedido "atender", mini deck → pedido "pôr item", estados dos espaços do dono); o dono executa os pedidos; lista do mini deck refeita quando o deck muda. Se o dono sai ou fecha a loja, o ajudante assume a barraca (D60) |
+| `MissionSync.cs` | D57: pedidos dos moradores compartilhados (contadores somados, pedidos por valor ficam com o maior, estado mais avançado; host manda a lista oficial). D60 |
 | `RomanceSync.cs` | 6.4/D44: romance exclusivo (registro NPC → jogador no host; patches em `CheckMarryable`/`SetFiance`) |
 | `SharedSync.cs` | 5.4/D42/D43: estado compartilhado genérico (lista de partes com capturar/aplicar, em rodízio): moinho, apicultura, cogumelos, vasos, ampliações, pets, cavalo, prêmios, adega, banho, receitas, missões, peixes, reforços, lojas, Bazaar, festivais, informações gerais, histórico de itens e flags de evento (união) |
 | `AnimalSync.cs` | 5.3/D41: animais da fazenda (cuidados) e celeiros (ovos, ração), mesclando sem mexer na posição |

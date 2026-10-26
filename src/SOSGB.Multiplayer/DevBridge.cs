@@ -922,6 +922,13 @@ public class DevBridge : MonoBehaviour
                     (Action<int, SaveLoadResult>)((s, r) => PushEvent($"save-manual:{s}:{r}")));
                 return Json(new { ok = true, started = true });
 
+            case "holdworld":
+                // holdworld [on|off|title] — D59: simula "convidado com o mundo do host na memória" e a volta ao título
+                if (arg.Trim() == "on") WorldSnapshot.HoldingHostWorld = true;
+                if (arg.Trim() == "off") WorldSnapshot.HoldingHostWorld = false;
+                if (arg.Trim() == "title") SceneManager.Instance.LoadScene(SceneMode.Title, null, null);
+                return Json(new { ok = true, holding = WorldSnapshot.HoldingHostWorld, savesBlocked = WorldSnapshot.SavesBlocked, scene = SceneManager.Instance.CurrentSceneMode });
+
             case "addmoney":
                 var before = ExternalData.Instance.UserInfo.PlayerMoney;
                 GameController.Instance.AddMoney(uint.Parse(arg), true);

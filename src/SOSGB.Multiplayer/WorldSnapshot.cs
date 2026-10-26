@@ -28,10 +28,18 @@ public static class WorldSnapshot
     private static bool _captureArmed;
     private static bool _injectArmed;
 
+    /// <summary>
+    /// Este jogo está com o mundo de OUTRO jogador na memória (recebido como convidado). Continua valendo depois de uma
+    /// queda de conexão (o modo vira "offline"), até voltar ao título: gravar agora poria o mundo do host no save deste
+    /// jogador (o save automático da cama vai para o slot 0, o dele). D59.
+    /// </summary>
+    public static bool HoldingHostWorld { get; set; }
+
     /// <summary>Com a ponte de teste ligada, nenhum save vai para o disco (proteção dos saves do usuário).</summary>
     public static bool SavesBlocked =>
         (Plugin.DevMode && Plugin.BlockDiskSaves.Value)
-        || Net.NetSession.Current == Net.NetSession.Mode.Client; // D2/D23: convidado nunca grava no disco
+        || Net.NetSession.Current == Net.NetSession.Mode.Client // D2/D23: convidado nunca grava no disco
+        || HoldingHostWorld;
 
     public static string DumpPath => Path.Combine(Paths.BepInExRootPath, "worldsnap.sav");
 
@@ -107,6 +115,23 @@ public static class WorldSnapshot
         SceneManager.Instance.LoadScene(SceneMode.Game, null, null);
     }
 
+    /// <summary>Voltar ao título encerra o "mundo do host na memória" (D59): o próximo jogo carregado é um save deste jogador.</summary>
+    [HarmonyPatch]
+    private static class TitlePatch
+    {
+        // LoadScene tem duas versões (a pública recebe o int da cena; a privada, um SceneParam): só a pública.
+        private static System.Reflection.MethodBase TargetMethod() =>
+            System.Linq.Enumerable.First(typeof(SceneManager).GetMethods(), m => m.Name == nameof(SceneManager.LoadScene)
+                && m.GetParameters().Length == 3 && m.GetParameters()[0].ParameterType == typeof(int));
+
+        private static void Prefix(int sceneMode)
+        {
+            if (sceneMode != SceneMode.Title || !HoldingHostWorld) return;
+            HoldingHostWorld = false;
+            Plugin.Logger.LogInfo("[WorldSnapshot] voltou ao título: o mundo do host saiu da memória (saves liberados)");
+        }
+    }
+
     [HarmonyPatch(typeof(SaveDataAccessorWindows), nameof(SaveDataAccessorWindows.SlotSave))]
     private static class SlotSavePatch
     {
@@ -128,7 +153,9 @@ public static class WorldSnapshot
                 if (!SavesBlocked) return true;
                 if (Net.NetSession.Current == Net.NetSession.Mode.Client)
                     Notice.Show("Multiplayer: quem salva é o host, quando todos dormem.");
-                Plugin.Logger.LogWarning($"[WorldSnapshot] save do slot {slot} BLOQUEADO (DevBridge.BlockDiskSaves ou convidado)");
+                else if (HoldingHostWorld)
+                    Notice.Show("Este mundo é do host (a conexão caiu): não é salvo aqui. Volte ao título.");
+                Plugin.Logger.LogWarning($"[WorldSnapshot] save do slot {slot} BLOQUEADO (DevBridge.BlockDiskSaves, convidado ou mundo do host)");
                 DevBridge.PushEvent($"save-bloqueado:{slot}");
                 __result = Result.Succeess;
                 return false;

@@ -120,8 +120,10 @@ public class BazaarViewSync : MonoBehaviour
                 _wasOwner = false;
                 return;
             }
-            // Quem abriu a loja como ajudante (D56) não é dono: assiste e manda pedidos.
-            var owner = bm.IsInShop && !BazaarHelpSync.Active;
+            // Quem abriu a loja como ajudante (D56) não é dono: assiste e manda pedidos. A trava da barraca também conta:
+            // no 1º quadro da loja do ajudante o modo ajudante ainda não ligou (ele mandaria os próprios clientes).
+            var holder = StorageSync.BazaarHolder;
+            var owner = bm.IsInShop && !BazaarHelpSync.Active && (holder == StorageSync.NoHolder || holder == NetSession.LocalId);
             if (owner) OwnerTick(bm);
             else if (_wasOwner) SendClosed();
             _wasOwner = owner;

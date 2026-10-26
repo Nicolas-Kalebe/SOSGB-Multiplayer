@@ -195,11 +195,22 @@ public class SharedSync : MonoBehaviour
     }
 
     /// <summary>
-    /// Host aplicando estado vindo de um convidado (D57). Pets e cavalos NOVOS só nascem no mundo do host: eventos da
-    /// manhã (pet grátis em 1 de verão, cavalo em 14 de verão) rodam em cada jogo e criariam um animal a mais por
-    /// jogador. Quando o host recusa algo, ele manda o estado DELE a todos em vez de repassar o do convidado.
+    /// Host aplicando estado vindo de um convidado (D57). Nos dias dos presentes da manhã (pet grátis em 1 de verão,
+    /// cavalo em 14 de verão; e o dia seguinte, caso o evento rode atrasado) o evento roda em cada jogo e criaria um
+    /// animal a mais por jogador: nesses dias pets e cavalos NOVOS só nascem no mundo do host. Nos outros dias um pet
+    /// novo vindo do convidado é aceito (ele pode ter COMPRADO o pet: recusar faria perder o animal e o dinheiro;
+    /// achado na revisão da D57). Quando o host recusa algo, ele manda o estado DELE a todos.
     /// </summary>
     private static bool _applyingFromGuest, _filtered;
+
+    private const int SummerMonth = 2; // BokuMonoDateTime.Month: 1 primavera, 2 verão, 3 outono, 4 inverno
+
+    private static bool IsAnimalGiftDay(int giftDay)
+    {
+        if (!DateManager.IsInstance) return false;
+        var now = DateManager.Instance.Now;
+        return now.Month == SummerMonth && (now.Day == giftDay || now.Day == giftDay + 1);
+    }
 
     private static IEnumerable<(string guid, string json)> AnimalsIn(string json, string listName)
     {
@@ -220,7 +231,7 @@ public class SharedSync : MonoBehaviour
             if (sd == null) throw new Exception("JsonToObject devolveu nulo (pet)");
             var p = pc.FindParameter(guid);
             if (p != null) { p.FromSaveData(sd); continue; }
-            if (_applyingFromGuest) { _filtered = true; Plugin.Logger.LogInfo($"[SharedSync] pet novo vindo de convidado ignorado ({guid}): pets novos só no mundo do host"); continue; }
+            if (_applyingFromGuest && IsAnimalGiftDay(1)) { _filtered = true; Plugin.Logger.LogInfo($"[SharedSync] pet novo vindo de convidado ignorado ({guid}): dia do pet de presente, vale o do host"); continue; }
             p = new BokuMono.Animal.PetAnimalParameter();
             p.FromSaveData(sd);
             pc.AddParameter(p);
@@ -237,7 +248,7 @@ public class SharedSync : MonoBehaviour
             if (sd == null) throw new Exception("JsonToObject devolveu nulo (cavalo)");
             var p = rc.FindParameter(guid);
             if (p != null) { p.FromSaveData(sd); continue; }
-            if (_applyingFromGuest) { _filtered = true; Plugin.Logger.LogInfo($"[SharedSync] cavalo novo vindo de convidado ignorado ({guid})"); continue; }
+            if (_applyingFromGuest && IsAnimalGiftDay(14)) { _filtered = true; Plugin.Logger.LogInfo($"[SharedSync] cavalo novo vindo de convidado ignorado ({guid}): dia do cavalo de presente, vale o do host"); continue; }
             p = new BokuMono.Animal.RideableAnimalParameter();
             p.FromSaveData(sd);
             rc.AddParameter(p);
