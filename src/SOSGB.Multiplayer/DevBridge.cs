@@ -194,7 +194,7 @@ public class DevBridge : MonoBehaviour
                     commands = new[]
                     {
                         "ping", "state", "pause", "resume", "addhours <h>", "sleep", "nextday", "save", "addmoney <n>", "load <slot 0-2>",
-                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "field <FieldMasterId>", "log <texto>", "quit",
+                        "screenshot [nome]", "menu <UILoadKey>", "closemenu", "decodesave <caminho .sav>", "like get|add <npc> [pts]", "ctx save|load <nome>", "ctx json <nome> [parte]", "bag [take <slot> <qtd>]", "flag get|set <id> [valor]", "world capture|load|info", "net host [porta] | join <ip> [porta] | status | leave", "warp <dx> <dz>", "field <FieldMasterId>", "press <HumanActionInputFlags> [quadros]", "log <texto>", "quit",
                     },
                 });
 
@@ -894,6 +894,16 @@ public class DevBridge : MonoBehaviour
                 // tool [quadros] — usa a ferramenta da mão pelo caminho real do jogo (injeta a intenção, ver InputInjector)
                 Patches.InputInjector.PressTool(string.IsNullOrWhiteSpace(arg) ? 3 : int.Parse(arg));
                 return Json(new { ok = true });
+
+            case "press":
+            {
+                // press <Flag[,Flag]> [quadros] — aperta botões de ação do jogador por dentro (HumanActionInputFlags).
+                // Ex.: press Item = "Colocar" o item da mão no chão (o Shift sintético não chega ao jogo).
+                var pa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var flags = Enum.Parse<HumanActionInputFlags>(pa[0], true);
+                Patches.InputInjector.PressFlags(flags, pa.Length > 1 ? int.Parse(pa[1]) : 3);
+                return Json(new { ok = true, flags = flags.ToString() });
+            }
 
             case "wakeup":
                 // wakeup [wake|flag|both] — levanta da cama enquanto espera os outros (D34)

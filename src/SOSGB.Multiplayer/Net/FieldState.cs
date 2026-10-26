@@ -7,8 +7,8 @@ using BokuMono;
 namespace SOSGB.Multiplayer.Net;
 
 /// <summary>
-/// Estado dos objetos de um mapa (terra arada, plantas, árvores, pedras/mato, grama, flores, sprinklers, ovos) —
-/// a base da sincronização da fazenda (Fase 5, D40). Animais e itens soltos no chão ficam de fora (por enquanto).
+/// Estado dos objetos de um mapa (terra arada, plantas, árvores, pedras/mato, grama, flores, sprinklers, ovos, bichinhos,
+/// itens largados no chão) — a base da sincronização da fazenda (Fase 5, D40; itens no chão, D70).
 ///
 ///  - Captura: serializador OFICIAL do jogo (FieldSaveManager.CreateData + DecodeObjectSaveData): listas tipadas e
 ///    completas. (ToData chamado pela classe base vem com os campos do tipo zerados.)
@@ -20,7 +20,7 @@ namespace SOSGB.Multiplayer.Net;
 public static class FieldState
 {
     /// <summary>Tipo de objeto do mod (o enum do jogo não tem nome para grama e flor). A ordem é a de criação.</summary>
-    public enum Kind { Ridge, Tree, General, Crop, Sprinkler, Egg, Grass, Flower, Animal }
+    public enum Kind { Ridge, Tree, General, Crop, Sprinkler, Egg, Grass, Flower, Animal, Item }
 
     public sealed class Entry
     {
@@ -81,6 +81,17 @@ public static class FieldState
         // Bichinhos/insetos e animais selvagens (WildAnimal): pegar um tira o objeto do mapa (pedido do usuário:
         // "os bichinhos de mundo também são compartilhados").
         Add(od.AnimalObjectSaveDatas, Kind.Animal);
+        // Itens largados no chão (D70): soltos (FreeObjects), não presos à grade. Pegar um tira o objeto do mapa.
+        // Os de coleta automática (material que salta ao quebrar algo e voa sozinho para quem quebrou) ficam de fora:
+        // no jogo dos outros eles voariam para o jogador de lá.
+        if (od.ItemObjectSaveDatas != null)
+            foreach (var d in od.ItemObjectSaveDatas)
+            {
+                if (d == null || string.IsNullOrEmpty(d.Guid)) continue;
+                var item = d.ItemDataInField;
+                if (d.IsAutoCollect || item == null || item.IsAutoCollect || item.IsAutoCollectDrop) continue;
+                map[d.Guid] = new Entry { Type = Kind.Item, Json = StringExtensions.ToJson(d), Parent = d.ParentGuid };
+            }
         return map;
     }
 
@@ -101,7 +112,7 @@ public static class FieldState
         // Remover: filhos antes dos pais.
         foreach (var guid in toRemove.OrderByDescending(g => (int)current[g].Type))
         {
-            try { var e = cache.GetLayerObject(guid); if (e != null) { e.Unregister(); rep.Removed++; } }
+            try { var e = Find(cache, guid); if (e != null) { e.Unregister(); rep.Removed++; } }
             catch (Exception ex) { rep.Failed++; rep.LastError = ex.Message; }
         }
         // Criar: pais antes dos filhos.
@@ -139,7 +150,18 @@ public static class FieldState
             case Kind.Grass: acc.GrassManager.CreateGrass(c, StringExtensions.JsonToObject<FieldGrassEntityData>(e.Json)); break;
             case Kind.Flower: acc.FlowerManager.CreateFlower(c, StringExtensions.JsonToObject<FieldFlowerEntityData>(e.Json)); break;
             case Kind.Animal: acc.AnimalManager.CreateLoadedAnimal(c, StringExtensions.JsonToObject<FieldAnimalEntityData>(e.Json)); break;
+            case Kind.Item: acc.ItemManager.CreateItem(c, StringExtensions.JsonToObject<FieldItemEntityData>(e.Json), null, false, false); break;
         }
+    }
+
+    /// <summary>Objeto do mapa pelo GUID: preso à grade (LayerObjects) ou solto (FreeObjects, ex.: item no chão).</summary>
+    public static FieldDynamicObjectEntity Find(FieldCache cache, string guid)
+    {
+        var e = cache.GetLayerObject(guid);
+        if (e != null) return e;
+        foreach (var f in cache.FreeObjects)
+            if (f != null && f.Guid == guid) return f;
+        return null;
     }
 
     /// <summary>Põe um FieldSaveData no save de mapas em memória (substitui o do mesmo mapa). Retorna se achou.</summary>

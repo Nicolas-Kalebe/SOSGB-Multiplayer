@@ -98,6 +98,10 @@
 - Logos de abertura: `CompanyLogoAnimation.EnterPhase(LogoAnimationPhase)` (FadeIn 0, Static 1, FadeOut 2) + `CompanyLogo.Update` (`fadeTimer`, `bg`). Pular = forçar FadeOut com transições de 0 s (D53).
 - `AwardManager`, `BasementManager`, `ShopManager`: `JsonToObject` do SaveData falha (classes internas sem construtor vazio); ver `SharedSync.ApplyAwards/ApplyBasement/ApplyShop`.
 - ⚠️ `FieldSaveManager.SaveDataArray` devolve uma **cópia nova** a cada chamada. Para trocar o save de um mapa: pegue o array, troque o elemento e grave com `FieldSaveManager.CopyData(array)`. Ao sair de um mapa, o jogo grava o estado dele ali (`GetData(raiz)` já devolve o novo).
+- **Itens largados no chão** (D70): `FieldItemEntity`, na lista `FieldCache.FreeObjects` (não em `LayerObjects`: `GetLayerObject(guid)` não acha). Dados: `FieldItemEntityData` (`ItemDataInField` = `FieldItemData : ItemData`, com `Position`, `IsFreeze`, `IsAutoCollect`, `IsAutoCollectDrop`; `RemainingDays` = 1, some na virada). No save do mapa: `ItemObjectSaveDatas`. Criar: `ManagerAccessor.ItemManager.CreateItem(cache, dados, null, false, false)`; remover: `Unregister()`.
+- **Largar e pegar:** Q abre a barra de itens (o personagem segura o item escolhido); Shift esquerdo "Colocar" = `HumanActionInputFlags.ZR` (põe 1 unidade à frente); pegar = de frente, a um passo, Enter "Pegar" (`Action`). Em cima do item não pega. Dentro de casa a barra de itens não abre. (`Item` = 2 e `ZL` não colocam.)
+- **Ferramentas:** E abre a barra de ferramentas; os números 1–8 escolhem o espaço (as setas não). A foice corta mato (`General`, ObjectId 1030) e **colhe flores** (lembrado pelo usuário). O que salta são itens no chão de coleta automática, que voam para quem cortou. Flores silvestres: montanhas (30101, no verão 30102), tipo `Flower`; na fazenda não há.
+- **Testes:** a intenção injetada (`press`, `tool`) só funciona com a janela do jogo em foco: aperte uma tecla de verdade (`press-keys`) logo antes.
 - Ovos (`Egg`) do celeiro são recriados a partir do estado das galinhas ao entrar; plantas silvestres das montanhas aparecem como `Crop` no mapa carregado e como `Flower` no save.
 
 ## 7. Correio

@@ -25,7 +25,9 @@ public class SosgbKeys {
   }
 }
 "@
-$scan = @{ "BACK"=0x0E; "."=0x34; "1"=0x02; "2"=0x03; "3"=0x04; "4"=0x05; "5"=0x06; "6"=0x07; "7"=0x08; "8"=0x09; "9"=0x0A; "0"=0x0B; "B"=0x30; "F"=0x21; "G"=0x22; "H"=0x23; "I"=0x17; "J"=0x24; "K"=0x25; "L"=0x26; "N"=0x31; "O"=0x18; "P"=0x19; "R"=0x13; "T"=0x14; "U"=0x16; "V"=0x2F; "X"=0x2D; "Y"=0x15; "Z"=0x2C; "F7"=0x41; "F8"=0x42; "F9"=0x43; "F10"=0x44; "W"=0x11; "A"=0x1E; "S"=0x1F; "D"=0x20; "SPACE"=0x39; "SHIFT"=0x2A; "E"=0x12; "Q"=0x10; "C"=0x2E; "ESC"=0x01; "ENTER"=0x1C; "M"=0x32; "TAB"=0x0F }
+$scan = @{ "BACK"=0x0E; "."=0x34; "1"=0x02; "2"=0x03; "3"=0x04; "4"=0x05; "5"=0x06; "6"=0x07; "7"=0x08; "8"=0x09; "9"=0x0A; "0"=0x0B; "B"=0x30; "F"=0x21; "G"=0x22; "H"=0x23; "I"=0x17; "J"=0x24; "K"=0x25; "L"=0x26; "N"=0x31; "O"=0x18; "P"=0x19; "R"=0x13; "T"=0x14; "U"=0x16; "V"=0x2F; "X"=0x2D; "Y"=0x15; "Z"=0x2C; "F7"=0x41; "F8"=0x42; "F9"=0x43; "F10"=0x44; "W"=0x11; "A"=0x1E; "S"=0x1F; "D"=0x20; "SPACE"=0x39; "SHIFT"=0x2A; "E"=0x12; "Q"=0x10; "C"=0x2E; "ESC"=0x01; "ENTER"=0x1C; "M"=0x32; "TAB"=0x0F; "LEFT"=0x4B; "RIGHT"=0x4D; "UP"=0x48; "DOWN"=0x50 }
+$ext = @("LEFT", "RIGHT", "UP", "DOWN") # setas: teclas estendidas (KEYEVENTF_EXTENDEDKEY)
+function Fl($k) { if ($ext -contains $k) { 0x0001 } else { 0 } }
 $h = [SosgbKeys]::Find([uint32]$ProcessId)
 if ($h -eq [IntPtr]::Zero) { Write-Output "janela não encontrada"; exit 1 }
 [SosgbKeys]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [SosgbKeys]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
@@ -39,7 +41,7 @@ if ($Backspaces -gt 0 -or $Text -ne "") {
   Write-Output "digitado: $Text"; exit 0
 }
 $list = $Keys.Split(",") | ForEach-Object { $_.Trim().ToUpper() }
-foreach ($k in $list) { [SosgbKeys]::keybd_event(0, [byte]$scan[$k], 0x0008, [UIntPtr]::Zero) }          # KEYEVENTF_SCANCODE
+foreach ($k in $list) { [SosgbKeys]::keybd_event(0, [byte]$scan[$k], 0x0008 -bor (Fl $k), [UIntPtr]::Zero) }          # KEYEVENTF_SCANCODE
 Start-Sleep -Milliseconds $Milliseconds
-foreach ($k in $list) { [SosgbKeys]::keybd_event(0, [byte]$scan[$k], 0x0008 -bor 0x0002, [UIntPtr]::Zero) } # + KEYUP
+foreach ($k in $list) { [SosgbKeys]::keybd_event(0, [byte]$scan[$k], 0x0008 -bor 0x0002 -bor (Fl $k), [UIntPtr]::Zero) } # + KEYUP
 Write-Output "teclas $Keys por $Milliseconds ms"

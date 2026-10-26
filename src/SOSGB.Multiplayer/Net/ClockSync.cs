@@ -28,6 +28,9 @@ public class ClockSync : MonoBehaviour
     private const float SendInterval = 0.5f;
     private const long MaxDriftTicks = 30L * 10_000_000;          // 30 s de jogo (ticks de 100 ns)
     private const long MaxJumpTicks = 12L * 3600 * 10_000_000;    // pulos maiores que 12 h de jogo são ignorados
+    // Abaixo disso não é "pulo de tempo" (evento, barraca esgotada), é travada: o relógio anda ~1 min de jogo por segundo
+    // real, então meio segundo travado no host já deixava um convidado 30 s à frente e o grupo inteiro pulava com aviso (D70).
+    private const long MinJumpTicks = 5L * 60 * 10_000_000;       // 5 min de jogo
     private const int PauseMenuKey = 119;                        // UILoadKey.Pause
 
     /// <summary>O relógio LOCAL está parado pelo jogo (menu, diálogo, evento). Valor original do jogo.</summary>
@@ -149,7 +152,7 @@ public class ClockSync : MonoBehaviour
                 if (!DateManager.IsInstance || DaySync.InDayChange) return;
                 var dm = DateManager.Instance;
                 var ahead = ticks - GroupTicks;
-                if (ahead <= MaxDriftTicks || ahead > MaxJumpTicks) return;
+                if (ahead <= MinJumpTicks || ahead > MaxJumpTicks) return;
                 if (new BokuMonoDateTime(ticks).Day != dm.Now.Day) return; // não atravessa a virada do dia (é do DaySync)
                 if (LocalPaused && !DaySync.LocalSleeping) _hostBehind = ticks - dm.Now.Ticks; // host numa tela: adianta ao sair
                 else SetLocal(ticks, $"tempo pulou no jogo de #{from}; o grupo pula junto");
@@ -168,7 +171,7 @@ public class ClockSync : MonoBehaviour
                 if (LocalPaused && !DaySync.LocalSleeping) return;
                 var dm = DateManager.Instance;
                 var drift = dm.Now.Ticks - hostTicks;
-                if (drift > MaxDriftTicks && drift < MaxJumpTicks && new BokuMonoDateTime(dm.Now.Ticks).Day == new BokuMonoDateTime(hostTicks).Day)
+                if (drift > MinJumpTicks && drift < MaxJumpTicks && new BokuMonoDateTime(dm.Now.Ticks).Day == new BokuMonoDateTime(hostTicks).Day)
                 {
                     // Este jogo está À FRENTE: o tempo pulou aqui (ex.: barraca esgotou). Pede ao host para o grupo pular.
                     if (Time.unscaledTime - _jumpRequestedAt > 5f)

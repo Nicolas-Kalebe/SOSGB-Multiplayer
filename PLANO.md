@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D70 | **Itens largados no chão** aparecem para todos e só um pega (o host desempata; quem pegou depois devolve); coleta automática fica de fora; pulo de tempo só acima de 5 min de jogo | ✅ Decidido |
 | D69 | **Espectar quem está acordado** (F7 deitado esperando; experimental; P8) | ✅ Decidido |
 | D68 | **Morador em conversa** para nos outros jogos e só aceita um de cada vez; o resto dos moradores não congela no jogo de quem conversa (P9) | ✅ Decidido |
 | D67 | **Cenas já vistas por jogador** (P15; parte `events` do perfil; convidado novo começa com as do host) | ✅ Decidido |

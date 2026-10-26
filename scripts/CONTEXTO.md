@@ -13,7 +13,7 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 | `ui [closedialog \| closemessage]` | Tela atual do jogo (UIManager) / tenta fechar diálogo ou mensagem |
 | `make-package.py [--version 0.5.1] [--ip <IP do host>]` | Monta o pacote para os amigos (`Downloads/SOSGB-Multiplayer-v<versão>-amiga.zip`) a partir da pasta do jogo: só carregador, runtime, núcleo do BepInEx e o mod, um `.cfg` com `AutoStart = join` e a ponte desligada, e o LEIA-ME. Recusa interop, unity-libs, logs e capturas |
 | `instance.py` | Abre uma instância de teste e **reabre sozinho** se ela travar na tela inicial (Launcher), se a ponte não abrir ou se o processo morrer (até 3 tentativas). `health --port N` diz se a instância está `ok <cena>`, `sem-ponte` (congelada) ou `morto`. Usado por `dev-cycle.sh` e `second-instance.sh` |
-| `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte. Pular o evento da manhã: `-Keys TAB -Milliseconds 1500` e depois `ENTER` |
+| `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte. Pular o evento da manhã: `-Keys TAB -Milliseconds 1500` e depois `ENTER`. Setas: `LEFT`/`RIGHT`/`UP`/`DOWN` (teclas estendidas) |
 | `two-instances.sh` | **Atalho:** recompila e abre host (47800) + convidado (47801) conectados, esperando o mundo carregar |
 | `click.ps1` | Clique de mouse real numa coordenada da janela do jogo (`-ProcessId -X -Y`) |
 | `second-instance.sh` | Abre uma **segunda instância** do jogo com a ponte em outra porta (padrão 47801). Para testar host + convidado no mesmo PC |

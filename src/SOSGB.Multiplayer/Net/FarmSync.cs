@@ -25,6 +25,9 @@ namespace SOSGB.Multiplayer.Net;
 ///    serem engolidas pela nova base).
 ///  - Na virada do dia todos recarregam o mundo do host (que processou o dia no cache dele, já com tudo).
 /// Conflito (dois mexendo no mesmo objeto no mesmo meio segundo): vale a última operação que o host processou.
+/// Itens largados no chão (D70) são a exceção: pegar é "tirar do mapa e pôr na mochila", então dois pegando o mesmo
+/// item ao mesmo tempo duplicaria. O host anota cada item pego; quem chega depois recebe ItemTakeBack e devolve o que
+/// entrou na mochila dele (o item fica só com quem pegou primeiro).
 ///
 /// Mapas NÃO residentes (celeiro com ovos etc.): as operações valem entre quem está no mesmo mapa; quem não está
 /// com ele carregado ignora. Ao SAIR de um mapa não residente em que algo mudou, o jogador manda o mapa inteiro
@@ -45,15 +48,18 @@ public class FarmSync : MonoBehaviour
     private float _nextTick;
     public static int SentOps, ReceivedOps;
     private static readonly HeldMessages Held = new("FarmSync");
+    private static readonly HashSet<string> TakenItems = new();                          // host: itens do chão já pegos (D70)
+    private static readonly Dictionary<string, (string json, float at)> MyPickups = new(); // convidado: itens que peguei há pouco
+    public static int TakeBacks;
 
     private void Awake()
     {
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
-        WorldSync.OnWorldReceived += () => { _baseline = null; _dirtyNonResident = false; _lastRoot = 0; };
-        NetSession.OnHosting += () => _baseline = null;
-        NetSession.OnJoined += () => _baseline = null;
+        WorldSync.OnWorldReceived += () => { _baseline = null; _dirtyNonResident = false; _lastRoot = 0; MyPickups.Clear(); };
+        NetSession.OnHosting += () => { _baseline = null; TakenItems.Clear(); };
+        NetSession.OnJoined += () => { _baseline = null; MyPickups.Clear(); };
     }
 
     private static bool Ready()
@@ -111,12 +117,75 @@ public class FarmSync : MonoBehaviour
         _baseline = cur;
         if (ops.Count == 0) return;
         if (!IsResident(root)) _dirtyNonResident = true;
+        NotePickups(ops);
         var packed = Pack(root, ops);
         if (NetSession.Current == NetSession.Mode.Host) SendToClients(packed, except: NetSession.LocalId);
         else NetSession.SendGame(MsgType.FieldOps, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
         SentOps += ops.Count;
         Plugin.Logger.LogInfo($"[FarmSync] {ops.Count} mudança(s) no mapa {root} enviada(s) ({packed.Length} bytes)");
         DevBridge.PushEvent($"fazenda:enviado:{ops.Count}");
+    }
+
+    /// <summary>Itens do chão que sumiram do meu mapa = eu peguei (D70). O host anota; o convidado guarda para devolver se perder.</summary>
+    private static void NotePickups(List<(byte op, FieldState.Entry e, string guid)> ops)
+    {
+        foreach (var o in ops)
+        {
+            if (o.op != OpRemove || o.e.Type != FieldState.Kind.Item) continue;
+            if (NetSession.Current == NetSession.Mode.Host) TakenItems.Add(o.guid);
+            else MyPickups[o.guid] = (o.e.Json, Time.unscaledTime);
+        }
+        if (MyPickups.Count > 50)
+            foreach (var g in MyPickups.Where(kv => Time.unscaledTime - kv.Value.at > 60f).Select(kv => kv.Key).ToList()) MyPickups.Remove(g);
+        if (TakenItems.Count > 2000) TakenItems.Clear(); // GUIDs são únicos; só não deixa crescer sem fim
+    }
+
+    /// <summary>
+    /// Host: tira das operações de um convidado os itens do chão que alguém já pegou (ele pegou junto, no mesmo
+    /// instante) e manda ele devolver. As minhas mudanças pendentes saem antes, para eu entrar na fila primeiro.
+    /// </summary>
+    private static List<(byte op, FieldState.Entry e, string guid)> RefuseLatePickups(byte from, uint root, List<(byte op, FieldState.Entry e, string guid)> ops)
+    {
+        if (!ops.Any(o => o.op == OpRemove && o.e.Type == FieldState.Kind.Item)) return ops;
+        if (FieldState.Root(FieldState.CurrentField) == root) Flush();
+        var late = ops.Where(o => o.op == OpRemove && o.e.Type == FieldState.Kind.Item && !TakenItems.Add(o.guid)).Select(o => o.guid).ToHashSet();
+        if (late.Count == 0) return ops;
+        foreach (var g in late)
+        {
+            NetSession.SendTo(from, MsgType.ItemTakeBack, w => { w.Put(root); w.Put(g); }, DeliveryMethod.ReliableOrdered);
+            Plugin.Logger.LogInfo($"[FarmSync] item {g} no mapa {root}: #{from} pegou depois de outro jogador; ele devolve");
+        }
+        TakeBacks += late.Count;
+        return ops.Where(o => !(o.op == OpRemove && late.Contains(o.guid))).ToList();
+    }
+
+    /// <summary>Convidado: o host disse que outro jogador pegou este item primeiro; tira da mochila o que entrou.</summary>
+    private static void OnTakeBack(byte from, NetDataReader r)
+    {
+        if (from != Protocol.HostPlayerId) return;
+        var root = r.GetUInt();
+        var guid = r.GetString();
+        if (!MyPickups.TryGetValue(guid, out var p)) { Plugin.Logger.LogWarning($"[FarmSync] devolver item {guid}: não sei o que era"); return; }
+        MyPickups.Remove(guid);
+        var item = StringExtensions.JsonToObject<FieldItemEntityData>(p.json)?.ItemDataInField;
+        if (item == null) return;
+        var bag = InventoryManager.Instance.BagItemStorage;
+        var datas = bag.ItemDatas;
+        var slot = -1;
+        for (var i = 0; i < datas.Count; i++)
+        {
+            var d = datas[i];
+            if (d == null || d.ItemId != item.ItemId) continue;
+            if (slot < 0) slot = i;
+            if (d.QualityValue == item.QualityValue) { slot = i; break; }
+        }
+        var n = Math.Max(1, item.Stack);
+        if (slot >= 0) bag.Use(slot, Math.Min(n, datas[slot].Stack));
+        else Plugin.Logger.LogWarning($"[FarmSync] devolver item {item.ItemId}: não está na mochila");
+        TakeBacks++;
+        Plugin.Logger.LogInfo($"[FarmSync] item {item.ItemId} x{n} devolvido (outro jogador pegou primeiro, mapa {root})");
+        GameNotify.Show("Outro jogador pegou esse item primeiro.");
+        DevBridge.PushEvent($"item:devolvido:{item.ItemId}");
     }
 
     private static void SendToClients(byte[] packed, byte except)
@@ -164,6 +233,12 @@ public class FarmSync : MonoBehaviour
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
+        if (type == MsgType.ItemTakeBack)
+        {
+            try { OnTakeBack(from, r); }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[FarmSync] devolver item: {e.Message}"); }
+            return;
+        }
         if (type != MsgType.FieldSnapshot && type != MsgType.FieldOps) return;
         // Carregando o mundo ou trocando de mapa: guarda e aplica quando ficar pronto (antes era descartado, D63).
         if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; }
@@ -179,6 +254,12 @@ public class FarmSync : MonoBehaviour
         try
         {
             var (root, ops) = Unpack(packed);
+            if (NetSession.Current == NetSession.Mode.Host)
+            {
+                var kept = RefuseLatePickups(from, root, ops);
+                if (kept.Count != ops.Count) { ops = kept; packed = Pack(root, ops); }
+                if (ops.Count == 0) return;
+            }
             Apply(root, ops);
             ReceivedOps += ops.Count;
             if (NetSession.Current == NetSession.Mode.Host) SendToClients(packed, except: from);
@@ -197,7 +278,7 @@ public class FarmSync : MonoBehaviour
         // Remover (inclusive os que serão recriados): filhos antes dos pais.
         foreach (var o in ops.OrderByDescending(o => (int)o.e.Type))
         {
-            var ent = cache.GetLayerObject(o.guid);
+            var ent = FieldState.Find(cache, o.guid);
             if (ent != null) ent.Unregister();
         }
         // Criar: pais antes dos filhos.
@@ -250,5 +331,5 @@ public class FarmSync : MonoBehaviour
         return (root, ops);
     }
 
-    public static object Status() => new { baselineField = _baselineField, tracked = _baseline?.Count ?? 0, sent = SentOps, received = ReceivedOps };
+    public static object Status() => new { baselineField = _baselineField, tracked = _baseline?.Count ?? 0, sent = SentOps, received = ReceivedOps, takenItems = TakenItems.Count, myPickups = MyPickups.Count, takeBacks = TakeBacks };
 }

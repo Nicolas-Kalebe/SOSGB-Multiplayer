@@ -157,4 +157,7 @@ public enum MsgType : byte
 
     /// <summary>Qualquer → host (→ todos): [byte quem][int n]{[int caminho do osso][3 float posição][4 float rotação]} — esqueleto de quem está deitado/desmaiado; n = 0 limpa (D69)</summary>
     PlayerPose = 40,
+
+    /// <summary>Host → convidado: [uint mapa][string guid] — item do chão que outro jogador pegou primeiro; o convidado tira da mochila o que pegou junto (D70)</summary>
+    ItemTakeBack = 41,
 }
