@@ -1071,6 +1071,25 @@ public class DevBridge : MonoBehaviour
                 }
                 return Json(new { ok = true, result = arg.Trim() == "save" ? Net.Spectator.SavePose() : Net.Spectator.RestorePose(), pos = GameController.Instance.GetPlayerTransform().position.ToString() });
 
+            case "phys":
+            {
+                // phys — física do personagem (corpo, colisores, camadas): conferir se tudo volta ao normal ao levantar
+                var pc = GameController.Instance.GetPlayer();
+                var list = new List<string>();
+                foreach (var root in new Component[] { pc, pc.Model != null ? pc.Model.transform : null, GameController.Instance.GetPlayerTransform() })
+                {
+                    if (root == null) continue;
+                    list.Add($"[{root.name}] camada={root.gameObject.layer} ativo={root.gameObject.activeSelf}");
+                    foreach (var rb in root.GetComponentsInChildren<Rigidbody>(true))
+                        list.Add($"  corpo {rb.name}: cinemático={rb.isKinematic} colisões={rb.detectCollisions} gravidade={rb.useGravity} travas={rb.constraints}");
+                    foreach (var co in root.GetComponentsInChildren<Collider>(true))
+                        list.Add($"  colisor {co.name} {co.GetIl2CppType().Name}: ligado={co.enabled} gatilho={co.isTrigger} camada={co.gameObject.layer}");
+                }
+                var anP = pc.Model != null ? pc.Model.GetComponentInChildren<Animator>() : null;
+                list.Add($"animador ligado={anP?.enabled} velocidade={anP?.speed} | pausado={pc.PauseObject?.IsPaused} | entrada={pc.IsMoveInputEnabled} | dormindo={pc.IsSleep}");
+                return Json(new { ok = true, phys = list.Distinct().ToList() });
+            }
+
             case "holdworld":
                 // holdworld [on|off|title] — D59: simula "convidado com o mundo do host na memória" e a volta ao título
                 if (arg.Trim() == "on") WorldSnapshot.HoldingHostWorld = true;

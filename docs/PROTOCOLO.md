@@ -64,7 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
-| 23 | Também (D68): `NpcTalk` (39), qualquer → host → todos: [byte quem][uint morador][bool conversando]. Também (D63): `ProfileUpload`/`ProfileData` em gzip com tamanho int; todos os blocos de bytes com tamanho int (`NetBlob.PutBlob`, antes ushort e cortava acima de 64 KB); `SleepStatus` com `bool` "virada começou". `MissionData` (38) leva 1 byte a mais por pedido: 1 = progresso por valor (afeição, venda do dia), o host fica com o maior em vez de somar. Revisão da D57 |
+| 23 | Também (D69): `PlayerPose` (40), qualquer → host → todos: [byte quem][int n]{[int caminho do osso][3 float][4 float]}, n = 0 limpa. Também (D68): `NpcTalk` (39), qualquer → host → todos: [byte quem][uint morador][bool conversando]. Também (D63): `ProfileUpload`/`ProfileData` em gzip com tamanho int; todos os blocos de bytes com tamanho int (`NetBlob.PutBlob`, antes ushort e cortava acima de 64 KB); `SleepStatus` com `bool` "virada começou". `MissionData` (38) leva 1 byte a mais por pedido: 1 = progresso por valor (afeição, venda do dia), o host fica com o maior em vez de somar. Revisão da D57 |
 | 22 | `HappyDelta` (36) / `HappyState` (37): Happy Energy compartilhada; `MissionData` (38): pedidos dos moradores. D57 |
 | 21 | `BazaarHelp` (35): pedidos do ajudante do Bazaar ao dono (atender, pôr item); `BazaarVisitors` leva também o estado de cada espaço; `BazaarShelves` leva os 12 espaços dos balcões no formato do jogo. D56 |
 | 20 | `BazaarVisitors` (18) e `BazaarShelves` (19): clientes e balcões de quem está vendendo no Bazaar, repassados a todos. D55 |

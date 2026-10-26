@@ -180,6 +180,10 @@ public class DaySync : MonoBehaviour
         if (mode is "flag" or "both") { p.IsSleep = false; p.IsMoveInputEnabled = true; }
         if (gc.IsWaitChangeDate()) gc.SetWaitChangeDate(false);
         gc.Resume();
+        // A cama transforma o colisor do personagem em gatilho (para ele entrar na cama); a manhã do jogo desfaz, o nosso
+        // "levantar" não desfazia e o personagem atravessava as coisas (visto pelo usuário; única diferença física medida).
+        try { var cap = p.GetComponent<CapsuleCollider>(); if (cap != null) cap.isTrigger = false; }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] colisor ao levantar: {e.Message}"); }
         // O rosto ficava de olhos fechados depois de levantar (visto pelo usuário): abre os olhos e volta a piscar.
         try
         {

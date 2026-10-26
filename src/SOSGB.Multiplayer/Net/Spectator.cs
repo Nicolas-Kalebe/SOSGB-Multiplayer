@@ -32,6 +32,9 @@ public class Spectator : MonoBehaviour
     /// <summary>Voltando para casa depois de espectar (a posição ainda não é a da casa).</summary>
     public static bool Returning => _returning;
 
+    /// <summary>De volta em casa, pausado na pose deitada: o PlayerSync não manda o estado (o animador pausado sairia em pé).</summary>
+    public static bool Pinned => _pinned;
+
     private static byte _target = 255;
     private static uint _homeField;
     private static bool _returning;
@@ -54,6 +57,13 @@ public class Spectator : MonoBehaviour
     {
         try
         {
+            if (_returning)
+            {
+                // Voltando: escondido até a pose deitada estar aplicada (senão aparece em pé por um instante).
+                if (Hidden.Count == 0) CollectRenderers();
+                foreach (var r in Hidden) if (r != null) r.forceRenderingOff = true;
+                return;
+            }
             if (Active)
             {
                 // Todo quadro, depois do jogo: escondido (o jogo religa "enabled" no esmaecimento por câmera) e parado.
@@ -240,7 +250,6 @@ public class Spectator : MonoBehaviour
 
     private static void FinishReturn()
     {
-        ShowLocal();
         RestoreCamera();
         if (DaySync.LocalSleeping && RestorePose())
         {
@@ -250,6 +259,7 @@ public class Spectator : MonoBehaviour
             try { var a = LocalAnimator(); if (a != null) a.enabled = false; RestorePose(); } catch { }
             _pinned = true;
         }
+        ShowLocal(); // só aparece depois de deitado
         // Ainda esperando os outros: continua "dormindo" (sem andar) até o dia virar ou levantar com Backspace.
         _inputLocked = DaySync.LocalSleeping;
         try { GameController.Instance.GetPlayer().IsMoveInputEnabled = !DaySync.LocalSleeping; } catch { }

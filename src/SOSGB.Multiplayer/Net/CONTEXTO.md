@@ -18,6 +18,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `HeldMessages.cs` | D63: fila de mensagens que chegam quando o módulo não está pronto (carregando o mundo, trocando de mapa, virada no convidado); aplicadas em ordem depois |
 | `WindmillToolGuard.cs` | D66: a ferramenta pronta no moinho só sai para quem a deixou (quem já tem uma do mesmo tipo não retira) |
 | `NpcSync.cs` | D68: morador em conversa para nos outros jogos e não aceita outra conversa; os outros moradores não congelam no jogo de quem conversa |
+| `SleepPoseSync.cs` | D69: quem dorme/desmaia manda o esqueleto deitado e os outros aplicam no avatar dele (antes aparecia em pé dentro da cama) |
 | `Spectator.cs` | D69: F7 deitado esperando os outros segue quem está acordado em outro mapa (carrega o mapa, esconde o personagem, câmera no avatar) |
 | `MissionSync.cs` | D57: pedidos dos moradores compartilhados (contadores somados, pedidos por valor ficam com o maior, estado mais avançado; host manda a lista oficial). D60 |
 | `RomanceSync.cs` | 6.4/D44: romance exclusivo (registro NPC → jogador no host; patches em `CheckMarryable`/`SetFiance`) |

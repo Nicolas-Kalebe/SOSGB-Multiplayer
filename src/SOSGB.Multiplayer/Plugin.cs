@@ -160,6 +160,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.BazaarHelpSync>();
         AddComponent<Net.NpcSync>();
         AddComponent<Net.Spectator>();
+        AddComponent<Net.SleepPoseSync>();
         AddComponent<MultiplayerUI>();
         // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
         if (DevMode) AddComponent<DebugOverlay>();

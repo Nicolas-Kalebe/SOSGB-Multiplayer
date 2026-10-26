@@ -154,4 +154,7 @@ public enum MsgType : byte
 
     /// <summary>Qualquer → host (→ todos): [byte quem][uint morador][bool conversando] — morador ocupado numa conversa: para de andar e não aceita outra conversa nos outros jogos (D68)</summary>
     NpcTalk = 39,
+
+    /// <summary>Qualquer → host (→ todos): [byte quem][int n]{[int caminho do osso][3 float posição][4 float rotação]} — esqueleto de quem está deitado/desmaiado; n = 0 limpa (D69)</summary>
+    PlayerPose = 40,
 }
