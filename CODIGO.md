@@ -113,6 +113,8 @@
 
 ## 8. Player e mapas
 
+- **Criação de personagem / guarda-roupa:** `UIAccessor.RequestOpenAvatarMakeup(AvatarMakeCategory, Action<Object>)`; modos `Prologue` (a criação completa do jogo novo), `ClothesShop`, `Closet` (guarda-roupa), `WeddingCloth`, `Direct` (trava). `AvatarMakeManager.AvatarMakeCategory`, `PlayerAvatarInfos`. No jogo novo ela roda num evento (`FieldEvent.UI.ExecuteAvatarMake`); fora dele, a tela fica com `FadeManager.IsFadeOut` depois de fechar → `FadeManager.FadeIn(null, null, 0, 0)` (D72). Tela atual: `UIManager.CurrentUIKey` (com um diálogo aberto por cima, a chave é a do diálogo).
+- **Peças descarregadas:** o jogo descarrega as peças de avatar que o personagem local não usa ao trocar de mapa e ao fechar a criação/guarda-roupa; cópias de modelo (avatar remoto) perdem as malhas (D73).
 - **Tela do mapa (M):** `UIMapPage` → `UIMapArea`. Marcador do jogador local: `UIMapArea.playerPosition` (`RectTransform`), posto por `SetPlayerPosition(FieldMasterData mapaAtual, UIMapData)`; a montagem é `SetupPosition(...)` (assíncrona). Moradores: `SetNpcPosition` põe ícones `UIMapCharaIcon` (`Setup(idDoPersonagem)`) presos a pontos do mapa (`AddCharaToAnchor(id, UIMapAnchorData)`), não na posição exata. Base para mostrar os outros jogadores no mapa (ROTEIRO 8.8, ainda não investigado em tempo de jogo).
 
 - `PlayerCharacter` (~2600 linhas). `GameController.GetPlayer()` retorna **um** player.

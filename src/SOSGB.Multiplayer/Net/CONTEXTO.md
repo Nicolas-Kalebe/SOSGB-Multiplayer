@@ -10,7 +10,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `NetSession.cs` | Sessão LiteNetLib: hospedar/entrar, aperto de mão, lista de jogadores, repasse de mensagens de jogo (host-autoritativo) |
 | `PlayerSync.cs` | Envia o estado do jogador local (10×/s: posição, 12 camadas e parâmetros do Animator) e mantém os avatares (clone visual do modelo com o override controller real; recriados quando o mundo recarrega; visíveis só no mesmo mapa) |
 | `WorldSync.cs` | 3.1: convidado pede o mundo, host captura (`WorldSnapshot`) e envia, convidado recarrega com ele |
-| `ClockSync.cs` | Relógio do grupo (D50): só o menu de pausa pausa; quem está em outra tela é adiantado ao sair; o tempo segue o mais adiantado (`ClockJump`); quem dorme não pausa (D33). Só conta como pulo acima de 5 min de jogo; menos que isso é travada e é corrigido sem aviso (D70) |
+| `ClockSync.cs` | Relógio do grupo (D50): só o menu de pausa pausa; quem está em outra tela é adiantado ao sair; o tempo segue o mais adiantado (`ClockJump`); quem dorme não pausa (D33). Só conta como pulo acima de 5 min de jogo; menos que isso é travada e é corrigido sem aviso (D70). Na pausa de outro jogador, o personagem local fica parado (D74) |
 | `DaySync.cs` | 3.4/3.5: dormir individual (segura `StartNextDay`; o desmaio passa pelo mesmo caminho), contador "dormindo X/Y", virada do dia pelo host e reenvio do mundo. Fim da virada reconhecido pelo `PlayerCharacter.StartNextDay` (depois da meia-noite o número do dia não muda, D58) |
 | `PlayerProfiles.cs` | 3.6/D24: perfil individual do convidado (envio, guarda no host, arquivo, reaplicação após cada carga de mundo) |
 | `BazaarViewSync.cs` | D55: quem vende no Bazaar manda os clientes e os balcões; os outros no mesmo mapa assumem os clientes de mesmo número (cópias sem IA), abrem a barraca e mostram os itens; devolvem tudo quando a loja fecha |
@@ -18,6 +18,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `HeldMessages.cs` | D63: fila de mensagens que chegam quando o módulo não está pronto (carregando o mundo, trocando de mapa, virada no convidado); aplicadas em ordem depois |
 | `WindmillToolGuard.cs` | D66: a ferramenta pronta no moinho só sai para quem a deixou (quem já tem uma do mesmo tipo não retira) |
 | `NpcSync.cs` | D68: morador em conversa para nos outros jogos e não aceita outra conversa; os outros moradores não congelam no jogo de quem conversa |
+| `CharacterCreator.cs` | D72: tela de criação completa do jogo novo (modo Prologue) dentro do mundo; abre sozinha na primeira entrada sem save e pelo F9; clareia a tela ao fechar |
 | `SleepPoseSync.cs` | D69: quem dorme/desmaia manda o esqueleto deitado e os outros aplicam no avatar dele (antes aparecia em pé dentro da cama) |
 | `Spectator.cs` | D69: F7 deitado esperando os outros segue quem está acordado em outro mapa (carrega o mapa, esconde o personagem, câmera no avatar) |
 | `MissionSync.cs` | D57: pedidos dos moradores compartilhados (contadores somados, pedidos por valor ficam com o maior, estado mais avançado; host manda a lista oficial). D60 |

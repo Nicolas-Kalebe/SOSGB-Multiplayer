@@ -70,12 +70,24 @@ public class MultiplayerUI : MonoBehaviour
                 if (_menuOpen) DrawSetupPanel(inGame: true);
                 if (_hudVisible) DrawHud();
                 DrawNameTags();
+                DrawPauseNotice();
             }
         }
         catch (Exception e)
         {
             if (_lastError != e.Message) { _lastError = e.Message; Plugin.Logger.LogWarning($"[UI] {e}"); }
         }
+    }
+
+    /// <summary>Alguém abriu o menu de pausa: todos ficam parados e veem quem pausou (D74).</summary>
+    private void DrawPauseNotice()
+    {
+        if (NetSession.Current == NetSession.Mode.Offline || !ClockSync.GroupPaused || ClockSync.InPauseMenu) return;
+        var who = NetSession.Players.TryGetValue(ClockSync.PausedBy, out var p) ? p.Name : "Outro jogador";
+        var r = new Rect(Screen.width / 2f - 260, Screen.height * 0.18f, 520, 74);
+        Panel(r, _panelBg);
+        GUI.Label(new Rect(r.x + 18, r.y + 8, r.width - 36, 30), "Jogo pausado", _title);
+        GUI.Label(new Rect(r.x + 18, r.y + 40, r.width - 36, 24), $"{who} está no menu de pausa. Aguarde.", _label);
     }
 
     // ---------- painel de configuração (título e F9) ----------

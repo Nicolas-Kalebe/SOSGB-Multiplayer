@@ -37,6 +37,10 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D74 | **Pausa para todos**: quem não abriu o menu fica parado e vê "Jogo pausado — Fulano está no menu" | ✅ Decidido |
+| D73 | **Avatar remoto sem corpo** (guarda-roupa, troca de mapa): o mod percebe as malhas descarregadas e monta de novo | ✅ Decidido |
+| D72 | **Entrar sem save** ("Entrar agora" na tela inicial) e **criar o personagem** com a tela completa do jogo novo, sem jogo novo nem cenas; F9 → "Mudar visual" | ✅ Decidido |
+| D71 | **"Gerar log"**: .zip na Área de Trabalho com os logs das últimas sessões (inclusive as que travaram) para mandar ao desenvolvedor | ✅ Decidido |
 | D70 | **Itens largados no chão** aparecem para todos e só um pega (o host desempata; quem pegou depois devolve); coleta automática fica de fora; pulo de tempo só acima de 5 min de jogo | ✅ Decidido |
 | D69 | **Espectar quem está acordado** (F7 deitado esperando; experimental; P8) | ✅ Decidido |
 | D68 | **Morador em conversa** para nos outros jogos e só aceita um de cada vez; o resto dos moradores não congela no jogo de quem conversa (P9) | ✅ Decidido |

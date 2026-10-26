@@ -42,6 +42,11 @@ public class ClockSync : MonoBehaviour
     /// <summary>O grupo está pausado (alguém no menu de pausa), decidido pelo host.</summary>
     public static bool GroupPaused { get; private set; }
 
+    /// <summary>Quem abriu o menu de pausa (o aviso diz o nome), D74. UnknownId = ninguém.</summary>
+    public static byte PausedBy { get; private set; } = NetSession.UnknownId;
+
+    private static bool _frozenByPause; // o personagem local foi parado por causa da pausa de OUTRO jogador (D74)
+
     private static readonly Dictionary<byte, bool> GuestInPause = new();
     private static long _hostBehind;     // host: quanto a hora do grupo está à frente da hora local do host (ticks)
     private static float _jumpRequestedAt = -10;
@@ -79,13 +84,19 @@ public class ClockSync : MonoBehaviour
     {
         try
         {
-            if (NetSession.Current == NetSession.Mode.Offline) { GroupPaused = false; GuestInPause.Clear(); _hostBehind = 0; return; }
+            if (NetSession.Current == NetSession.Mode.Offline)
+            {
+                GroupPaused = false; PausedBy = NetSession.UnknownId; GuestInPause.Clear(); _hostBehind = 0;
+                UpdateFreeze();
+                return;
+            }
             if (!DateManager.IsInstance) return;
             InPauseMenu = PauseMenuOpen();
             _ = DateManager.Instance.IsUpdateEnabled; // atualiza LocalPaused pelo patch
 
             if (NetSession.Current == NetSession.Mode.Host) HostTick();
             else ClientTick();
+            UpdateFreeze();
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[ClockSync] {e.Message}"); }
     }
@@ -95,9 +106,10 @@ public class ClockSync : MonoBehaviour
 
     private void HostTick()
     {
-        var anyPause = InPauseMenu;
-        foreach (var v in GuestInPause.Values) if (v) anyPause = true;
-        GroupPaused = anyPause;
+        var by = InPauseMenu ? NetSession.LocalId : NetSession.UnknownId;
+        foreach (var kv in GuestInPause) if (kv.Value && by == NetSession.UnknownId) by = kv.Key;
+        PausedBy = by;
+        GroupPaused = by != NetSession.UnknownId;
 
         var dm = DateManager.Instance;
         var hostStopped = LocalPaused && !DaySync.LocalSleeping;
@@ -118,7 +130,8 @@ public class ClockSync : MonoBehaviour
         _nextSend = Time.unscaledTime + SendInterval;
         var ticks = GroupTicks;
         var running = !GroupPaused;
-        NetSession.SendGame(MsgType.ClockState, w => { w.Put(ticks); w.Put(running); }, DeliveryMethod.Sequenced);
+        var pausedBy = PausedBy;
+        NetSession.SendGame(MsgType.ClockState, w => { w.Put(ticks); w.Put(running); w.Put(pausedBy); }, DeliveryMethod.Sequenced);
     }
 
     private void ClientTick()
@@ -129,6 +142,32 @@ public class ClockSync : MonoBehaviour
         _nextReport = Time.unscaledTime + 1f;
         var p = InPauseMenu;
         NetSession.SendGame(MsgType.PauseReport, w => w.Put(p), DeliveryMethod.ReliableOrdered);
+    }
+
+    /// <summary>
+    /// Pausa de outro jogador (D74, visto pelo usuário: "o esc não impede o outro jogador de se movimentar nem dá um aviso"):
+    /// o personagem local fica parado (PauseObject, a mesma pausa que o espectador usa) até a pausa acabar. O aviso na tela
+    /// é da MultiplayerUI. Só mexe no personagem se foi a gente que pausou.
+    /// </summary>
+    private static void UpdateFreeze()
+    {
+        var want = NetSession.Current != NetSession.Mode.Offline && GroupPaused && !InPauseMenu
+                   && !DaySync.LocalSleeping && !Spectator.Active && !Spectator.Pinned;
+        if (want == _frozenByPause) return;
+        var po = GameController.IsInstance ? GameController.Instance.GetPlayer()?.PauseObject : null;
+        if (want)
+        {
+            if (po == null || po.IsPaused) return;
+            po.Pause(PauseType.All);
+            _frozenByPause = true;
+            Plugin.Logger.LogInfo($"[ClockSync] pausa de #{PausedBy}: personagem parado");
+        }
+        else
+        {
+            if (po != null && po.IsPaused) po.Resume();
+            _frozenByPause = false;
+            Plugin.Logger.LogInfo("[ClockSync] fim da pausa: personagem livre");
+        }
     }
 
     private static void SetLocal(long ticks, string why)
@@ -166,6 +205,7 @@ public class ClockSync : MonoBehaviour
             {
                 var hostTicks = r.GetLong();
                 GroupPaused = !r.GetBool();
+                PausedBy = r.AvailableBytes > 0 ? r.GetByte() : NetSession.UnknownId;
                 if (!DateManager.IsInstance || DaySync.InDayChange) return;
                 // Numa tela que para o relógio (menu, diálogo, evento): não mexe agora; ao sair, é adiantado.
                 if (LocalPaused && !DaySync.LocalSleeping) return;
@@ -194,6 +234,8 @@ public class ClockSync : MonoBehaviour
     {
         localPaused = LocalPaused,
         inPauseMenu = InPauseMenu,
+        pausedBy = PausedBy,
+        frozenByPause = _frozenByPause,
         groupPaused = GroupPaused,
         guestsInPause = GuestInPause,
         hostBehindSeconds = _hostBehind / 10_000_000,

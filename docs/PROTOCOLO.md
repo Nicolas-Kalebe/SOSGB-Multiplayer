@@ -64,6 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 24 | `ClockState` (11) leva no fim [byte quem pausou] (255 = ninguém), para o aviso de pausa (D74). Mod 0.6.0. Sobe a versão para separar dos pacotes 0.5.1 (protocolo 23) já distribuídos, cujos formatos mudaram nas D68–D74 |
 | 23 | Também (D70): `ItemTakeBack` (41), host → convidado: [uint mapa][string guid]; em `FieldOps`, o tipo 9 = item largado no chão. Também (D69): `PlayerPose` (40), qualquer → host → todos: [byte quem][int n]{[int caminho do osso][3 float][4 float]}, n = 0 limpa. Também (D68): `NpcTalk` (39), qualquer → host → todos: [byte quem][uint morador][bool conversando]. Também (D63): `ProfileUpload`/`ProfileData` em gzip com tamanho int; todos os blocos de bytes com tamanho int (`NetBlob.PutBlob`, antes ushort e cortava acima de 64 KB); `SleepStatus` com `bool` "virada começou". `MissionData` (38) leva 1 byte a mais por pedido: 1 = progresso por valor (afeição, venda do dia), o host fica com o maior em vez de somar. Revisão da D57 |
 | 22 | `HappyDelta` (36) / `HappyState` (37): Happy Energy compartilhada; `MissionData` (38): pedidos dos moradores. D57 |
 | 21 | `BazaarHelp` (35): pedidos do ajudante do Bazaar ao dono (atender, pôr item); `BazaarVisitors` leva também o estado de cada espaço; `BazaarShelves` leva os 12 espaços dos balcões no formato do jogo. D56 |

@@ -39,6 +39,10 @@ public class PlayerSync : MonoBehaviour
         public int[] Hashes = Array.Empty<int>();
         public float[] Weights = Array.Empty<float>();
         public bool HasState;
+        public int Meshes;                           // malhas do modelo instalado (0 = medir de novo), D73
+        public float NextHealthCheck;
+        public float LastRepair = -999f;
+        public float RepairBackoff = 5f;
     }
 
     private static readonly Dictionary<byte, Remote> Remotes = new();
@@ -242,6 +246,8 @@ public class PlayerSync : MonoBehaviour
             if (!rm.HasState) continue;
             if (rm.Avatar == null) CreateAvatar(kv.Key, rm);
             if (rm.Avatar == null) continue;
+            CheckHealth(kv.Key, rm);
+            if (rm.Avatar == null) continue;
             EnsureAppearance(kv.Key, rm);
             SyncController(rm);
 
@@ -303,6 +309,7 @@ public class PlayerSync : MonoBehaviour
             rm.Animator.enabled = true;
         }
         clone.transform.position = rm.Target;
+        rm.Meshes = 0;
         Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} criado");
         DevBridge.PushEvent($"avatar:{id}:criado");
     }
@@ -357,9 +364,44 @@ public class PlayerSync : MonoBehaviour
             }
             rm.Hashes = Array.Empty<int>();
             rm.BuiltAppearance = app;
+            rm.Meshes = 0;
             Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} montado com a aparência dele");
             DevBridge.PushEvent($"avatar:{id}:aparencia");
         });
+    }
+
+    /// <summary>Malhas presentes no modelo (renderers com malha carregada).</summary>
+    private static int CountMeshes(GameObject go)
+    {
+        var n = 0;
+        foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>(true)) if (smr.sharedMesh != null) n++;
+        foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true)) if (mf.sharedMesh != null) n++;
+        return n;
+    }
+
+    /// <summary>
+    /// O avatar é uma CÓPIA do modelo montado com peças carregadas no jogo local. O jogo descarrega as peças que o personagem
+    /// local não usa (ao trocar de mapa, ao fechar o guarda-roupa) e a cópia perde o corpo: ficava invisível ou só com o rosto
+    /// (D73, visto pelo usuário). A cada segundo conta as malhas; se sumiram, monta de novo (com espera crescente se repetir).
+    /// </summary>
+    private static void CheckHealth(byte id, Remote rm)
+    {
+        if (rm.Building || AppearanceSync.Swapping || Time.unscaledTime < rm.NextHealthCheck) return;
+        rm.NextHealthCheck = Time.unscaledTime + 1f;
+        var n = CountMeshes(rm.Avatar);
+        if (rm.Meshes == 0) { rm.Meshes = n; return; } // primeira medida depois de instalar o modelo
+        if (n >= rm.Meshes) return;
+        if (Time.unscaledTime - rm.LastRepair < rm.RepairBackoff) return;
+        rm.RepairBackoff = Time.unscaledTime - rm.LastRepair < 60f ? Math.Min(rm.RepairBackoff * 2f, 120f) : 5f;
+        rm.LastRepair = Time.unscaledTime;
+        Plugin.Logger.LogInfo($"[PlayerSync] avatar de #{id} perdeu peças ({rm.Meshes} → {n} malhas: o jogo descarregou); montando de novo");
+        DevBridge.PushEvent($"avatar:{id}:remontar");
+        rm.Meshes = 0;
+        if (AppearanceSync.KnownAppearance(id) != null) { rm.BuiltAppearance = null; return; }
+        // Avatar provisório (aparência ainda desconhecida): nova cópia do modelo local no lugar.
+        UnityEngine.Object.Destroy(rm.Avatar);
+        rm.Avatar = null;
+        CreateAvatar(id, rm);
     }
 
     private static void DestroyRemote(byte id)

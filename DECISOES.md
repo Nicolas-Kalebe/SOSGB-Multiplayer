@@ -766,3 +766,34 @@ Regras deste arquivo:
   - no outro sentido (pergunta do usuário: "se o convidado corta somente some pro dono?"): a convidada cortou uma flor nas montanhas (1 item saltou) e um mato na fazenda (3 itens). Nos dois casos a planta sumiu também no jogo do host, o material foi só para a mochila dela (110201 x1 e 110500 x3), a mochila do host não mudou e nada apareceu no chão dele.
 - **Junto, achado no teste: aviso falso "O tempo avançou para ... (Convidada)".** O relógio anda ~1 min de jogo por segundo real; meio segundo travado no host (print, carregamento) deixava o convidado 30 s de jogo à frente, e isso já contava como "pulo de tempo" (D50): o grupo inteiro pulava e aparecia o aviso. Agora só conta como pulo acima de 5 min de jogo (evento, barraca esgotada); diferenças menores são corrigidas em silêncio. Conferido: convidado 34 s à frente → corrigido sem aviso.
 - **Limite:** a devolução tira da mochila o mesmo item e qualidade (não necessariamente o mesmo espaço).
+
+### D71 — "Gerar log": relatório para mandar ao desenvolvedor
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** usuário ("quero até que você faça um logdump depois pra gente poder te enviar")
+- **Problema achado junto:** o BepInEx apaga o `LogOutput.log` toda vez que o jogo abre. Se o jogo trava e a pessoa abre de novo, o log do erro some.
+- **Decisão (`BugReport`):**
+  - cada sessão também vai, linha a linha e gravada na hora, para `%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\logs\sessao-*.log` (ficam as 8 últimas; inclui as mensagens da Unity e do jogo, não só as do mod);
+  - botão **"Gerar log"** no painel (tela inicial e F9): monta `SOSGB-log-<nome>-<data>.zip` na Área de Trabalho e abre a pasta com ele selecionado. Leva: `LEIA.txt` (versão, modo, jogadores, estado), `estado.json` (o estado de cada parte do mod, o mesmo do `net status`), `LogOutput*.log`, `sessoes/`, `Player.log` da Unity, `config.cfg` e `dados/` (perfis e a última cópia de recuperação).
+- **Testado:** o botão aparece no painel da tela inicial; o comando de teste `report` gera o mesmo .zip.
+
+### D72 — Entrar sem save e criar o personagem sem jogo novo
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** usuário ("como que vai fazer pra criar o personagem sem ter que criar um jogo novo e ver as cutscenes pra ela entrar com o boneco dela direto no meu mundo"; "uma interface melhor para entrar na sala do amigo")
+- **Entrar pela tela inicial:** no painel, modo **Entrar** → botão **"Entrar agora"**. Conecta dali mesmo; quando o host aceita, o mundo chega pela rede e é carregado pelo caminho de sempre (`LoadSlot` com os bytes recebidos, que não lê o arquivo do slot). Não precisa ter save. O painel mostra "Conectando a..." / "Entrando no mundo de..." / o motivo se não conectou, e "Cancelar". Carregar um save próprio com o modo Entrar continua funcionando.
+- **Criação de personagem:** a tela **completa** do jogo novo (rosto, tom de pele, olhos, penteado, cor do cabelo, barba, sinal, sardas, tipo físico, voz) abre dentro do mundo com `UIAccessor.RequestOpenAvatarMakeup(AvatarMakeCategory.Prologue)` (`Net/CharacterCreator`).
+  - Abre **sozinha** na primeira entrada de quem entrou sem save (o host não conhece o jogador e não há visual próprio). Depois dá para refazer em **F9 → "Mudar visual"**.
+  - No jogo novo essa tela roda dentro de um evento, que clareia a tela depois dela. Fora do evento, depois do "Começar com este visual? → Sim", a tela ficava preta ("carregando") e o relógio parado. O mod faz o papel do evento: quando o jogo volta à tela principal, `FadeManager.FadeIn`. (Durante a confirmação a tela atual é a do diálogo, não a da criação: só conta como fechada ao voltar à `GameMain`.)
+  - Testados e descartados: abrir pela chave crua `UILoadKey.AvatarMake` (abre só o título, sem opções, e trava) e o modo `Direct` (fica carregando para sempre).
+  - O visual escolhido é anunciado aos outros (D32) e o perfil sobe para o host na hora. O convidado também passa a usar **o próprio nome** no jogo (o que os moradores falam), só na memória: o save carregado é o do host e o convidado nunca grava.
+- **Testado com duas instâncias:** uma "amiga" sem save abriu na tela inicial, entrou em ~12 s, a criação abriu sozinha; com Tipo B e outro penteado, voltou ao jogo com a tela clara, o relógio alinhado ao do host e andando; o host viu o visual novo. Fechou o jogo e entrou de novo: a criação não abriu e o visual voltou igual.
+
+### D73 — Avatar do outro jogador sem corpo depois do guarda-roupa ou de trocar de mapa
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** IA, a partir do teste do usuário ("testei o armário com a convidada... ao sair do armário o host ficou invisível e pro host ao sair e voltar pra casa ela virou um rosto flutuante")
+- **Causa:** o avatar remoto é uma CÓPIA do modelo montado com as peças carregadas no jogo local (D28/D32). O jogo descarrega as peças que o personagem local não usa: ao trocar de mapa e ao fechar o guarda-roupa/criação. A cópia perde as malhas (invisível, ou só o rosto). Antes ninguém via porque os dois usavam a mesma roupa.
+- **Decisão:** a cada segundo, o `PlayerSync` conta as malhas carregadas do avatar; se diminuíram desde a montagem, monta de novo com a aparência dele (se repetir em menos de 1 min, espera em dobro, até 2 min, para não ficar em laço). A remontagem espera a criação de personagem fechar.
+- **Testado:** a convidada mudou o visual: no jogo dela o avatar do host perdeu peças (18 → 11 malhas) e foi remontado ao fechar; o host saiu de casa e voltou: o avatar da convidada perdeu peças (30 → 23) e foi remontado, com o corpo inteiro na tela.
+- **Guarda-roupa (pergunta do usuário):** funciona para a convidada; a roupa nova aparece para o host em ~2 s (testado pelo usuário).
+
+### D74 — Pausa (Esc) para todos: personagens parados e aviso na tela
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** usuário ("apesar de pausar o tempo o esc não impede o outro jogador de se movimentar nem dá um aviso em tela que o jogo está pausado")
+- **Decisão:** quando alguém abre o menu de pausa (D50), os outros também ficam parados (o personagem local recebe `PauseObject.Pause(All)`, a mesma pausa do espectador, D69) e veem o aviso **"Jogo pausado — Fulano está no menu de pausa. Aguarde."**. Ao sair do menu, todos voltam a andar. O host manda quem pausou junto com a hora do grupo (`ClockState` + byte).
+- **Testado com duas instâncias e Esc de verdade, nos dois sentidos:** quem não pausou não anda e vê o aviso; ao fechar o menu, anda de novo.
+- **Versão:** mod 0.6.0, protocolo 24 (formatos novos desde a 23 distribuída: D68–D74).

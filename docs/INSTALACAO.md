@@ -40,14 +40,15 @@ Em `[Game]`, `SkipIntroLogos = true` (padrão) pula as logos de abertura e vai d
 
 ## Interface (no jogo)
 
-- **Tela de título:** painel no canto inferior direito. Escolha *Sozinho*, *Hospedar* ou *Entrar*, digite seu nome e (para entrar) o IP do host. Quem hospeda vê ali os IPs para passar aos amigos (inclusive o do Radmin VPN).
-- **Dentro do jogo:** lista de jogadores com onde cada um está. **F9** abre o menu (hospedar/entrar agora, desconectar); **F10** esconde a lista.
+- **Tela de título:** painel no canto inferior direito. Escolha *Sozinho*, *Hospedar* ou *Entrar*, digite seu nome e (para entrar) o IP do host. Em *Entrar*, o botão **Entrar agora** conecta dali mesmo, **sem precisar de save** ([D72](../DECISOES.md)). Quem hospeda vê ali os IPs para passar aos amigos (inclusive o do Radmin VPN).
+- **Dentro do jogo:** lista de jogadores com onde cada um está. **F9** abre o menu (hospedar/entrar agora, **Mudar visual**, desconectar); **F10** esconde a lista.
+- **Gerar log** (painel da tela de título e F9): cria um `.zip` na Área de Trabalho com os logs das últimas sessões. Se algo der errado, mande esse arquivo ([D71](../DECISOES.md)).
 - Avisos aparecem no sistema de avisos do próprio jogo: quem entrou/saiu, quem foi dormir, desmaiou ou entrou num evento.
 
 ## Como jogar
 
 1. **O host** abre o jogo e carrega o save dele. A janelinha "SOSGB Multiplayer" aparece no canto inferior esquerdo (F8 esconde).
-2. **O convidado** abre o jogo e carrega **qualquer save dele**. O jogo recarrega sozinho e ele entra no mundo do host.
+2. **O convidado** abre o jogo, escolhe *Entrar*, digita o IP do host e clica em **Entrar agora** (não precisa de save). Na primeira vez abre a **criação de personagem** do jogo: monte o seu boneco e escolha "Ir com este visual!". Quem preferir pode carregar um save próprio com o modo *Entrar*: o jogo recarrega sozinho no mundo do host.
 3. Para dormir: cada um vai para a cama. Quem dorme espera os outros ("Dormindo X/Y"), e o tempo continua correndo para quem está acordado. Mudou de ideia? Aperte **Backspace** (ou F9 → "Levantar da cama") para levantar. Quando todos dormem, o dia vira para todo mundo. Enquanto espera, **F7** mostra quem ainda está acordado (a câmera segue o amigo no mapa dele; F7 de novo passa para o próximo e, no fim, volta para casa).
 
 **Regras desta versão:**
@@ -55,7 +56,7 @@ Em `[Game]`, `SkipIntroLogos = true` (padrão) pula as logos de abertura e vai d
 - **Armazém da casa e deck do Bazaar: um de cada vez.** Se outro jogador já estiver com a tela aberta, a sua fecha e aparece o aviso "Fulano está usando o armazém" ([D37](../DECISOES.md)/[D46](../DECISOES.md)).
 - **Romance exclusivo:** um NPC noivo ou casado com um jogador fica indisponível para os outros ([D44](../DECISOES.md)).
 - **Natureza compartilhada:** o que um pega (minério, flor, bichinho, ovo) some para todos.
-- Na **primeira vez**, o convidado **começa do zero** no mundo do host, como no Stardew ([D30](../DECISOES.md)): corações zerados, mochila vazia, ferramentas básicas. O que ele jogou sozinho no save dele não conta; do save dele só vem o visual do personagem. Por isso ele ainda precisa ter um save (qualquer um) para entrar.
+- Na **primeira vez**, o convidado **começa do zero** no mundo do host, como no Stardew ([D30](../DECISOES.md)): corações zerados, mochila vazia, ferramentas básicas. O que ele jogou sozinho no save dele não conta; do save dele só vem o visual do personagem (sem save, ele cria o visual na hora). Para mudar o visual depois: F9 → **Mudar visual**.
 - Os corações, a mochila e as ferramentas do convidado são dele e ficam guardados no PC do host (`%APPDATA%\STORY OF SEASONS Grand Bazaar\SOSGB-MP\`).
 - **Do grupo (compartilhado):** dinheiro e Happy Energy (uma carteira só), armazém, deck do Bazaar, fazenda, animais, pets, cavalo, moinhos, correio, pedidos dos moradores (o progresso de todos soma), Happy Bingo (prêmio resgatado por um fica resgatado para todos), tutoriais já lidos e selo BRAND ([D36](../DECISOES.md)–[D61](../DECISOES.md)).
 - **Bazaar em grupo:** uma pessoa abre a barraca e vende; todos veem os mesmos clientes. Quem quiser ajudar vai até a barraca e escolhe "Abrir loja": Enter no item com "!!" vende, Tab num espaço vazio repõe com um item do deck, Shift toca o sino. A venda acontece no jogo de quem é dono da barraca. Se o dono sair ou fechar a loja antes, quem ajudava assume a barraca ([D56](../DECISOES.md)/[D60](../DECISOES.md)).
@@ -66,7 +67,7 @@ Em `[Game]`, `SkipIntroLogos = true` (padrão) pula as logos de abertura e vai d
 
 - Os NPCs andam de forma independente em cada jogo (cada um vê o NPC no lugar calculado pelo próprio jogo).
 - **Festivais em grupo ainda não foram testados.** O Bazaar em grupo foi testado pela IA com duas cópias do jogo, mas ainda não com duas pessoas ([D56](../DECISOES.md)).
-- O tempo **só para** quando alguém abre o **menu de pausa** (Esc), e aí para para todos. Em outros menus, diálogos e eventos o tempo continua para os outros; quem estava na tela é adiantado ao sair ([D50](../DECISOES.md)).
+- O tempo **só para** quando alguém abre o **menu de pausa** (Esc), e aí para para todos: os outros ficam parados e veem "Jogo pausado — Fulano está no menu" ([D74](../DECISOES.md)). Em outros menus, diálogos e eventos o tempo continua para os outros; quem estava na tela é adiantado ao sair ([D50](../DECISOES.md)).
 - **Bazaar:** uma barraca por vez ([D51](../DECISOES.md)); os outros ajudam dentro dela (ver "Bazaar em grupo"). Enquanto alguém vende, o "Ver estoque" e a decoração da barraca ficam com quem vende.
 - Cada jogador aparece com a **própria aparência** (rosto, cabelo, roupa, gênero) e o **nome em cima** ([D32](../DECISOES.md)). Quando alguém entra ou troca de visual, o seu personagem **pisca** com outra aparência por 1 a 2 segundos: é normal. Se der problema, desligue em `[Visual] OwnAppearance = false` (aí todos aparecem com o seu modelo).
 - Casamento de convidado: o cônjuge mora na casa só no jogo de quem casou; eventos de casado e filhos não foram testados para convidados ([D45](../DECISOES.md)).
@@ -78,7 +79,7 @@ Em `[Game]`, `SkipIntroLogos = true` (padrão) pula as logos de abertura e vai d
 
 ## Problemas?
 
-Mande o arquivo `<jogo>\BepInEx\LogOutput.log` de quem teve o problema.
+Clique em **Gerar log** (painel da tela de título ou F9) e mande o `.zip` que aparece na Área de Trabalho. Ele junta os logs das últimas sessões, inclusive de uma que travou ([D71](../DECISOES.md)).
 
 ---
 

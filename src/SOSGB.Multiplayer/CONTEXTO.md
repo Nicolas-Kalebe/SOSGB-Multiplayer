@@ -17,7 +17,8 @@ Plugin principal do mod (BepInEx 6 IL2CPP, `net6.0`). GUID: `com.nicolaskalebe.s
 | `PngWriter.cs` | Codificador PNG próprio, porque o `EncodeToPNG` da Unity quebra no interop |
 | `PlayerContext.cs` | Troca de contexto por jogador (D3/D13): snapshots em JSON dos managers do jogo |
 | `WorldSnapshot.cs` | Snapshot do mundo via pipeline de save do jogo (patches em `SaveDataAccessorWindows`). Bloqueia o save do convidado, inclusive depois de uma queda, até voltar ao título (D59) |
-| `MultiplayerUI.cs` | D27: painel do título (modo/nome/IP), lista de jogadores no jogo, menu F9. Controles próprios (o IMGUI do jogo foi podado) |
+| `BugReport.cs` | D71: log de cada sessão em `SOSGB-MP\logs` (o LogOutput.log é apagado ao abrir o jogo) e o .zip do botão "Gerar log" |
+| `MultiplayerUI.cs` | D27: painel do título (modo/nome/IP, "Entrar agora" sem save D72, "Gerar log" D71), lista de jogadores no jogo, menu F9 ("Mudar visual" D72), aviso de pausa (D74). Controles próprios (o IMGUI do jogo foi podado) |
 | `AppearanceLab.cs` | (Só testes) laboratório de aparência: sonda da montagem, troca de animação de gênero, "jogador falso" (comandos `applab probe/motion/make/build/set/cat`) |
 | `PlayerContext.cs` (partes) | Partes do perfil: likeability, talk, eventflags, bag, tools, toolstate, **tooldata** (D38), **buffs** (bônus de comida, D49), appearance |
 | `FarmLab.cs` | (Só testes) laboratório da Fase 5: objetos do mapa, remover/recriar, capturar/aplicar/instalar estado (comando `farm`) |
