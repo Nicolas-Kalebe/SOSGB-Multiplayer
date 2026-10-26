@@ -151,4 +151,7 @@ public enum MsgType : byte
 
     /// <summary>Convidado ↔ host: [byte 0=mudanças 1=lista oficial][bool lojaNova][int n]{[uint id][byte estado][int progresso ou diferença][long aceito][long completo][byte 1=por valor]} — pedidos dos moradores (D57; por valor: o host fica com o maior)</summary>
     MissionData = 38,
+
+    /// <summary>Qualquer → host (→ todos): [byte quem][uint morador][bool conversando] — morador ocupado numa conversa: para de andar e não aceita outra conversa nos outros jogos (D68)</summary>
+    NpcTalk = 39,
 }

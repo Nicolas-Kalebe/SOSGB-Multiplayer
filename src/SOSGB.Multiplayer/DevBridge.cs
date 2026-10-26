@@ -1014,6 +1014,20 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, result = res, evBefore, after = Count(), length = head.Length, head = head.Substring(0, Math.Min(300, head.Length)) });
             }
 
+            case "npcs":
+            {
+                // npcs — moradores no mapa atual: id, posição, se aceitam conversa; estado da NpcSync (D68)
+                var list = new List<string>();
+                foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+                {
+                    if (npc == null || !npc.gameObject.activeInHierarchy) continue;
+                    var p = npc.transform.position;
+                    string talk; try { talk = npc.IsTalkable().ToString(); } catch (Exception e) { talk = "erro " + e.Message.Split((char)10)[0]; }
+                    list.Add($"{npc.CharacterId} {npc.name} pos={p.x:0.0},{p.z:0.0} conversa={talk}");
+                }
+                return Json(new { ok = true, npcs = list, sync = Net.NpcSync.Status() });
+            }
+
             case "holdworld":
                 // holdworld [on|off|title] — D59: simula "convidado com o mundo do host na memória" e a volta ao título
                 if (arg.Trim() == "on") WorldSnapshot.HoldingHostWorld = true;

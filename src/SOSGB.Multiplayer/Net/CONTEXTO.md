@@ -17,6 +17,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `BazaarHelpSync.cs` | D56: ajudante na barraca do Bazaar — interceptações instaladas só enquanto ajuda (Enter → pedido "atender", mini deck → pedido "pôr item", estados dos espaços do dono); o dono executa os pedidos; lista do mini deck refeita quando o deck muda. Se o dono sai ou fecha a loja, o ajudante assume a barraca (D60) |
 | `HeldMessages.cs` | D63: fila de mensagens que chegam quando o módulo não está pronto (carregando o mundo, trocando de mapa, virada no convidado); aplicadas em ordem depois |
 | `WindmillToolGuard.cs` | D66: a ferramenta pronta no moinho só sai para quem a deixou (quem já tem uma do mesmo tipo não retira) |
+| `NpcSync.cs` | D68: morador em conversa para nos outros jogos e não aceita outra conversa; os outros moradores não congelam no jogo de quem conversa |
 | `MissionSync.cs` | D57: pedidos dos moradores compartilhados (contadores somados, pedidos por valor ficam com o maior, estado mais avançado; host manda a lista oficial). D60 |
 | `RomanceSync.cs` | 6.4/D44: romance exclusivo (registro NPC → jogador no host; patches em `CheckMarryable`/`SetFiance`) |
 | `SharedSync.cs` | 5.4/D42/D43: estado compartilhado genérico (lista de partes com capturar/aplicar, em rodízio): moinho, apicultura, cogumelos, vasos, ampliações, pets, cavalo, prêmios, adega, banho, receitas, missões, peixes, reforços, lojas, Bazaar, festivais, informações gerais, histórico de itens e flags de evento (união); tutoriais e BRAND (união, D57); Happy Bingo por mescla (D61) |

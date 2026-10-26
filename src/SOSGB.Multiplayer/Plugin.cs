@@ -158,6 +158,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.RomanceSync>();
         AddComponent<Net.BazaarViewSync>();
         AddComponent<Net.BazaarHelpSync>();
+        AddComponent<Net.NpcSync>();
         AddComponent<MultiplayerUI>();
         // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
         if (DevMode) AddComponent<DebugOverlay>();

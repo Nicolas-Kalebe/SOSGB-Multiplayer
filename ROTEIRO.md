@@ -107,7 +107,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
-| 6.1 ⏸ | **Trava de NPC (D14)**: um jogador por vez em conversa, presente ou evento. Sem motivo técnico agora; ver P9 | M | Teste da IA |
+| 6.1 ✅ | **Trava de NPC (D14 → D68)**: o morador em conversa para nos outros jogos e só aceita um de cada vez; os outros moradores não congelam no jogo de quem conversa | M | Teste da IA: duas instâncias, Enter de verdade |
 | 6.2 ✅ | **Corações individuais (D3)**: cada jogo conversa com os NPCs na própria cópia; corações no perfil de cada um (D24/D30) | G | Teste da IA |
 | 6.2b ✅ | **Eventos vistos e progresso do mundo** sincronizados (D43): flags de evento em união, missões, lojas, receitas, peixes... | G | Teste da IA: autoteste + flag em rede |
 | 6.3 | **Cutscenes pessoais**: só quem disparou vê, o mundo segue para os outros; `IsPlayingEvent` por jogador | GG | Teste do usuário |
