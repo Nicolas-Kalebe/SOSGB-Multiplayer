@@ -43,6 +43,10 @@ public class PlayerSync : MonoBehaviour
 
     private static readonly Dictionary<byte, Remote> Remotes = new();
 
+    /// <summary>Avatar de um jogador remoto, se ele estiver no mapa local. Espectador (D69).</summary>
+    public static GameObject RemoteAvatar(byte id) =>
+        Remotes.TryGetValue(id, out var rm) && rm.Avatar != null && FieldManager.IsInstance && rm.Field == FieldManager.Instance.CurrentFieldId ? rm.Avatar : null;
+
     /// <summary>Última posição conhecida do avatar de um jogador remoto (no mapa local).</summary>
     public static bool TryGetRemotePosition(byte id, out Vector3 pos)
     {
@@ -119,6 +123,8 @@ public class PlayerSync : MonoBehaviour
         if (Time.unscaledTime < _nextSend) return;
         _nextSend = Time.unscaledTime + SendInterval;
         if (!GameController.IsInstance || !FieldManager.IsInstance) return;
+        // Espectando (D69): para os outros, este jogador continua deitado na casa (o último estado enviado).
+        if (Spectator.Active || Spectator.Returning) return;
         var player = GameController.Instance.GetPlayer();
         if (player == null) return;
 

@@ -249,7 +249,7 @@ public class MultiplayerUI : MonoBehaviour
             lines.Add($"{(isMe ? "▶" : "•")} {p.Name}{(isMe ? " (você)" : "")} — {where}{same}{ping}");
         }
         if (DaySync.LocalSleeping || DaySync.SleepingCount > 0)
-            lines.Add($"Dormindo {DaySync.SleepingCount}/{DaySync.Total}{(DaySync.LocalSleeping ? " — esperando os outros  [Backspace] levantar" : "")}");
+            lines.Add($"Dormindo {DaySync.SleepingCount}/{DaySync.Total}{(DaySync.LocalSleeping ? " — esperando os outros  [Backspace] levantar  [F7] espectar" : "")}");
         if (Notice.Current != null) lines.Add(Notice.Current);
         lines.Add("[F9] menu   [F10] esconder");
 

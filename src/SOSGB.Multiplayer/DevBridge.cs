@@ -1028,6 +1028,10 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, npcs = list, sync = Net.NpcSync.Status() });
             }
 
+            case "spectate":
+                // spectate — estado do espectador (D69); a tecla F7 é apertada de verdade nos testes
+                return Json(new { ok = true, spectator = Net.Spectator.Status(), field = FieldManager.Instance.CurrentFieldId });
+
             case "holdworld":
                 // holdworld [on|off|title] — D59: simula "convidado com o mundo do host na memória" e a volta ao título
                 if (arg.Trim() == "on") WorldSnapshot.HoldingHostWorld = true;

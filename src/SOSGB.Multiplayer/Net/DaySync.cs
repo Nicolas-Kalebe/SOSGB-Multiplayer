@@ -206,6 +206,15 @@ public class DaySync : MonoBehaviour
         catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] sair da cama ao desconectar: {e.Message}"); }
     }
 
+    /// <summary>
+    /// Espectador (D69): tira o personagem do estado de cama (o jogo não troca de mapa com ele deitado: NullReference em
+    /// ChangeField), mas ele continua contando como "dormindo" para o grupo e a virada continua segurada.
+    /// </summary>
+    public static void LeaveBedKeepSleeping()
+    {
+        if (LocalSleeping) Unstick();
+    }
+
     /// <summary>Voltando ao título: esquece o "dormindo" sem mexer no personagem (a cena vai ser descarregada).</summary>
     public static void ForgetForTitle()
     {
