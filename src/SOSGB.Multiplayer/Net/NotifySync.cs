@@ -63,7 +63,10 @@ public class NotifySync : MonoBehaviour
             Edge(ref _wasSleepyFaint, p.IsSleepyFaint, EventCode.SleepyFainted);
             Edge(ref _wasInEvent, gc.IsPlayingEvent, EventCode.EventStarted);
             Edge(ref _wasSleeping, DaySync.LocalSleeping, EventCode.Slept);
-            Edge(ref _wasInShop, BazaarManager.IsInstance && BazaarManager.Instance.IsInShop, EventCode.BazaarOpened);
+            // Quem entra na barraca de outro jogador só para ajudar (D56) não "abriu a barraca".
+            var seller = StorageSync.BazaarHolder;
+            Edge(ref _wasInShop, BazaarManager.IsInstance && BazaarManager.Instance.IsInShop && !BazaarHelpSync.Active
+                && (seller == StorageSync.NoHolder || seller == NetSession.LocalId), EventCode.BazaarOpened);
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[NotifySync] {e.Message}"); }
     }
