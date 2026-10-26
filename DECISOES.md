@@ -797,3 +797,30 @@ Regras deste arquivo:
 - **Decisão:** quando alguém abre o menu de pausa (D50), os outros também ficam parados (o personagem local recebe `PauseObject.Pause(All)`, a mesma pausa do espectador, D69) e veem o aviso **"Jogo pausado — Fulano está no menu de pausa. Aguarde."**. Ao sair do menu, todos voltam a andar. O host manda quem pausou junto com a hora do grupo (`ClockState` + byte).
 - **Testado com duas instâncias e Esc de verdade, nos dois sentidos:** quem não pausou não anda e vê o aviso; ao fechar o menu, anda de novo.
 - **Versão:** mod 0.6.0, protocolo 24 (formatos novos desde a 23 distribuída: D68–D74).
+
+### D75 — Pose deitada que ficava depois da virada; montagem de avatar durante o guarda-roupa
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** IA, a partir do teste do usuário ("um boneco tava deitado no chão... depois de dormir o boneco ficou livre mas continuou deitado. e ao trocar de roupa deitado ele trocou a do p1 também"; print do host deitado atrás da prévia da criação)
+- **O que aconteceu (logs com horário, D71):** o host ficou parado e desmaiou às 2h (conta como dormindo, certo). A convidada deitou; a virada começou na hora e a pose deitada dela saiu 4 s depois, no meio da virada. No host ninguém limpa poses na virada (só quem recebe o mundo limpa) e a convidada, ao recarregar, esquecia que tinha mandado a pose: no host ela andava "livre, mas deitada". A "roupa trocada nos dois": no jogo da convidada, o avatar do host foi remontado no mesmo segundo em que a criação fechou, com o personagem dela ainda aplicando o visual novo; a cópia saiu com a roupa dela.
+- **Decisão:**
+  - `DaySync.OnHostNewDay`: na virada o host limpa as poses dos outros; quem recebe o mundo e tinha mandado a pose manda o "levantou"; não se manda pose com a virada em andamento; quem recebe solta a pose se o jogador sair andando (> 1,5 m);
+  - nenhum avatar é montado com uma tela de aparência aberta (criação, guarda-roupa, loja de roupas) nem até 3 s depois (`CharacterCreator.AvatarMakeBusy`);
+  - com a tela de aparência aberta, os avatares dos outros e os painéis do mod somem (a prévia é montada no próprio mapa e o host deitado aparecia atrás dela).
+
+### D76 — Rosto e pele de um jogador grudados no personagem de quem olha
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** IA, a partir do teste do usuário ("a cor de pele e o rosto continuam as dela no rosto do host")
+- **Causa:** o truque de montagem (D28/D32: vestir o personagem local com o visual do outro, copiar e devolver) devolvia cedo demais; algo do visual do outro terminava de carregar depois e ficava no personagem local.
+- **Decisão:** depois de cada troca, espera o contador interno de peças do jogo zerar (`tryingSetAvatarPartsCount`, `reserveAvatarInfo`); antes de montar, guarda a "impressão digital" das texturas do personagem local e, depois de devolver, confere; se não bater, devolve de novo (até 2 vezes, com aviso no log).
+- **Testado:** a convidada trocou rosto e pele; as texturas do host ficaram idênticas às de antes (comando `textures`).
+
+### D77 — Peças dos avatares protegidas contra a descarga do jogo
+- **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** IA, a partir do teste do usuário ("quando eu voltei pra dentro da casa ela tava só o rosto mas logo carregou, mas mesmo assim foi feio de ver")
+- **Causa:** a remontagem da D73 conserta depois do estrago; ao entrar num mapa o jogo descarrega as peças duas vezes seguidas, e o "só rosto" durava alguns segundos.
+- **Decisão:** o gerenciador de peças do jogo (`AvatarResourceManager`) tem uma lista de proteção contra descarga (`unloadBlocker.MainAvatarResources`, refeita por `SetBlockMainAvatarResource`). Ao montar o avatar de outro jogador, o mod anota as peças do visual dele (`AvatarMakeManager.GetEnableResourceNames`) e as põe nessa lista: sempre que o jogo a refaz (gancho Harmony) e a cada 0,5 s. Reserva: se mesmo assim o avatar perder peças, fica escondido até ser remontado, e a checagem é a cada 0,25 s.
+- **Testado:** o host saiu de casa e voltou duas vezes; o avatar da convidada não perdeu nenhuma peça (antes perdia sempre).
+
+### D78 — Limite conhecido: o avatar do outro aparece com o rosto e o tom de pele de quem olha
+- **Status:** 🟡 Em investigação · **Data:** 2026-10-26
+- **Achado:** a troca que o mod usa para montar avatares (`ChangePlayerAvatar`) é a do jogo para roupa/montaria/casamento e **não aplica rosto (modelo `avt_P_f_0xx`) nem pele (textura `tex_avt_p_skin_00x`)**. Isso existe desde a D32; só apareceu agora porque, até a criação de personagem (D72), todos tinham o mesmo rosto. Cabelo, roupa, acessórios e tipo físico saem certos.
+- **Testado (comandos de investigação `apppart`/`appreset`/`appchange`/`appapply`/`appcreate`):** `SetAvatarParts`, `ResetAvatarAppearance`, `ChangeAvatar` e `ApplyPlayerAvatarInfo` não mudam rosto/pele do personagem (agem no modelo de prévia da tela de aparência); `CreatePlayerAvatar` trocou o rosto uma vez (0,18 s), mas não a pele, e não voltou numa segunda chamada.
+- **Também:** a cópia do avatar passou a ter materiais próprios (antes usava os do personagem local e mudaria junto com ele).
+- **Próximos caminhos:** trocar na cópia o modelo do rosto e as texturas de pele pelas do outro jogador, carregadas pelo gerenciador de peças do jogo; ou recriar o personagem com `CreatePlayerAvatar` de forma controlada.

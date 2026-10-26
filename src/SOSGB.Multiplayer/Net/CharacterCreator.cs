@@ -30,6 +30,18 @@ public class CharacterCreator : MonoBehaviour
     /// <summary>A tela de criação está aberta (ou fechando): ninguém mais mexe no modelo do jogador local.</summary>
     public static bool Active => _open;
 
+    private static float _avatarMakeSeenAt = -999f;
+
+    /// <summary>Uma tela de aparência do jogo está aberta agora: avatares dos outros e painéis do mod saem da frente (D75).</summary>
+    public static bool OnScreen { get; private set; }
+
+    /// <summary>
+    /// Alguma tela de aparência do jogo (criação, guarda-roupa, loja de roupas) está aberta, ou fechou há menos de 3 s
+    /// (o jogo ainda está aplicando o visual novo no personagem local). Montar avatares nesse tempo copiava o visual errado:
+    /// o avatar do outro jogador saía com a roupa de quem estava no guarda-roupa (D75, visto pelo usuário).
+    /// </summary>
+    public static bool AvatarMakeBusy => _open || Time.unscaledTime - _avatarMakeSeenAt < 3f;
+
     /// <summary>Abre assim que der (sem evento, sem tela aberta, mundo pronto).</summary>
     public static void OpenSoon(float delay = 2f)
     {
@@ -53,6 +65,12 @@ public class CharacterCreator : MonoBehaviour
         DevBridge.PushEvent("personagem:aberto");
     }
 
+    private static bool AvatarMakeOnScreen()
+    {
+        if (CurrentUi() == UILoadKey.AvatarMake) return true;
+        try { return _ui != null && _ui.IsMenu && _ui.UIMenuKey == UILoadKey.AvatarMake; } catch { return false; }
+    }
+
     private static UILoadKey CurrentUi()
     {
         try
@@ -67,6 +85,8 @@ public class CharacterCreator : MonoBehaviour
     {
         try
         {
+            OnScreen = AvatarMakeOnScreen();
+            if (OnScreen) _avatarMakeSeenAt = Time.unscaledTime;
             if (_pendingOpen && Time.unscaledTime >= _openAt && CanOpen())
             {
                 _pendingOpen = false;

@@ -37,6 +37,10 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D78 | **Limite conhecido:** avatar do outro com o rosto/tom de pele de quem olha (a troca do jogo não aplica rosto/pele); em investigação | 🟡 Em investigação |
+| D77 | **Peças dos avatares protegidas** contra a descarga do jogo (lista de proteção do gerenciador de peças); avatar estragado fica escondido até remontar | ✅ Decidido |
+| D76 | **Rosto/pele não grudam mais** no personagem de quem olha (espera o jogo terminar de aplicar e confere as texturas) | ✅ Decidido |
+| D75 | **Pose deitada limpa na virada**; sem montagem de avatar com tela de aparência aberta; outros e painéis somem nessa tela | ✅ Decidido |
 | D74 | **Pausa para todos**: quem não abriu o menu fica parado e vê "Jogo pausado — Fulano está no menu" | ✅ Decidido |
 | D73 | **Avatar remoto sem corpo** (guarda-roupa, troca de mapa): o mod percebe as malhas descarregadas e monta de novo | ✅ Decidido |
 | D72 | **Entrar sem save** ("Entrar agora" na tela inicial) e **criar o personagem** com a tela completa do jogo novo, sem jogo novo nem cenas; F9 → "Mudar visual" | ✅ Decidido |

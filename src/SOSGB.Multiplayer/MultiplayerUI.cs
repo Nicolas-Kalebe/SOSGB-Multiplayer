@@ -57,6 +57,7 @@ public class MultiplayerUI : MonoBehaviour
             if (scene == SceneMode.Title) DrawSetupPanel(inGame: false);
             else if (scene == SceneMode.Game)
             {
+                if (CharacterCreator.OnScreen) return; // D75: tela de aparência aberta: nada do mod por cima
                 if (Spectator.Active)
                 {
                     // Espectando (D69): só uma linha discreta, o resto da interface some.

@@ -95,15 +95,18 @@ public static class BugReport
         sb.AppendLine("Relatório do SOSGB Multiplayer — mande este .zip para quem cuida do mod.");
         sb.AppendLine($"Gerado em: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"Versão do mod: {Plugin.Version} (protocolo {Net.Protocol.Version})");
-        sb.AppendLine($"Jogador: {Plugin.PlayerName.Value}");
+        sb.AppendLine($"Jogador: {Net.NetSession.LocalName}");
         sb.AppendLine($"Modo: {Net.NetSession.Current}");
         sb.AppendLine($"Jogadores: {Safe(() => string.Join(", ", Net.NetSession.Players.Values.Select(p => p.Name)))}");
-        sb.AppendLine($"Cena/estado: {Safe(() => string.Join("; ", GameState.Snapshot().Select(kv => $"{kv.Key}={kv.Value}")))}");
+        sb.AppendLine($"Cena/estado: {Safe(() => string.Join("; ", GameState.Snapshot().Select(kv => $"{kv.Key}={Show(kv.Value)}")))}");
         sb.AppendLine();
         sb.AppendLine("Conteúdo: LogOutput*.log (sessão atual), sessoes/ (logs das últimas sessões, inclusive as que travaram),");
         sb.AppendLine("Player.log (log da Unity), config.cfg (configuração do mod), estado.json (estado do mod agora), dados/ (perfis).");
         return sb.ToString();
     }
+
+    private static string Show(object v) => v is System.Collections.IEnumerable e && v is not string
+        ? "[" + string.Join(", ", e.Cast<object>()) + "]" : v?.ToString();
 
     private static string Safe(Func<string> f)
     {

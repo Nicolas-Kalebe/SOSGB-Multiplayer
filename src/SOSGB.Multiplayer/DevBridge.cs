@@ -904,6 +904,98 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, category = cat.ToString() });
             }
 
+            case "meshes":
+            {
+                // meshes local | meshes <id> — nomes das malhas carregadas do personagem local ou do avatar de um jogador (D73/D75)
+                GameObject go = arg.Trim() == "local" || arg.Trim() == "" ? GameController.Instance.GetPlayer()?.Model : Net.PlayerSync.RemoteAvatar(byte.Parse(arg.Trim()));
+                if (go == null) return Json(new { ok = false, error = "sem modelo" });
+                var names = new List<string>();
+                foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>(true)) if (smr.sharedMesh != null) names.Add(smr.sharedMesh.name);
+                foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true)) if (mf.sharedMesh != null) names.Add(mf.sharedMesh.name);
+                names.Sort();
+                return Json(new { ok = true, count = names.Count, names });
+            }
+
+            case "textures":
+            {
+                // textures local | textures <id> — texturas dos materiais (rosto, pele, roupa) do personagem local ou de um avatar (D76)
+                GameObject tgo = arg.Trim() == "local" || arg.Trim() == "" ? GameController.Instance.GetPlayer()?.Model : Net.PlayerSync.RemoteAvatar(byte.Parse(arg.Trim()));
+                if (tgo == null) return Json(new { ok = false, error = "sem modelo" });
+                return Json(new { ok = true, signature = Net.AppearanceSync.TextureSignature(tgo).Split('|') });
+            }
+
+            case "apppart":
+            {
+                // apppart <cat>:<id>[,...] — AvatarMakeManager.SetAvatarParts em cada peça (investigação D78: rosto/pele)
+                var pamm = AvatarMakeManager.Instance;
+                var pdone = new List<string>();
+                foreach (var kv in arg.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var pid = uint.Parse(kv.Split(':')[1]);
+                    var pm = MasterDataManager.Instance.AvatarMakeMaster.GetData(pid);
+                    if (pm == null) { pdone.Add(kv + "=sem master"); continue; }
+                    try { pamm.SetAvatarParts(AvatarInfo.CreateParts(pm)); pdone.Add(kv + "=ok"); }
+                    catch (Exception e) { pdone.Add(kv + "=" + e.Message.Split((char)10)[0]); }
+                }
+                return Json(new { ok = true, done = pdone });
+            }
+
+            case "appreset":
+            {
+                // appreset <cat>:<id>[,...] — troca essas peças nas infos do jogador e roda ResetAvatarAppearance (investigação D78)
+                var ramm = AvatarMakeManager.Instance;
+                var rinfos = new List<AvatarInfo>(ramm.PlayerAvatarInfos);
+                foreach (var kv in arg.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var cat = int.Parse(kv.Split(':')[0]); var id = uint.Parse(kv.Split(':')[1]);
+                    var m = MasterDataManager.Instance.AvatarMakeMaster.GetData(id);
+                    var idx = rinfos.FindIndex(i => (int)i.Category == cat);
+                    if (m != null && idx >= 0) rinfos[idx] = AvatarInfo.CreateParts(m);
+                }
+                var arr = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<AvatarInfo>(rinfos.ToArray());
+                ramm.PlayerAvatarInfos = arr; GameController.Instance.PlayerAvatarInfos = arr; ExternalData.Instance.UserInfo.AvatarInfos = arr;
+                Instance.StartCoroutine(ramm.ResetAvatarAppearance(arr));
+                return Json(new { ok = true });
+            }
+
+            case "appcreate":
+            {
+                // appcreate <cat>:<id>[,...] — troca essas peças nas infos do jogador e chama CreatePlayerAvatar (investigação D78)
+                var camm = AvatarMakeManager.Instance;
+                var cinfos = new List<AvatarInfo>(camm.PlayerAvatarInfos);
+                foreach (var kv in arg.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var ccat = int.Parse(kv.Split(':')[0]); var cid = uint.Parse(kv.Split(':')[1]);
+                    var cm = MasterDataManager.Instance.AvatarMakeMaster.GetData(cid);
+                    var cidx = cinfos.FindIndex(i => (int)i.Category == ccat);
+                    if (cm != null && cidx >= 0) cinfos[cidx] = AvatarInfo.CreateParts(cm);
+                }
+                var carr = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<AvatarInfo>(cinfos.ToArray());
+                camm.PlayerAvatarInfos = carr; GameController.Instance.PlayerAvatarInfos = carr; ExternalData.Instance.UserInfo.AvatarInfos = carr;
+                camm.CreatePlayerAvatar();
+                return Json(new { ok = true });
+            }
+
+            case "appchange":
+            case "appapply":
+            {
+                // appchange|appapply <cat>:<id>[,...] — troca as peças nas infos e roda ChangeAvatar(Default) / ApplyPlayerAvatarInfo (D78)
+                var xamm = AvatarMakeManager.Instance;
+                var xinfos = new List<AvatarInfo>(xamm.PlayerAvatarInfos);
+                foreach (var kv in arg.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var xcat = int.Parse(kv.Split(':')[0]); var xid = uint.Parse(kv.Split(':')[1]);
+                    var xm = MasterDataManager.Instance.AvatarMakeMaster.GetData(xid);
+                    var xidx = xinfos.FindIndex(i => (int)i.Category == xcat);
+                    if (xm != null && xidx >= 0) xinfos[xidx] = AvatarInfo.CreateParts(xm);
+                }
+                var xarr = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<AvatarInfo>(xinfos.ToArray());
+                xamm.PlayerAvatarInfos = xarr; GameController.Instance.PlayerAvatarInfos = xarr; ExternalData.Instance.UserInfo.AvatarInfos = xarr;
+                if (cmd == "appchange") Instance.StartCoroutine(xamm.ChangeAvatar(AvatarMakeManager.ChangeType.Default));
+                else xamm.ApplyPlayerAvatarInfo();
+                return Json(new { ok = true });
+            }
+
             case "fadein":
                 // fadein — clareia a tela (destravar uma tela preta de "carregando" em testes)
                 FadeManager.FadeIn(null, null, 0f, 0f);

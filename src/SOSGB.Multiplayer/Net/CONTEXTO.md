@@ -18,7 +18,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `HeldMessages.cs` | D63: fila de mensagens que chegam quando o módulo não está pronto (carregando o mundo, trocando de mapa, virada no convidado); aplicadas em ordem depois |
 | `WindmillToolGuard.cs` | D66: a ferramenta pronta no moinho só sai para quem a deixou (quem já tem uma do mesmo tipo não retira) |
 | `NpcSync.cs` | D68: morador em conversa para nos outros jogos e não aceita outra conversa; os outros moradores não congelam no jogo de quem conversa |
-| `CharacterCreator.cs` | D72: tela de criação completa do jogo novo (modo Prologue) dentro do mundo; abre sozinha na primeira entrada sem save e pelo F9; clareia a tela ao fechar |
+| `CharacterCreator.cs` | D72/D75 (sabe quando qualquer tela de aparência está aberta: `OnScreen`, `AvatarMakeBusy`): tela de criação completa do jogo novo (modo Prologue) dentro do mundo; abre sozinha na primeira entrada sem save e pelo F9; clareia a tela ao fechar |
 | `SleepPoseSync.cs` | D69: quem dorme/desmaia manda o esqueleto deitado e os outros aplicam no avatar dele (antes aparecia em pé dentro da cama) |
 | `Spectator.cs` | D69: F7 deitado esperando os outros segue quem está acordado em outro mapa (carrega o mapa, esconde o personagem, câmera no avatar) |
 | `MissionSync.cs` | D57: pedidos dos moradores compartilhados (contadores somados, pedidos por valor ficam com o maior, estado mais avançado; host manda a lista oficial). D60 |

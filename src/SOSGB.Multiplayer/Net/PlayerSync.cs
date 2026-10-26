@@ -40,6 +40,7 @@ public class PlayerSync : MonoBehaviour
         public float[] Weights = Array.Empty<float>();
         public bool HasState;
         public int Meshes;                           // malhas do modelo instalado (0 = medir de novo), D73
+        public bool Broken;                          // perdeu peças: fica escondido até remontar (D77)
         public float NextHealthCheck;
         public float LastRepair = -999f;
         public float RepairBackoff = 5f;
@@ -251,7 +252,8 @@ public class PlayerSync : MonoBehaviour
             EnsureAppearance(kv.Key, rm);
             SyncController(rm);
 
-            var visible = rm.Field == localField; // 2.5: só no mesmo mapa
+            // 2.5: só no mesmo mapa. D75: com a tela de aparência aberta, a prévia é montada no mapa e os outros apareciam nela.
+            var visible = rm.Field == localField && !CharacterCreator.OnScreen && !rm.Broken;
             if (rm.Avatar.activeSelf != visible) rm.Avatar.SetActive(visible);
             if (!visible) continue;
 
@@ -298,6 +300,7 @@ public class PlayerSync : MonoBehaviour
 
         // Avatar provisório: cópia do modelo local, até a aparência do jogador chegar e ser montada (D28).
         var clone = UnityEngine.Object.Instantiate(local.Model);
+        AppearanceSync.OwnMaterials(clone); // D78: não muda junto quando o visual local muda
         PrepareClone(clone, id);
         rm.Avatar = clone;
         rm.Animator = clone.GetComponentInChildren<Animator>();
@@ -310,6 +313,7 @@ public class PlayerSync : MonoBehaviour
         }
         clone.transform.position = rm.Target;
         rm.Meshes = 0;
+        rm.Broken = false;
         Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} criado");
         DevBridge.PushEvent($"avatar:{id}:criado");
     }
@@ -365,6 +369,7 @@ public class PlayerSync : MonoBehaviour
             rm.Hashes = Array.Empty<int>();
             rm.BuiltAppearance = app;
             rm.Meshes = 0;
+            rm.Broken = false;
             Plugin.Logger.LogInfo($"[PlayerSync] avatar do jogador #{id} montado com a aparência dele");
             DevBridge.PushEvent($"avatar:{id}:aparencia");
         });
@@ -386,11 +391,12 @@ public class PlayerSync : MonoBehaviour
     /// </summary>
     private static void CheckHealth(byte id, Remote rm)
     {
-        if (rm.Building || AppearanceSync.Swapping || Time.unscaledTime < rm.NextHealthCheck) return;
-        rm.NextHealthCheck = Time.unscaledTime + 1f;
+        if (rm.Building || AppearanceSync.Swapping || CharacterCreator.AvatarMakeBusy || Time.unscaledTime < rm.NextHealthCheck) return;
+        rm.NextHealthCheck = Time.unscaledTime + 0.25f;
         var n = CountMeshes(rm.Avatar);
         if (rm.Meshes == 0) { rm.Meshes = n; return; } // primeira medida depois de instalar o modelo
         if (n >= rm.Meshes) return;
+        rm.Broken = true; // D77: escondido até remontar (nada de "rosto flutuante")
         if (Time.unscaledTime - rm.LastRepair < rm.RepairBackoff) return;
         rm.RepairBackoff = Time.unscaledTime - rm.LastRepair < 60f ? Math.Min(rm.RepairBackoff * 2f, 120f) : 5f;
         rm.LastRepair = Time.unscaledTime;

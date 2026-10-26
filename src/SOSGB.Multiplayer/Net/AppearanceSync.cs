@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using BokuMono;
+using HarmonyLib;
 using LiteNetLib;
 using LiteNetLib.Utils;
 using UnityEngine;
@@ -38,6 +39,12 @@ public class AppearanceSync : MonoBehaviour
 
     // id do jogador → aparência anunciada
     private static readonly Dictionary<byte, string> Known = new();
+
+    // D77: aparência de outro jogador → peças do jogo (prefabs e texturas) que ela usa. Ficam na lista de proteção do jogo
+    // (o jogo descarrega o que o personagem local não usa ao trocar de mapa e ao fechar o guarda-roupa; a cópia do avatar
+    // ficava sem corpo e era preciso remontar, com segundos de "rosto flutuante").
+    private static readonly Dictionary<string, HashSet<string>> RemoteResources = new();
+    private float _nextLock;
     private static readonly Queue<Job> Jobs = new();
     private static bool _busy;
     private static bool _subscribed;
@@ -75,6 +82,7 @@ public class AppearanceSync : MonoBehaviour
 
     private void Update()
     {
+        if (Time.unscaledTime >= _nextLock) { _nextLock = Time.unscaledTime + 0.5f; ApplyLocks(); }
         if (!Plugin.OwnAppearance.Value) { Jobs.Clear(); return; }
         if (_busy || Jobs.Count == 0) return;
         if (!Ready()) return;
@@ -87,7 +95,7 @@ public class AppearanceSync : MonoBehaviour
     private static bool Ready() =>
         SceneManager.IsInstance && SceneManager.Instance.CurrentSceneMode == SceneMode.Game
         && AvatarMakeManager.IsInstance && GameController.IsInstance && GameController.Instance.GetPlayer() != null
-        && !GameController.Instance.IsPlayingEvent && !DaySync.InDayChange && !CharacterCreator.Active // D72: a criação mexe no modelo local
+        && !GameController.Instance.IsPlayingEvent && !DaySync.InDayChange && !CharacterCreator.AvatarMakeBusy // D72/D75: criação/guarda-roupa mexem no modelo local
         && HasRealController(GameController.Instance.GetPlayer());
 
     private static bool HasRealController(PlayerCharacter p)
@@ -270,6 +278,9 @@ public class AppearanceSync : MonoBehaviour
         var probe = new CoroutineProbe.Result();
         yield return CoroutineProbe.Run(amm.ChangePlayerAvatar(AvatarMakeManager.ChangeType.Default, null), 15f, probe, "Appearance").WrapToIl2Cpp();
         if (probe.TimedOut) { res.Why = "montagem passou do tempo limite"; yield break; }
+        // D76: o jogo ainda aplica peças depois de o ChangePlayerAvatar terminar (rosto e pele são texturas carregadas em
+        // segundo plano). Copiar ou devolver antes disso deixava a textura de um jogador no personagem do outro.
+        yield return WaitPartsSettled(amm, 6f).WrapToIl2Cpp();
 
         // Animações masculinas/femininas seguem o MotionType da aparência.
         var done = false;
@@ -281,6 +292,86 @@ public class AppearanceSync : MonoBehaviour
         yield return WaitVisible(gc.GetPlayer().Model, 8f, vis).WrapToIl2Cpp();
         res.Ok = vis.Ok;
         if (!vis.Ok) res.Why = "modelo não reapareceu";
+    }
+
+    /// <summary>Anota as peças que o visual vestido agora (o de outro jogador, no meio da montagem) usa.</summary>
+    private static void RememberResources(string appearance)
+    {
+        try
+        {
+            var set = new HashSet<string>();
+            foreach (var n in AvatarMakeManager.Instance.GetEnableResourceNames()) if (!string.IsNullOrEmpty(n)) set.Add(n);
+            RemoteResources[appearance] = set;
+            ApplyLocks();
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[Appearance] peças do avatar: {e.Message}"); }
+    }
+
+    /// <summary>Põe as peças dos avatares dos outros (só de quem está no jogo) na lista de proteção do jogo.</summary>
+    public static int ApplyLocks()
+    {
+        try
+        {
+            if (RemoteResources.Count == 0 || !AvatarMakeManager.IsInstance) return 0;
+            var main = AvatarMakeManager.Instance.avatarResourceManager?.unloadBlocker?.MainAvatarResources;
+            if (main == null) return 0;
+            var live = new HashSet<string>(Known.Values);
+            var added = 0;
+            foreach (var kv in RemoteResources)
+            {
+                if (!live.Contains(kv.Key)) continue;
+                foreach (var n in kv.Value) if (main.Add(n)) added++;
+            }
+            return added;
+        }
+        catch { return 0; }
+    }
+
+    /// <summary>Quando o jogo refaz a lista de proteção (do personagem local), as peças dos outros entram de novo.</summary>
+    [HarmonyPatch(typeof(AvatarResourceManager), nameof(AvatarResourceManager.SetBlockMainAvatarResource))]
+    private static class BlockPatch
+    {
+        private static void Postfix() => ApplyLocks();
+    }
+
+    /// <summary>Espera o contador de peças em aplicação do jogo zerar (e a fila de peças pendentes esvaziar).</summary>
+    private static IEnumerator WaitPartsSettled(AvatarMakeManager amm, float timeout)
+    {
+        var t = 0f;
+        var calm = 0f;
+        while (t < timeout)
+        {
+            var busy = false;
+            try { busy = amm.tryingSetAvatarPartsCount > 0 || (amm.reserveAvatarInfo != null && amm.reserveAvatarInfo.Count > 0); }
+            catch { yield break; } // campo inacessível: segue como antes
+            calm = busy ? 0f : calm + Time.unscaledDeltaTime;
+            if (calm >= 0.25f) yield break;
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        Plugin.Logger.LogWarning("[Appearance] o jogo não terminou de aplicar as peças no tempo limite");
+    }
+
+    /// <summary>Nomes de todas as texturas nos materiais do modelo (rosto, pele, roupa...): a "impressão digital" do visual.</summary>
+    public static string TextureSignature(GameObject model)
+    {
+        var names = new List<string>();
+        if (model == null) return "";
+        foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+        {
+            if (r == null) continue;
+            foreach (var m in r.sharedMaterials)
+            {
+                if (m == null) continue;
+                foreach (var prop in m.GetTexturePropertyNames())
+                {
+                    var tex = m.GetTexture(prop);
+                    if (tex != null) names.Add(prop + "=" + tex.name);
+                }
+            }
+        }
+        names.Sort();
+        return string.Join("|", names);
     }
 
     /// <summary>
@@ -355,6 +446,7 @@ public class AppearanceSync : MonoBehaviour
             yield break;
         }
 
+        var signature = TextureSignature(player.Model);
         yield return SetWithRetry(app, original, res).WrapToIl2Cpp();
         if (GameController.Instance.GetPlayer() == null || GameController.Instance.GetPlayer().Pointer != player.Pointer)
         {
@@ -364,13 +456,22 @@ public class AppearanceSync : MonoBehaviour
             _busy = false;
             yield break;
         }
-        if (res.Ok) Finish(job, player);
+        if (res.Ok) { RememberResources(job.Appearance); Finish(job, player); }
         else
         {
             Plugin.Logger.LogWarning($"[Appearance] não deu para montar a aparência de outro jogador ({res.Why}); fica o modelo provisório");
             job.Done?.Invoke(null, null);
         }
         yield return SetLocal(original, new SetResult()).WrapToIl2Cpp();
+        // D76: confere se o visual local voltou de verdade (texturas iguais às de antes); se não, devolve de novo.
+        for (var attempt = 0; attempt < 2 && GameController.Instance.GetPlayer() != null; attempt++)
+        {
+            var now = TextureSignature(GameController.Instance.GetPlayer().Model);
+            if (now == signature) break;
+            Plugin.Logger.LogWarning($"[Appearance] o visual local não voltou igual depois de montar outro jogador (tentativa {attempt + 1}); aplicando de novo");
+            for (var w = 0f; w < 0.5f; w += Time.unscaledDeltaTime) yield return null;
+            yield return SetLocal(original, new SetResult()).WrapToIl2Cpp();
+        }
         _busy = false;
     }
 
@@ -378,9 +479,28 @@ public class AppearanceSync : MonoBehaviour
     {
         var model = player.Model;
         var clone = Instantiate(model);
+        OwnMaterials(clone);
         var anim = model.GetComponentInChildren<Animator>();
         job.Done?.Invoke(clone, anim != null ? anim.runtimeAnimatorController : null);
     }
 
-    public static object Status() => new { known = Known, queued = Jobs.Count, busy = _busy, local = Ready() ? Local() : null };
+    /// <summary>
+    /// A cópia nasce usando OS MESMOS materiais do personagem local; quando o visual local volta, as texturas desses materiais
+    /// (rosto, pele) trocam e a cópia trocava junto: o avatar do outro ficava com o rosto/pele de quem olha (D78).
+    /// Cada renderer da cópia ganha materiais próprios, com as texturas do momento da cópia.
+    /// </summary>
+    public static void OwnMaterials(GameObject clone)
+    {
+        foreach (var r in clone.GetComponentsInChildren<Renderer>(true))
+        {
+            var shared = r.sharedMaterials;
+            if (shared == null || shared.Length == 0) continue;
+            var own = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Material>(shared.Length);
+            for (var i = 0; i < shared.Length; i++) own[i] = shared[i] != null ? new Material(shared[i]) : null;
+            r.sharedMaterials = own;
+        }
+    }
+
+    public static object Status() => new { known = Known, queued = Jobs.Count, busy = _busy, local = Ready() ? Local() : null,
+        lockedSets = RemoteResources.Count, lockedNames = RemoteResources.Values.Sum(v => v.Count) };
 }

@@ -23,6 +23,7 @@ public class SleepPoseSync : MonoBehaviour
 
     private static readonly Dictionary<byte, Bone[]> Poses = new();          // jogador → esqueleto deitado
     private static readonly Dictionary<byte, IntPtr> Applied = new();       // jogador → animador em que já aplicamos
+    private static readonly Dictionary<byte, Vector3> AppliedAt = new();    // onde o avatar estava ao aplicar (D75)
     private static bool _sent;
     private static float _sleepingSince = -1;
     private static bool _subscribed;
@@ -34,7 +35,16 @@ public class SleepPoseSync : MonoBehaviour
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
         NetSession.OnPlayerLeft += id => Clear(id);
-        WorldSync.OnWorldReceived += () => { foreach (var id in new List<byte>(Poses.Keys)) Clear(id); _sent = false; _sleepingSince = -1; };
+        WorldSync.OnWorldReceived += () =>
+        {
+            foreach (var id in new List<byte>(Poses.Keys)) Clear(id);
+            // D75: se mandei a pose deitada, aviso que levantei (antes o "levantou" se perdia na recarga e os outros me viam
+            // deitado andando pelo mundo).
+            if (_sent) SendClear();
+            _sent = false; _sleepingSince = -1;
+        };
+        // D75: no host ninguém "recebe o mundo"; na virada as poses dos outros saem aqui.
+        DaySync.OnHostNewDay += () => { foreach (var id in new List<byte>(Poses.Keys)) Clear(id); };
         NetSession.OnHosting += () => { Poses.Clear(); Applied.Clear(); _sent = false; };
         NetSession.OnJoined += () => { Poses.Clear(); Applied.Clear(); _sent = false; };
     }
@@ -45,7 +55,7 @@ public class SleepPoseSync : MonoBehaviour
         {
             if (NetSession.Current == NetSession.Mode.Offline) { _sent = false; _sleepingSince = -1; return; }
             // Quem dorme: depois de deitar (a animação de deitar leva ~3 s), manda o esqueleto uma vez; ao levantar, limpa.
-            if (DaySync.LocalSleeping && !Spectator.Active && !Spectator.Returning)
+            if (DaySync.LocalSleeping && !Spectator.Active && !Spectator.Returning && !DaySync.InDayChange)
             {
                 if (!_sent)
                 {
@@ -138,10 +148,19 @@ public class SleepPoseSync : MonoBehaviour
     /// <summary>Aplica as poses nos avatares que estão neste mapa (o animador do avatar fica desligado enquanto deitado).</summary>
     private static void ApplyAll()
     {
+        var stale = new List<byte>();
         foreach (var kv in Poses)
         {
             var anim = PlayerSync.RemoteAnimator(kv.Key);
             if (anim == null) continue;
+            // D75: quem está andando não está deitado (pose que ficou para trás): solta.
+            if (AppliedAt.TryGetValue(kv.Key, out var at) && PlayerSync.TryGetRemotePosition(kv.Key, out var now)
+                && (new Vector2(now.x - at.x, now.z - at.z)).magnitude > 1.5f)
+            {
+                Plugin.Logger.LogInfo($"[SleepPose] #{kv.Key} saiu andando: pose deitada solta");
+                stale.Add(kv.Key);
+                continue;
+            }
             if (Applied.TryGetValue(kv.Key, out var ptr) && ptr == anim.Pointer && !anim.enabled) continue;
             anim.enabled = false;
             var root = anim.transform;
@@ -151,14 +170,17 @@ public class SleepPoseSync : MonoBehaviour
             foreach (var b in kv.Value)
                 if (map.TryGetValue(b.Path, out var t)) { t.localPosition = b.Pos; t.localRotation = b.Rot; hit++; }
             Applied[kv.Key] = anim.Pointer;
+            if (PlayerSync.TryGetRemotePosition(kv.Key, out var where)) AppliedAt[kv.Key] = where;
             Plugin.Logger.LogInfo($"[SleepPose] pose deitada aplicada no avatar de #{kv.Key} ({hit}/{kv.Value.Length} ossos)");
         }
+        foreach (var id in stale) Clear(id);
     }
 
     private static void Clear(byte id)
     {
         if (!Poses.Remove(id)) return;
         Applied.Remove(id);
+        AppliedAt.Remove(id);
         var anim = PlayerSync.RemoteAnimator(id);
         if (anim != null) anim.enabled = true;
     }

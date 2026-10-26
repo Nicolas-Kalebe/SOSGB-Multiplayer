@@ -33,6 +33,9 @@ public class DaySync : MonoBehaviour
     /// não aplica o relógio do dia novo e os módulos guardam as mensagens para depois da recarga.
     /// </summary>
     public static bool InDayChange => NetSession.Current == NetSession.Mode.Client ? _guestDayChanging : _waitingNewDay;
+
+    /// <summary>Host: o dia virou (antes de mandar o mundo). Quem guarda estado de "dormindo" dos outros limpa aqui (D75).</summary>
+    public static event Action OnHostNewDay;
     public static int SleepingCount { get; private set; }
     public static int Total { get; private set; }
 
@@ -294,6 +297,7 @@ public class DaySync : MonoBehaviour
         SleepingCount = 0;
         Plugin.Logger.LogInfo("[DaySync] dia novo; enviando o mundo aos convidados");
         DevBridge.PushEvent("dia-novo");
+        try { OnHostNewDay?.Invoke(); } catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] OnHostNewDay: {e.Message}"); }
         PlayerProfiles.SaveStore();
         WorldSync.BroadcastWorld();
     }
