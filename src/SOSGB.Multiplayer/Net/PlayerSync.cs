@@ -42,6 +42,16 @@ public class PlayerSync : MonoBehaviour
     }
 
     private static readonly Dictionary<byte, Remote> Remotes = new();
+
+    /// <summary>Última posição conhecida do avatar de um jogador remoto (no mapa local).</summary>
+    public static bool TryGetRemotePosition(byte id, out Vector3 pos)
+    {
+        pos = default;
+        if (!Remotes.TryGetValue(id, out var rm) || !rm.HasState) return false;
+        if (FieldManager.IsInstance && rm.Field != FieldManager.Instance.CurrentFieldId) return false;
+        pos = rm.Target;
+        return true;
+    }
     private static IntPtr _localPlayerPtr;
     private static bool _subscribed;
 

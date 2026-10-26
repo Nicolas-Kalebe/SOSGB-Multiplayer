@@ -142,6 +142,7 @@ public class BazaarViewSync : MonoBehaviour
 
     private void OwnerTick(BazaarManager bm)
     {
+        try { _lastSales = bm.ThisOnceSalePrice; } catch { }
         if (Time.unscaledTime >= _nextSend)
         {
             _nextSend = Time.unscaledTime + SendInterval;
@@ -160,8 +161,11 @@ public class BazaarViewSync : MonoBehaviour
                     };
                     try
                     {
+                        // IsShowing do balão diz "não" mesmo com ele na tela (testado); vale o estado do cliente:
+                        // olhando (Watch) ou comprando (Buy) com item definido.
                         var em = a.EmoteSign;
-                        if (em != null && em.IsShowing && em.itemId != 0)
+                        var stName = a.CurrentState.ToString();
+                        if (em != null && em.itemId != 0 && (stName == "Watch" || stName == "Buy"))
                         {
                             v.WishItem = em.itemId;
                             var c = em.itemCount;
@@ -179,7 +183,7 @@ public class BazaarViewSync : MonoBehaviour
                         v.Speed = an.GetFloat(SpeedParam);
                     }
                     list.Add(v);
-                    if (list.Count >= 64) break;
+                    if (list.Count >= 36) break; // cabe num pacote sem garantia (~1000 bytes)
                 }
             var me = NetSession.LocalId;
             var field = FieldManager.Instance.CurrentFieldId;
@@ -188,11 +192,19 @@ public class BazaarViewSync : MonoBehaviour
             NetSession.SendGame(MsgType.BazaarVisitors, w =>
             {
                 w.Put(me); w.Put(field); w.Put(true); w.Put((byte)list.Count);
+                // Compacto (o envio sem garantia tem limite de ~1000 bytes por pacote e são ~27 clientes):
+                // posição em centímetros (short), giro/tempo/velocidade em 1 byte, balão só quando existe.
                 foreach (var v in list)
                 {
-                    w.Put(v.Id); w.Put(v.Pos.x); w.Put(v.Pos.y); w.Put(v.Pos.z); w.Put(v.RotY);
-                    w.Put(v.Hash); w.Put(v.Norm); w.Put(v.Speed); w.Put(v.Sign);
-                    w.Put(v.WishItem); w.Put(v.WishBuy); w.Put(v.WishBuff); w.Put(v.WishCounter);
+                    w.Put((ushort)v.Id);
+                    w.Put(Cm(v.Pos.x)); w.Put(Cm(v.Pos.y)); w.Put(Cm(v.Pos.z));
+                    w.Put((byte)(Mathf.Repeat(v.RotY, 360f) / 360f * 255f));
+                    w.Put(v.Hash);
+                    w.Put((byte)(Mathf.Repeat(v.Norm, 1f) * 255f));
+                    w.Put((byte)Mathf.Clamp(v.Speed * 50f, 0, 255));
+                    w.Put(v.Sign);
+                    w.Put(v.WishItem != 0);
+                    if (v.WishItem != 0) { w.Put(v.WishItem); w.Put((byte)Mathf.Clamp(v.WishBuy, 0, 255)); w.Put((byte)Mathf.Clamp(v.WishBuff, 0, 255)); w.Put((byte)Mathf.Clamp(v.WishCounter, 0, 255)); }
                 }
                 w.Put((byte)states.Length);
                 foreach (var st in states) w.Put(st);
@@ -214,11 +226,18 @@ public class BazaarViewSync : MonoBehaviour
         NetSession.SendGame(MsgType.BazaarShelves, w => { w.Put(me2); w.Put(json); }, DeliveryMethod.ReliableOrdered);
     }
 
+    private static short Cm(float metros) => (short)Mathf.Clamp(Mathf.RoundToInt(metros * 100f), short.MinValue, short.MaxValue);
+
+    private static int _lastSales;
+
     private static void SendClosed()
     {
         var me = NetSession.LocalId;
         var field = FieldManager.Instance.CurrentFieldId;
-        NetSession.SendGame(MsgType.BazaarVisitors, w => { w.Put(me); w.Put(field); w.Put(false); w.Put((byte)0); }, DeliveryMethod.ReliableOrdered);
+        var sales = _lastSales;
+        // Leva o total vendido no turno: o jogo do ajudante mostra os resultados DELE (0 G); o aviso conta o de verdade.
+        NetSession.SendGame(MsgType.BazaarVisitors, w => { w.Put(me); w.Put(field); w.Put(false); w.Put((byte)0); w.Put(sales); }, DeliveryMethod.ReliableOrdered);
+        _lastSales = 0;
         _shelfSent = "";
         Plugin.Logger.LogInfo("[BazaarView] loja fechada: os outros devolvem os clientes");
     }
@@ -237,20 +256,20 @@ public class BazaarViewSync : MonoBehaviour
             var n = r.GetByte();
             var list = new List<Visitor>(n);
             for (var i = 0; i < n; i++)
-                list.Add(new Visitor
+            {
+                var v = new Visitor
                 {
-                    Id = r.GetUInt(),
-                    Pos = new Vector3(r.GetFloat(), r.GetFloat(), r.GetFloat()),
-                    RotY = r.GetFloat(),
+                    Id = r.GetUShort(),
+                    Pos = new Vector3(r.GetShort() / 100f, r.GetShort() / 100f, r.GetShort() / 100f),
+                    RotY = r.GetByte() / 255f * 360f,
                     Hash = r.GetInt(),
-                    Norm = r.GetFloat(),
-                    Speed = r.GetFloat(),
+                    Norm = r.GetByte() / 255f,
+                    Speed = r.GetByte() / 50f,
                     Sign = r.GetByte(),
-                    WishItem = r.GetUInt(),
-                    WishBuy = r.GetInt(),
-                    WishBuff = r.GetInt(),
-                    WishCounter = r.GetInt(),
-                });
+                };
+                if (r.GetBool()) { v.WishItem = r.GetUInt(); v.WishBuy = r.GetByte(); v.WishBuff = r.GetByte(); v.WishCounter = r.GetByte(); }
+                list.Add(v);
+            }
             if (open && r.AvailableBytes >= 1)
             {
                 var ns = r.GetByte();
@@ -263,7 +282,12 @@ public class BazaarViewSync : MonoBehaviour
             _visitors = open ? list : null;
             _visitorsFresh = true;
             _lastVisitorsAt = open ? Time.unscaledTime : -100;
-            if (!open) { _shelf = null; _esmJson = null; _shelfFresh = true; BazaarHelpSync.OwnerClosed(); }
+            if (!open)
+            {
+                _shelf = null; _esmJson = null; _shelfFresh = true;
+                var sales = r.AvailableBytes >= 4 ? r.GetInt() : -1;
+                BazaarHelpSync.OwnerClosed(owner, sales);
+            }
             Received++;
         }
         else if (type == MsgType.BazaarShelves)

@@ -457,13 +457,18 @@ public class DevBridge : MonoBehaviour
                         state = V(() => a.CurrentState), category = V(() => a.Category),
                         pos = $"{p.x:0.0},{p.y:0.0},{p.z:0.0}", rotY = a.transform.eulerAngles.y.ToString("0"),
                         animState = anim == null ? null : V(() => anim.GetCurrentAnimatorStateInfo(0).shortNameHash), pars,
+                        emote = V(() => { var em = a.EmoteSign; return em == null ? "null" : $"{(em.IsShowing ? "visível" : "-")} item={em.itemId} n={em.itemCount?.buyNum} balcão={em.counterIndex}"; }),
                     };
                 }
                 var list = new List<object>();
                 if (bmV?.NpcAgentList != null) foreach (var a in bmV.NpcAgentList) list.Add(Agent(a));
                 var pools = 0;
                 if (bmV?.NpcAgentPools != null) pools = bmV.NpcAgentPools.Count;
-                return Json(new { ok = true, count = list.Count, pools, agents = list });
+                var balloons = new List<string>();
+                var bnm = UnityEngine.Object.FindObjectOfType<BazaarNpcBalloonManager>();
+                if (bnm?.NpcBalloon != null)
+                    foreach (var bl in bnm.NpcBalloon) if (bl != null) balloons.Add($"{(bl.IsShowing ? "visível" : "-")} item={bl.itemId} n={bl.itemCount?.buyNum} balcão={bl.counterIndex}");
+                return Json(new { ok = true, count = list.Count, pools, agents = list, balloons });
             }
 
             case "vtest":
@@ -602,6 +607,8 @@ public class DevBridge : MonoBehaviour
                         return $"GetMiniDeckItemsData={l?.Count} lista={d.ItemDataInDeckList?.Count}";
                     }),
                     "minireset" => R(() => { bmC.ResetMiniDeck(); return null; }),
+                    // bell: o anel de atração do sino a partir do jogador local (o que o pedido de sino do ajudante faz no dono)
+                    "bell" => R(() => { var mg = GameController.Instance.GetPlayer().RipperAtractionColliderManager; mg.RippleAtractionLevel = 2; mg.ShowRippleAtraction(); return $"atraídos={mg.GetAttractedCount()} max={mg.GetMaxRippleLevel()}"; }),
                     // setslot <balcão> <espaço> [select <posDeck> | access]: aponta o "espaço atual" e age nele (pedidos do ajudante, D56)
                     var x when x.StartsWith("setslot ") => R(() =>
                     {
@@ -764,6 +771,7 @@ public class DevBridge : MonoBehaviour
                         var tm = TutorialManager.Instance;
                         if (da.Length >= 3 && da[1] == "add") tm.AddTutorialRead(uint.Parse(da[2]));
                         var sd = tm.ToSaveData();
+                        // tutorial has <id>: só consulta
                         res = new { read = sd.ReadTutorialIdList?.Count ?? -1, tips = sd.ReadTipsIdList?.Count ?? -1, has = da.Length >= 3 && sd.ReadTutorialIdList != null && sd.ReadTutorialIdList.Contains(uint.Parse(da[2])) };
                         break;
                     }
@@ -811,7 +819,7 @@ public class DevBridge : MonoBehaviour
                     copy["Guid"] = Guid.NewGuid().ToString();
                     copy["Name"] = "Copia";
                     list.Add(copy);
-                    applied = Net.SharedSync.ApplyPart("pets", root.ToJsonString(), markSynced: true);
+                    applied = Net.SharedSync.ApplyPart("pets", root.ToJsonString(), markSynced: false); // como mudança local: vai para a rede
                 }
                 if (pa == "apply")
                     applied = Net.SharedSync.ApplyPart("pets", Net.SharedSync.CaptureJson("pets"), markSynced: true) + " / "

@@ -17,7 +17,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 | `PlayerHappyPoint`, `happyPointData`, `happyPointHistoryData` | **Happy Energy** (moeda dos Nature Sprites / Happy Shoppe) | 🛠️ D57: carteira compartilhada, como o dinheiro (❓ P11) |
 | `MissionData` | **Pedidos dos moradores** (requests): estado e progresso de cada pedido | 🛠️ D57: compartilhado, progresso somado entre os jogadores |
 | `TutorialSaveData`, `PlayableTutorialReadData` | Tutoriais já lidos | 🛠️ D57: união (quem leu, ninguém vê de novo; sem isso o convidado via o mesmo tutorial todo dia) |
-| `EventReadData` | Eventos já vistos | ⏳ investigar (pode repetir cenas para o convidado) |
+| `EventReadData` | Eventos já vistos (`EventManager.EventInfo`: lidos, histórico, tipos de casamento) | ❓ P15: hoje ficam no mundo do host (o convidado não vê o que o host viu e revê o que só ele viu); proposta de guardar por jogador |
 | `BrandItemIds`, `BrandAnimalIds` | Selo BRAND (preço 3x) ganho nos festivais | 🛠️ D57: união |
 | `BingoData` | Happy Bingo (cartelas) | ⏳ grande (~300 KB); fica do host por enquanto |
 | `AchievementSaveData` | Conquistas | ⏳ |

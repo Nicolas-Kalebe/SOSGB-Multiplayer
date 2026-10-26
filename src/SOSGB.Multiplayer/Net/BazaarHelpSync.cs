@@ -27,13 +27,14 @@ public class BazaarHelpSync : MonoBehaviour
 {
     public BazaarHelpSync(IntPtr ptr) : base(ptr) { }
 
-    private const byte KindServe = 1, KindPut = 2;
+    private const byte KindServe = 1, KindPut = 2, KindBell = 3;
     private const float GraceSeconds = 8f;
 
     /// <summary>Este jogo está com a loja aberta como ajudante de outro jogador.</summary>
     public static bool Active { get; private set; }
 
     private static float _endedAt = -100;
+    private static float _stepAsideAt = -1;
 
     /// <summary>O ajudante não envia deck nem progresso do Bazaar (só o dono escreve), durante e logo depois de ajudar.</summary>
     public static bool SuppressWrites => Active || Time.unscaledTime - _endedAt < GraceSeconds;
@@ -65,6 +66,7 @@ public class BazaarHelpSync : MonoBehaviour
             // A loja abriu com a barraca de outro jogador → modo ajudante; fechou → sai.
             if (!Active && bm.IsInShop && OtherOwner()) Start();
             else if (Active && !bm.IsInShop) Stop("loja fechada");
+            if (Active && _stepAsideAt > 0 && Time.unscaledTime >= _stepAsideAt) { _stepAsideAt = -1; StepAside(bm); }
             if (_pendingRevert && !SuppressWrites)
             {
                 _pendingRevert = false;
@@ -86,6 +88,7 @@ public class BazaarHelpSync : MonoBehaviour
         Active = true;
         InstallPatches();
         RefreshMiniDeck();
+        _stepAsideAt = Time.unscaledTime + 4f;
         var h = StorageSync.BazaarHolder;
         var name = NetSession.Players.TryGetValue(h, out var p) ? p.Name : "o dono";
         GameNotify.Show($"Ajudando na barraca de {name}: atenda com Enter e reponha com Tab.");
@@ -161,11 +164,13 @@ public class BazaarHelpSync : MonoBehaviour
     }
 
     /// <summary>Chamado quando o dono avisa que fechou a loja: limpa os balcões antes de o jogo do ajudante fechar.</summary>
-    public static void OwnerClosed()
+    public static void OwnerClosed(byte owner, int sales)
     {
+        var name = NetSession.Players.TryGetValue(owner, out var p) ? p.Name : "o dono";
+        if (sales > 0) GameNotify.Show($"A barraca de {name} vendeu {sales} G neste turno.");
         if (!Active) return;
         ClearLocalShelf();
-        GameNotify.Show("O dono fechou a loja. Aperte Esc para sair da barraca.");
+        GameNotify.Show("A loja fechou. O resultado do turno é o da barraca de " + name + ".");
     }
 
     // ---------- espaço atual do ajudante ----------
@@ -185,6 +190,32 @@ public class BazaarHelpSync : MonoBehaviour
             if (d < bd) { bd = d; best = k; }
         }
         return (shelfIdx, best);
+    }
+
+    /// <summary>
+    /// O jogo põe o vendedor no mesmo lugar nos dois jogos: o ajudante ficaria em cima do dono. Uns segundos depois
+    /// de entrar (a abertura da loja já posicionou), vai para o espaço do balcão mais longe do dono.
+    /// </summary>
+    private static void StepAside(BazaarManager bm)
+    {
+        try
+        {
+            if (!PlayerSync.TryGetRemotePosition(StorageSync.BazaarHolder, out var ownerPos)) return;
+            var shelfIdx = bm.GetCurrentShelfIndex();
+            var shelves = bm.ShopShelfs;
+            if (shelves == null || shelfIdx < 0 || shelfIdx >= shelves.Length || shelves[shelfIdx] == null) return;
+            Vector3 best = default; var bd = -1f;
+            foreach (var it in shelves[shelfIdx].GetShopItems())
+            {
+                var h = it.GetHelpTarget().position;
+                var d = (new Vector2(h.x, h.z) - new Vector2(ownerPos.x, ownerPos.z)).sqrMagnitude;
+                if (d > bd) { bd = d; best = h; }
+            }
+            if (bd < 1f) return;
+            GameController.Instance.GetPlayer().SetPlayerClosestGroundPosition(best, new Il2CppSystem.Nullable<Vector3>(), 10f);
+            Plugin.Logger.LogInfo("[BazaarHelp] ajudante foi para outro espaço do balcão (estava no lugar do dono)");
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarHelp] sair de cima do dono: {e.Message}"); }
     }
 
     private static bool LocalSlotHasItem(int shelf, int slot)
@@ -209,7 +240,7 @@ public class BazaarHelpSync : MonoBehaviour
             w.Put(id); w.Put(st); w.Put(q); w.Put(f);
         }, DeliveryMethod.ReliableOrdered);
         Requests++;
-        Plugin.Logger.LogInfo($"[BazaarHelp] pedido {(kind == KindServe ? "atender" : "pôr item")} balcão {shelf} espaço {slot}{(item != null ? $" item {id}x{st}" : "")}");
+        Plugin.Logger.LogInfo($"[BazaarHelp] pedido {(kind == KindServe ? "atender" : kind == KindPut ? "pôr item" : "sino")} balcão {shelf} espaço {slot}{(item != null ? $" item {id}x{st}" : "")}");
     }
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
@@ -237,6 +268,21 @@ public class BazaarHelpSync : MonoBehaviour
     {
         var bm = Bm;
         if (bm == null || !bm.IsInShop || Active) return;
+        if (kind == KindBell)
+        {
+            // Sino do ajudante: o anel de atração sai do jogo do dono (é lá que estão os clientes de verdade).
+            try
+            {
+                var mgr = GameController.Instance.GetPlayer().RipperAtractionColliderManager;
+                if (mgr == null) return;
+                mgr.RippleAtractionLevel = Math.Max(1, shelf);
+                mgr.ShowRippleAtraction();
+                Executed++;
+                Plugin.Logger.LogInfo($"[BazaarHelp] #{helper} tocou o sino (nível {shelf})");
+            }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[BazaarHelp] sino: {e.Message}"); }
+            return;
+        }
         var shelves = bm.ShopShelfs;
         if (shelves == null || shelf >= shelves.Length || shelves[shelf] == null) return;
         var its = shelves[shelf].GetShopItems();
@@ -375,6 +421,8 @@ public class BazaarHelpSync : MonoBehaviour
             P(AccessTools.Method(bmT, nameof(BazaarManager.GetShopShelfAccessState)), nameof(AccessStatePrefix));
             P(AccessTools.Method(bmT, nameof(BazaarManager.IsBuyStandby)), nameof(StandbyPrefix));
             P(AccessTools.Method(typeof(UIBazaarMainPage), nameof(UIBazaarMainPage.OpenMiniDeck)), nameof(MiniDeckPrefix));
+            var bell = AccessTools.Method(typeof(PlayerActionAtraction), nameof(PlayerActionAtraction.Action));
+            if (bell != null) P(bell, nameof(BellPrefix));
             _patched = true;
             Plugin.Logger.LogInfo("[BazaarHelp] interceptações do ajudante instaladas");
         }
@@ -410,18 +458,16 @@ public class BazaarHelpSync : MonoBehaviour
         _targetSlot = slot;
     }
 
-    /// <summary>Escolha no mini deck: vira pedido "pôr item" (o idx conta só as entradas não vazias do deck).</summary>
+    /// <summary>Escolha no mini deck: vira pedido "pôr item". O idx é o número de deck do item (ItemData.DeckNumber; testado).</summary>
     private static bool SelectPrefix(int idx)
     {
         if (!Active) return true;
         var deck = InventoryManager.Instance.DeckStorage.ItemDatas;
         BokuMono.Data.ItemData chosen = null;
-        var n = 0;
-        for (var i = 0; i < deck.Length; i++)
+        for (var i = 0; i < deck.Length && chosen == null; i++)
         {
             var d = deck[i];
-            if (d == null || d.ItemId == 0 || d.Stack <= 0) continue;
-            if (n++ == idx) { chosen = d; break; }
+            if (d != null && d.ItemId != 0 && d.Stack > 0 && d.DeckNumber == idx) chosen = d;
         }
         if (chosen != null && _targetShelf >= 0 && _targetSlot >= 0)
             SendRequest(KindPut, _targetShelf, _targetSlot, chosen);
@@ -461,4 +507,13 @@ public class BazaarHelpSync : MonoBehaviour
 
     /// <summary>Segurança: o jogo do ajudante nunca vende (as vendas são do dono).</summary>
     private static bool SellPrefix() => !Active;
+
+    /// <summary>Sino (Shift segurado e solto) no jogo do ajudante: pede o sino ao dono, com a mesma força.</summary>
+    private static void BellPrefix()
+    {
+        if (!Active) return;
+        var level = 1;
+        try { level = GameController.Instance.GetPlayer().RipperAtractionColliderManager?.RippleAtractionLevel ?? 1; } catch { }
+        SendRequest(KindBell, Math.Clamp(level, 1, 255), 0);
+    }
 }
