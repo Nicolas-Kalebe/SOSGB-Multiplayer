@@ -85,6 +85,17 @@ public static class PlayerContext
         Make("buffs",
             () => PlayerBuffManager.Instance.ToSaveData(),
             d => PlayerBuffManager.Instance.FromSaveData(d)),
+        // Cenas já vistas (EventInfo: eventos lidos, histórico, tipos de casamento, contadores) são de cada jogador
+        // (P15, D67). Vão pelo JsonUtility, o formato do save (DissableReadEventCount não tem construtor vazio).
+        // O convidado novo começa com as do host (FreshProfile mantém esta parte), para não rever o começo da história.
+        new Part
+        {
+            Name = "events",
+            Capture = () => UnityEngine.JsonUtility.ToJson(BokuMono.FieldEvent.EventManager.Instance.EventInfo.ToSaveData()),
+            Apply = json => BokuMono.FieldEvent.EventManager.Instance.EventInfo.FromSaveData(
+                UnityEngine.JsonUtility.FromJson(json, Il2CppInterop.Runtime.Il2CppType.Of<EventInfo.SaveData>())?.Cast<EventInfo.SaveData>()
+                ?? throw new Exception("JsonUtility devolveu nulo (events)")),
+        },
     };
 
     // O ToJson do jogo não aceita o array IL2CPP direto: cada ToolSaveData vira um JSON, numa lista.
@@ -115,7 +126,7 @@ public static class PlayerContext
     }
 
     /// <summary>Partes do perfil individual de um convidado (D24: flags de evento ficam no mundo por enquanto).</summary>
-    public static readonly string[] ProfileParts = { "likeability", "talk", "bag", "tools", "toolstate", "tooldata", "buffs", "appearance" };
+    public static readonly string[] ProfileParts = { "likeability", "talk", "bag", "tools", "toolstate", "tooldata", "buffs", "appearance", "events" };
 
     public static Dictionary<string, string> CaptureParts(IEnumerable<string> names)
     {

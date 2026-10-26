@@ -17,7 +17,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 | `PlayerHappyPoint`, `happyPointData`, `happyPointHistoryData` | **Happy Energy** (moeda dos Nature Sprites / Happy Shoppe) | 🛠️ D57: carteira compartilhada, como o dinheiro (❓ P11) |
 | `MissionData` | **Pedidos dos moradores** (requests): estado e progresso de cada pedido | 🛠️ D57: compartilhado, progresso somado entre os jogadores |
 | `TutorialSaveData`, `PlayableTutorialReadData` | Tutoriais já lidos | 🛠️ D57: união (quem leu, ninguém vê de novo; sem isso o convidado via o mesmo tutorial todo dia) |
-| `EventReadData` | Eventos já vistos (`EventManager.EventInfo`: lidos, histórico, tipos de casamento) | ❓ P15: hoje ficam no mundo do host (o convidado não vê o que o host viu e revê o que só ele viu); proposta de guardar por jogador |
+| `EventReadData` | Eventos já vistos (`EventManager.EventInfo`: lidos, histórico, tipos de casamento) | 🛠️ D67: por jogador (parte `events` do perfil); convidado novo começa com as do host |
 | `BrandItemIds`, `BrandAnimalIds` | Selo BRAND (preço 3x) ganho nos festivais | 🛠️ D57: união |
 | `BingoData` | Happy Bingo (cartelas) | 🛠️ D61: mescla (maior progresso por quadrado, prêmios resgatados em união); fechava o resgate repetido do mesmo prêmio pelo convidado |
 | `AchievementSaveData` | Conquistas **da Steam** (`AchievementManager` + `SteamAchievementHandler`; só uma lista de IDs desbloqueados) | ➖ cada jogador desbloqueia na própria conta Steam; sem efeito no jogo |
@@ -41,7 +41,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 - **Pedidos que desbloqueiam o mundo** (moinhos do Isaac, Emp-ore-ium, colmeias e cogumelos, galinhas perdidas...) → 🛠️ D57 (`MissionData` compartilhado). ❓ Contadores (20 presentes, 200 colheitas...) somam a ajuda de todos.
 - **Rank do Bazaar e cenas da história** → ✅ progresso do Bazaar compartilhado (D54). Cenas: cada um vê no próprio jogo.
 - **Clima e vento** → ✅ vêm da semente do mundo do host (mesmo clima para todos).
-- **Upgrade de ferramenta nos moinhos** (o moinho é compartilhado, a ferramenta é individual): quem retirar a ferramenta pronta leva para a mochila dele. ❓ P12.
+- **Upgrade de ferramenta nos moinhos** (o moinho é compartilhado, a ferramenta é individual) → 🛠️ D66: só quem deixou a ferramenta retira.
 - **Compras únicas** (ampliação da mochila, pulo duplo...): estoque compartilhado. Ampliações valem para todos (D38/expansion); habilidades viram flag de evento (união). ➖
 - **Happy Energy** → 🛠️ D57.
 - **Desmaio e cenas que avançam a hora** → ✅ D50 (o tempo segue o mais adiantado) e D33 (virada só quando todos dormem). Desmaio: 🛠️ D58 — conta como "dormiu" (passa pela mesma trava da cama). O teste achou um impasse sério: dormindo ou desmaiando depois da meia-noite, o host não percebia o fim da virada e os convidados ficavam dormindo para sempre; corrigido.

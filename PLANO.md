@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D67 | **Cenas já vistas por jogador** (P15; parte `events` do perfil; convidado novo começa com as do host) | ✅ Decidido |
 | D66 | **Ferramenta no moinho só sai para quem deixou** (P12; quem já tem uma do mesmo tipo não retira) | ✅ Decidido |
 | D65 | **Conexão caiu → convidado volta ao menu inicial** (P16; testado com duas instâncias) | ✅ Decidido |
 | D64 | **Respostas do usuário**: tentar espectar (P8), analisar NPC parado para os dois (P9), ferramenta do moinho só de quem deixou (P12), festival com um inscrito e resultado comum, junto com o usuário (P13), cenas vistas por jogador (P15), queda de conexão volta ao menu (P16) | ✅ Decidido |

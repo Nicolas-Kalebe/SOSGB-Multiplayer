@@ -61,6 +61,7 @@ public class DevBridge : MonoBehaviour
 
     /// <summary>Registra um evento no próximo registro do sosgb-state.jsonl.</summary>
     public static void PushEvent(string ev) => Events.Enqueue(ev);
+    private static string _eventsBackup; // comando "events" (testes da D67)
 
     // ---------- inicialização (chamada pelo Plugin.Load) ----------
 
@@ -989,6 +990,28 @@ public class DevBridge : MonoBehaviour
                         foreach (var tm in MasterDataManager.Instance.TrophyRackMaster.list)
                             if (tm != null && tm.trophyItemId == (int)d.ItemId) { inBag.Add($"{d.ItemId}x{d.Stack}"); break; }
                 return Json(new { ok = true, save = StringExtensions.ToJson(tr.ToSaveData()), unity = JsonUtility.ToJson(tr.ToSaveData()), inBag, masterCount = MasterDataManager.Instance.TrophyRackMaster?.list?.Count ?? -1 });
+            }
+
+            case "events":
+            {
+                // events | events drop <n> | events restore — cenas vistas (P15/D67): carregar substitui ou soma?
+                var ev = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                int Count() => BokuMono.FieldEvent.EventManager.Instance.EventInfo.ToSaveData().ReadEventIdList?.Count ?? -1;
+                var evBefore = Count();
+                string res = null;
+                if (ev.Length >= 2 && ev[0] == "drop")
+                {
+                    var full = PlayerContext.CaptureParts(new[] { "events" })["events"];
+                    _eventsBackup ??= full;
+                    var node = System.Text.Json.Nodes.JsonNode.Parse(full)!;
+                    var arr = node["ReadEventIdList"]!.AsArray();
+                    for (var i = 0; i < int.Parse(ev[1]) && arr.Count > 0; i++) arr.RemoveAt(arr.Count - 1);
+                    res = System.Text.Json.JsonSerializer.Serialize(PlayerContext.ApplyParts(new Dictionary<string, string> { ["events"] = node.ToJsonString() }));
+                }
+                if (ev.Length >= 1 && ev[0] == "restore" && _eventsBackup != null)
+                    res = System.Text.Json.JsonSerializer.Serialize(PlayerContext.ApplyParts(new Dictionary<string, string> { ["events"] = _eventsBackup }));
+                var head = PlayerContext.CaptureParts(new[] { "events" })["events"];
+                return Json(new { ok = true, result = res, evBefore, after = Count(), length = head.Length, head = head.Substring(0, Math.Min(300, head.Length)) });
             }
 
             case "holdworld":
