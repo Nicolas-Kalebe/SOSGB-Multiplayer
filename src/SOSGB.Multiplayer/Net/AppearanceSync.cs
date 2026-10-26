@@ -87,7 +87,8 @@ public class AppearanceSync : MonoBehaviour
     private static bool Ready() =>
         SceneManager.IsInstance && SceneManager.Instance.CurrentSceneMode == SceneMode.Game
         && AvatarMakeManager.IsInstance && GameController.IsInstance && GameController.Instance.GetPlayer() != null
-        && !GameController.Instance.IsPlayingEvent && !DaySync.InDayChange && HasRealController(GameController.Instance.GetPlayer());
+        && !GameController.Instance.IsPlayingEvent && !DaySync.InDayChange && !CharacterCreator.Active // D72: a criação mexe no modelo local
+        && HasRealController(GameController.Instance.GetPlayer());
 
     private static bool HasRealController(PlayerCharacter p)
     {

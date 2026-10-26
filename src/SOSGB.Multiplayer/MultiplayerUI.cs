@@ -14,6 +14,8 @@ namespace SOSGB.Multiplayer;
 /// Interface do multiplayer para os jogadores (D27), em IMGUI com layout manual (GUILayout foi removido do jogo).
 ///  - Tela de título: escolher "Jogar sozinho / Hospedar / Entrar", nome e IP do host. Mostra os IPs
 ///    deste PC para o host passar aos amigos. Grava direto no .cfg ([Net] AutoStart/JoinAddress/PlayerName).
+///    "Entrar agora" conecta dali mesmo, sem carregar save (D72): o mundo do host chega pela rede.
+///  - "Gerar log" (título e F9): .zip com os logs na Área de Trabalho para mandar ao desenvolvedor (D71).
 ///  - Dentro do jogo: lista compacta (quem está conectado, onde está, ping, "dormindo X/Y").
 ///  - F9: menu dentro do jogo (hospedar agora, entrar agora, desconectar).
 /// </summary>
@@ -137,12 +139,14 @@ public class MultiplayerUI : MonoBehaviour
         var showIp = mode == "join" || mode == "choose";
         var showHostIps = mode == "host" || mode == "choose" || mode == "Host";
         var w = 460f;
-        var h = 150f + (showIp ? 60 : 0) + (showHostIps ? 24 + 22 * ips.Length : 0) + 50;
+        var joinNow = !inGame && mode == "join";
+        var h = 150f + (showIp ? 60 : 0) + (joinNow ? 70 : 0) + (showHostIps ? 24 + 22 * ips.Length : 0) + 50;
         // Título: canto inferior direito (o logo ocupa o topo/centro). Jogo: abaixo do relógio/ícones.
         var rect = inGame ? new Rect(Screen.width - w - 24, 260, w, h) : new Rect(Screen.width - w - 40, Screen.height - h - 110, w, h);
         Panel(rect, _panelBg);
         _x = rect.x + 16; _y = rect.y + 10; _w = w - 32;
 
+        if (Button(new Rect(rect.xMax - 16 - 120, rect.y + 12, 120, 26), "Gerar log", _button)) TryRun(MakeReport);
         Label(inGame ? "Multiplayer   [F9 fecha]" : "Multiplayer", _title, 30);
 
         GUI.Label(new Rect(_x, _y + 2, 95, 24), "Seu nome:", _label);
@@ -152,7 +156,7 @@ public class MultiplayerUI : MonoBehaviour
 
         if (!inGame)
         {
-            Label("Ao carregar um save:", _label);
+            Label("Modo:", _label);
             var bw = (_w - 16) / 3f;
             ModeButton(new Rect(_x, _y, bw, 32), "Sozinho", "off");
             ModeButton(new Rect(_x + bw + 8, _y, bw, 32), "Hospedar", "host");
@@ -173,6 +177,23 @@ public class MultiplayerUI : MonoBehaviour
             Row(30);
             Label("Mesma rede: IP local do host. Internet: IP do host no Radmin VPN (26.x).", _small, 30);
         }
+        if (joinNow)
+        {
+            // D72: entrar daqui, sem save. Ao ser aceito, o mundo do host chega pela rede e é carregado.
+            if (NetSession.Current == NetSession.Mode.Offline)
+            {
+                if (Button(new Rect(_x, _y, _w, 36), "Entrar agora", _button))
+                    TryRun(() => NetSession.Join(Plugin.NetJoinAddress.Value, Plugin.NetPort.Value));
+                Row(40);
+                Label(OfflineReason() is { } why ? "Não conectou: " + why : "Não precisa carregar save. Na primeira vez você cria o seu personagem.", _small, 26);
+            }
+            else
+            {
+                Label(NetSession.LocalId == NetSession.UnknownId ? $"Conectando a {Plugin.NetJoinAddress.Value}..." : $"Entrando no mundo de {HostName()}...", _label, 26);
+                if (Button(new Rect(_x, _y, _w, 32), "Cancelar", _button)) NetSession.Stop();
+                Row(40);
+            }
+        }
         if (showHostIps)
         {
             Label("Passe um destes IPs para os amigos:", _small, 24);
@@ -191,7 +212,13 @@ public class MultiplayerUI : MonoBehaviour
             else
             {
                 if (DaySync.LocalSleeping && Button(new Rect(_x, _y - 42, _w, 34), "Levantar da cama", _button)) DaySync.WakeUp();
-                if (Button(new Rect(_x, _y, _w, 34), "Desconectar", _button)) NetSession.Stop();
+                // D72: a criação de personagem completa do jogo, sem jogo novo.
+                if (Button(new Rect(_x, _y, bw, 34), "Mudar visual", _button))
+                {
+                    if (CharacterCreator.CanOpen()) { _menuOpen = false; CharacterCreator.Open(); }
+                    else GameNotify.Show("Agora não dá para mudar o visual (feche menus e saia da cama).");
+                }
+                if (Button(new Rect(_x + bw + 8, _y, bw, 34), "Desconectar", _button)) NetSession.Stop();
             }
         }
         else
@@ -199,7 +226,7 @@ public class MultiplayerUI : MonoBehaviour
             Label(Plugin.NetAutoStart.Value switch
             {
                 "host" => "Carregue o seu save: os amigos poderão entrar no seu mundo.",
-                "join" => "Carregue qualquer save seu: você entra no mundo do host.",
+                "join" => "Ou carregue um save seu: você entra no mundo do host.",
                 _ => "Modo sozinho: o mod não conecta a ninguém.",
             }, _small, 40);
         }
@@ -209,6 +236,13 @@ public class MultiplayerUI : MonoBehaviour
     {
         var on = Plugin.NetAutoStart.Value == value;
         if (Button(r, text, on ? _buttonOn : _button)) Plugin.NetAutoStart.Value = value;
+    }
+
+    private static void MakeReport()
+    {
+        var path = BugReport.Create();
+        GameNotify.Show($"Log salvo na Área de Trabalho: {System.IO.Path.GetFileName(path)}");
+        Notice.Show($"Log salvo: {path}", 12f);
     }
 
     private static void TryRun(Action a)

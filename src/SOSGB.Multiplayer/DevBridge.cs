@@ -895,6 +895,24 @@ public class DevBridge : MonoBehaviour
                 Patches.InputInjector.PressTool(string.IsNullOrWhiteSpace(arg) ? 3 : int.Parse(arg));
                 return Json(new { ok = true });
 
+            case "avatarmake":
+            {
+                // avatarmake <Prologue|ClothesShop|Closet|WeddingCloth|Direct> — abre a tela de aparência do jogo nesse modo (D72)
+                var cat = Enum.Parse<AvatarMakeCategory>(string.IsNullOrWhiteSpace(arg) ? "Prologue" : arg.Trim(), true);
+                if (cat == AvatarMakeCategory.Prologue) { Net.CharacterCreator.Open(); return Json(new { ok = true, category = "Prologue (CharacterCreator)" }); }
+                UIAccessor.Instance.RequestOpenAvatarMakeup(cat, null);
+                return Json(new { ok = true, category = cat.ToString() });
+            }
+
+            case "fadein":
+                // fadein — clareia a tela (destravar uma tela preta de "carregando" em testes)
+                FadeManager.FadeIn(null, null, 0f, 0f);
+                return Json(new { ok = true });
+
+            case "report":
+                // report — gera o .zip de logs (o mesmo do botão "Gerar log", D71)
+                return Json(new { ok = true, path = BugReport.Create() });
+
             case "press":
             {
                 // press <Flag[,Flag]> [quadros] — aperta botões de ação do jogador por dentro (HumanActionInputFlags).
@@ -1231,7 +1249,7 @@ public class DevBridge : MonoBehaviour
                     case "join": Net.NetSession.Join(na[1], na.Length > 2 ? int.Parse(na[2]) : Plugin.NetPort.Value); break;
                     case "leave": Net.NetSession.Stop(); break;
                 }
-                return Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status(), missions = Net.MissionSync.Status() });
+                return StatusJson();
 
             case "avatarinfo":
                 // avatarinfo — peças de aparência do jogador local + hierarquia do modelo (investigação da aparência)
@@ -1578,4 +1596,7 @@ public class DevBridge : MonoBehaviour
     };
 
     private static string Json(object o) => JsonSerializer.Serialize(o, JsonOpts);
+
+    /// <summary>Estado de cada parte do mod (o "net status"); também vai no relatório de bugs (D71), mesmo com a ponte desligada.</summary>
+    public static string StatusJson() => Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status(), missions = Net.MissionSync.Status(), character = Net.CharacterCreator.Status() });
 }

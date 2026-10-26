@@ -117,6 +117,7 @@ public class Plugin : BasePlugin
 
         DevMode = DevBridgeEnabled.Value || System.Environment.GetEnvironmentVariable("SOSGB_DEVBRIDGE") == "1";
 
+        BugReport.StartSessionLog(); // D71: cópia do log desta sessão (o LogOutput.log é apagado ao abrir o jogo de novo)
         Logger.LogInfo($"{Name} {Version} carregado (instância{(InstanceTag == "" ? " padrão" : InstanceTag)}).");
 
         var harmony = new Harmony(Guid);
@@ -161,6 +162,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.NpcSync>();
         AddComponent<Net.Spectator>();
         AddComponent<Net.SleepPoseSync>();
+        AddComponent<Net.CharacterCreator>();
         AddComponent<MultiplayerUI>();
         // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
         if (DevMode) AddComponent<DebugOverlay>();

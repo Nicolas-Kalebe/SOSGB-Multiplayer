@@ -47,6 +47,7 @@ public class PlayerProfiles : MonoBehaviour
     private static bool _profileAnswered;  // o host já respondeu se conhece este jogador (ProfileData)
     private static bool _makeFresh;        // host não conhece: começar do zero (D30)
     private static string _ownAppearance;  // visual do personagem do save próprio (único dado aproveitado)
+    private static bool _joinedWithoutSave; // entrou pela tela inicial, sem save (D72): cria o personagem na primeira vez
     private static float _answerWaitSince = -1;
     private static bool _pendingIsNewDay;
     private static bool _worldLoading;
@@ -76,9 +77,13 @@ public class PlayerProfiles : MonoBehaviour
             _pending = null;
             _profileAnswered = false;
             _makeFresh = false;
+            // D72: entrou pela tela inicial sem nunca ter carregado um save nesta sessão → não há visual próprio (o que o
+            // jogo tem na memória é o padrão); na primeira vez no mundo, abre a criação de personagem.
+            var fromTitle = SceneManager.IsInstance && SceneManager.Instance.CurrentSceneMode != SceneMode.Game;
+            _joinedWithoutSave = fromTitle && AppearanceSync.Stable == null;
             _ownAppearance = Environment.GetEnvironmentVariable("SOSGB_TEST_APPEARANCE") is { Length: > 0 } forced
                 ? forced // só testes
-                : (AppearanceSync.Stable ?? SafeLocalAppearance());
+                : _joinedWithoutSave ? null : (AppearanceSync.Stable ?? SafeLocalAppearance());
             _pendingIsNewDay = false;
         };
         WorldSync.OnWorldReceived += () =>
@@ -157,6 +162,7 @@ public class PlayerProfiles : MonoBehaviour
                 _pending = FreshProfile.Make(PlayerContext.CaptureParts(PlayerContext.ProfileParts), _ownAppearance);
                 Plugin.Logger.LogInfo("[Profiles] primeira vez neste mundo: começando do zero (D30)");
                 DevBridge.PushEvent("perfil:do-zero");
+                if (_joinedWithoutSave) CharacterCreator.OpenSoon(3f); // D72: sem save, cria o personagem agora
             }
             _worldLoading = false;
             ApplyPending();
@@ -233,6 +239,9 @@ public class PlayerProfiles : MonoBehaviour
         }
         Plugin.Logger.LogInfo($"[Profiles] perfil aplicado ({(_pendingIsNewDay ? "dia novo" : "entrada")}): {string.Join(", ", report.Select(kv => $"{kv.Key}={kv.Value}"))}");
         DevBridge.PushEvent(_pendingIsNewDay ? "perfil-aplicado:dia-novo" : "perfil-aplicado:entrada");
+        // D72: o save carregado é o do host; o nome do personagem (o que os moradores falam) passa a ser o deste jogador.
+        // Só na memória: o convidado nunca grava o save.
+        try { ExternalData.Instance.UserInfo.PlayerName = NetSession.LocalName; } catch { /* sem UserInfo: fica o do host */ }
         _pending = null;
         Upload(); // o host passa a ter a versão atual
     }
