@@ -1032,6 +1032,45 @@ public class DevBridge : MonoBehaviour
                 // spectate — estado do espectador (D69); a tecla F7 é apertada de verdade nos testes
                 return Json(new { ok = true, spectator = Net.Spectator.Status(), field = FieldManager.Instance.CurrentFieldId });
 
+            case "bedsleep":
+            {
+                // bedsleep [índice] — opções da cama e a escolha direta (D69: voltar a deitar depois de espectar)
+                var bed = UnityEngine.Object.FindObjectOfType<FieldPlayerBed>();
+                if (bed == null) return Json(new { ok = false, error = "sem cama neste mapa" });
+                var pl = GameController.Instance.GetPlayer();
+                var cd = bed.GetAccessChoicesData(pl);
+                var ids = new List<uint>();
+                if (cd.idList != null) foreach (var i in cd.idList) ids.Add(i);
+                string res = null;
+                if (arg.Trim() == "access") { try { bed.Access(); res = "janela aberta"; } catch (Exception e) { res = "erro: " + e.Message.Split((char)10)[0]; } }
+                else if (!string.IsNullOrWhiteSpace(arg)) { try { cd.DecideAction(int.Parse(arg)); res = "escolhido"; } catch (Exception e) { res = "erro: " + e.Message.Split((char)10)[0]; } }
+                return Json(new { ok = true, count = cd.ChoiceCount, ids, result = res });
+            }
+
+            case "pose":
+                // pose save | pose load — guarda/restaura a pose do personagem (D69: voltar deitado depois de espectar)
+                if (arg.Trim() == "dump") return Json(new { ok = true, pose = Net.Spectator.PoseDebug() });
+                if (arg.Trim() == "info")
+                {
+                    var tI = GameController.Instance.GetPlayerTransform();
+                    var mI = GameController.Instance.GetPlayer().Model;
+                    var anI = mI != null ? mI.GetComponentInChildren<Animator>() : null;
+                    var bedI = UnityEngine.Object.FindObjectOfType<FieldPlayerBed>();
+                    return Json(new
+                    {
+                        ok = true,
+                        transform = tI.position.ToString("F2"), rot = tI.eulerAngles.ToString("F0"),
+                        model = mI != null ? mI.transform.position.ToString("F2") : null,
+                        modelParent = mI != null && mI.transform.parent != null ? mI.transform.parent.name : null,
+                        transformParent = tI.parent != null ? tI.parent.name : null,
+                        rootMotion = anI != null ? anI.applyRootMotion : (bool?)null,
+                        waist = bedI != null && bedI.GetWaistRoot != null ? bedI.GetWaistRoot.position.ToString("F2") : null,
+                        startL = bedI != null && bedI.GetStartPositionL != null ? bedI.GetStartPositionL.position.ToString("F2") : null,
+                        startR = bedI != null && bedI.GetStartPositionR != null ? bedI.GetStartPositionR.position.ToString("F2") : null,
+                    });
+                }
+                return Json(new { ok = true, result = arg.Trim() == "save" ? Net.Spectator.SavePose() : Net.Spectator.RestorePose(), pos = GameController.Instance.GetPlayerTransform().position.ToString() });
+
             case "holdworld":
                 // holdworld [on|off|title] — D59: simula "convidado com o mundo do host na memória" e a volta ao título
                 if (arg.Trim() == "on") WorldSnapshot.HoldingHostWorld = true;

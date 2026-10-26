@@ -55,6 +55,16 @@ public class MultiplayerUI : MonoBehaviour
             if (scene == SceneMode.Title) DrawSetupPanel(inGame: false);
             else if (scene == SceneMode.Game)
             {
+                if (Spectator.Active)
+                {
+                    // Espectando (D69): só uma linha discreta, o resto da interface some.
+                    var line = $"Espectando {Spectator.TargetName}   [F7] próximo   [Backspace] levantar";
+                    var r = new Rect(Screen.width / 2f - 240, Screen.height - 48, 480, 28);
+                    Panel(r, _panelBg);
+                    GUI.Label(new Rect(r.x + 12, r.y + 4, r.width - 20, 22), line, _label);
+                    DrawNameTags();
+                    return;
+                }
                 if (_menuOpen) DrawSetupPanel(inGame: true);
                 if (_hudVisible) DrawHud();
                 DrawNameTags();

@@ -98,7 +98,7 @@ public class DebugOverlay : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!_visible) return;
+        if (!_visible || Net.Spectator.Active) return;
         // Canto inferior esquerdo: o superior esquerdo é da barra de stamina do jogo (tarefa 1.7).
         var y = Screen.height - 125;
         GUI.Box(new Rect(10, y - 20, 380, 125), $"{Plugin.Name} {Plugin.Version}{Plugin.InstanceTag}  [F8]");

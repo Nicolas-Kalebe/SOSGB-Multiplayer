@@ -155,6 +155,7 @@ public class DaySync : MonoBehaviour
     {
         if (!LocalSleeping) return "não está dormindo";
         if (InDayChange) return "o dia já está virando";
+        Spectator.Unpin(); // voltou de espectar: estava pausado na pose deitada
         Unstick(mode);
         LocalSleeping = false;
         Plugin.Logger.LogInfo($"[DaySync] jogador local levantou da cama ({mode})");
@@ -179,6 +180,13 @@ public class DaySync : MonoBehaviour
         if (mode is "flag" or "both") { p.IsSleep = false; p.IsMoveInputEnabled = true; }
         if (gc.IsWaitChangeDate()) gc.SetWaitChangeDate(false);
         gc.Resume();
+        // O rosto ficava de olhos fechados depois de levantar (visto pelo usuário): abre os olhos e volta a piscar.
+        try
+        {
+            var face = p.CharacterFace;
+            if (face != null) { face.OpenEye(); face.ForceChangeFacial(CharacterFacialType.Normal); face.StartEyeBlink(true); }
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] rosto ao levantar: {e.Message}"); }
     }
 
     /// <summary>
@@ -188,6 +196,7 @@ public class DaySync : MonoBehaviour
     /// </summary>
     private static void LeftSessionInBed()
     {
+        Spectator.Unpin();
         LocalSleeping = false;
         try
         {
@@ -204,15 +213,6 @@ public class DaySync : MonoBehaviour
             }
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] sair da cama ao desconectar: {e.Message}"); }
-    }
-
-    /// <summary>
-    /// Espectador (D69): tira o personagem do estado de cama (o jogo não troca de mapa com ele deitado: NullReference em
-    /// ChangeField), mas ele continua contando como "dormindo" para o grupo e a virada continua segurada.
-    /// </summary>
-    public static void LeaveBedKeepSleeping()
-    {
-        if (LocalSleeping) Unstick();
     }
 
     /// <summary>Voltando ao título: esquece o "dormindo" sem mexer no personagem (a cena vai ser descarregada).</summary>
@@ -264,6 +264,7 @@ public class DaySync : MonoBehaviour
         _dayChangeStartedAt = Time.unscaledTime;
         _newDaySince = -1;
         _allowNextDay = true;
+        Spectator.Unpin(); // a manhã do jogo precisa do personagem solto
         GameController.Instance.StartNextDay();
     }
 
