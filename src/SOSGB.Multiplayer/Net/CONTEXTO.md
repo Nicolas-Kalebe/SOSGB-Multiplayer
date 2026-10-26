@@ -22,7 +22,7 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `FarmSync.cs` | Fase 5/D40: fazenda ao vivo nos mapas residentes (mapa 1); diferenças a cada 0,5 s viram operações por objeto, aplicadas por todos no cache do mapa |
 | `FieldState.cs` | Fase 5 (alicerce, D40): estado dos objetos de um mapa (captura pelo serializador oficial, aplicar só as diferenças no mapa atual ou num mapa residente, instalar no save de mapas) |
 | `LetterSync.cs` | 4.6/D39: correio compartilhado; estado do `LetterManager` sincronizado (montado à mão a partir do JSON) |
-| `StorageSync.cs` | 4.2/D37/D46: armazéns compartilhados (casa, deck do Bazaar, peças da barraca); trava de uma pessoa por vez (host) e sincronização pelo conteúdo |
+| `StorageSync.cs` | 4.2/D37/D46: armazéns compartilhados (casa, deck do Bazaar, peças da barraca); trava de uma pessoa por vez (host) e sincronização pelo conteúdo; barraca do Bazaar (D51); convidado não abre a estante de troféus (D62) |
 | `MoneySync.cs` | 4.1/D36/D57: carteiras compartilhadas (dinheiro e Happy Energy); cada jogo observa o valor, convidado manda a diferença, host manda o total |
 | `FreshProfile.cs` | D30: perfil "do zero" de quem entra pela 1ª vez (zera corações/conversas, esvazia mochila e regador, ferramentas no nível básico, visual do save próprio) |
 | `NotifySync.cs` | D26: detecta os próprios acontecimentos (dormiu, desmaiou, evento) e mostra os avisos de todos |

@@ -29,7 +29,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 | `PictureBookCompleteData` | Livro ilustrado | ✅ vem junto do `itemhistory` (D43) |
 | `AnimalHistory`, `AccessObjectHistory` | Animais que já teve, objetos já acessados | ⏳ baixa prioridade (registros) |
 | `HorseRacingData` | Corridas de cavalo | ⏳ ver P13 (festivais com competição) |
-| `TrophyRackData` | Troféus | ⏳ o `FromSaveData` acumula (D42); precisa de outro caminho |
+| `TrophyRackData` | Troféus na estante da casa | 🛠️ D62: só o host arruma a estante (o troféu do convidado ficaria perdido); sincronizar fica para depois (o `FromSaveData` acumula, D42) |
 | `SaveDataSeed` | Semente do sorteio (clima, etc.) | ✅ vem no mundo do host, igual para todos |
 | Demais (fazenda, animais, pets, cavalo, armazéns, deck, correio, moinhos, cogumelos, abelhas, vasos, ampliações, prêmios, adega, banho, receitas, Corobockles, peixes, reforços, lojas, festivais, decoração e progresso do Bazaar, flags de evento, histórico de itens) | | ✅ D36–D55 |
 | Mochila, ferramentas, amizade, conversa, aparência, bônus | Individuais | ✅ perfil de cada jogador (D24/D30) |

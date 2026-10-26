@@ -413,6 +413,22 @@ public class StorageSync : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// D62: a estante de troféus da casa não é sincronizada (o FromSaveData dela acumula, D42). Um troféu que o
+    /// convidado pusesse nela sairia da mochila dele e sumiria na virada do dia (vale a estante do host). Por isso só o
+    /// host arruma a estante; o convidado guarda os troféus na mochila.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(FieldTrophyRack), nameof(FieldTrophyRack.Access))]
+    private static class TrophyRackGuestPatch
+    {
+        private static bool Prefix()
+        {
+            if (NetSession.Current != NetSession.Mode.Client) return true;
+            GameNotify.Show("No multiplayer, só o host arruma a estante de troféus. Guarde os seus troféus na mochila.");
+            return false;
+        }
+    }
+
     /// <summary>Host: manda o armazém oficial para um jogador (corrige quem mexeu sem a trava).</summary>
     private static void SendTo(Store s, byte id)
     {

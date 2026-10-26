@@ -922,6 +922,18 @@ public class DevBridge : MonoBehaviour
                     (Action<int, SaveLoadResult>)((s, r) => PushEvent($"save-manual:{s}:{r}")));
                 return Json(new { ok = true, started = true });
 
+            case "trophy":
+            {
+                // trophy — estante de troféus: o que o jogo guarda (troféus "usados" e a estante) e troféus na mochila
+                var tr = TrophyRackManager.Instance;
+                var inBag = new List<string>();
+                foreach (var d in InventoryManager.Instance.BagItemStorage.ItemDatas)
+                    if (d != null && d.ItemId != 0 && MasterDataManager.Instance.TrophyRackMaster != null)
+                        foreach (var tm in MasterDataManager.Instance.TrophyRackMaster.list)
+                            if (tm != null && tm.trophyItemId == (int)d.ItemId) { inBag.Add($"{d.ItemId}x{d.Stack}"); break; }
+                return Json(new { ok = true, save = StringExtensions.ToJson(tr.ToSaveData()), unity = JsonUtility.ToJson(tr.ToSaveData()), inBag, masterCount = MasterDataManager.Instance.TrophyRackMaster?.list?.Count ?? -1 });
+            }
+
             case "holdworld":
                 // holdworld [on|off|title] — D59: simula "convidado com o mundo do host na memória" e a volta ao título
                 if (arg.Trim() == "on") WorldSnapshot.HoldingHostWorld = true;

@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D62 | **Estante de troféus: só o host arruma** (troféu do convidado posto nela sumiria na virada) | ✅ Decidido |
 | D61 | **Happy Bingo compartilhado por mescla** (maior progresso por quadrado, prêmios resgatados em união; fecha o resgate repetido do convidado) | ✅ Decidido |
 | D60 | **Revisão independente do Bazaar e da D57**: 10 correções (duplicação com "Ver estoque", pet comprado por convidado, ajudante assume a barraca quando o dono sai, pedidos por valor, "pôr item" sem perder itens...) | ✅ Decidido |
 | D59 | **Convidado que perde a conexão não grava o mundo do host** no próprio save (até voltar ao título) | ✅ Decidido |
