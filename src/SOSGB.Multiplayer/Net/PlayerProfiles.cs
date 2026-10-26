@@ -219,7 +219,12 @@ public class PlayerProfiles : MonoBehaviour
         if (string.IsNullOrEmpty(_pending)) return;
         var parts = JsonSerializer.Deserialize<Dictionary<string, string>>(_pending);
         var report = PlayerContext.ApplyParts(parts);
-        if (_pendingIsNewDay)
+        // Entrada depois de dias fora (D63): o perfil é de um dia anterior ao do mundo do host. Roda a virada pessoal
+        // uma vez (zera presente/conversa do dia, frescor), senão o jogo diria "já deu presente hoje" a um morador.
+        var staleEntry = !_pendingIsNewDay && parts.TryGetValue(DayKey, out var dayText)
+                         && long.TryParse(dayText, out var savedDay) && savedDay < GameDay();
+        if (staleEntry) Plugin.Logger.LogInfo("[Profiles] perfil de um dia anterior: rodando a virada pessoal");
+        if (_pendingIsNewDay || staleEntry)
         {
             // O host processou o dia com os dados DELE; aqui processamos a virada nos nossos.
             LikeabilityManager.Instance.OnChangeDate();
@@ -237,7 +242,18 @@ public class PlayerProfiles : MonoBehaviour
         try { return AppearanceSync.Local(); } catch { return null; }
     }
 
-    private static string Capture() => JsonSerializer.Serialize(PlayerContext.CaptureParts(PlayerContext.ProfileParts));
+    private const string DayKey = "_day"; // dia do jogo em que o perfil foi capturado (não é uma parte; ApplyParts ignora)
+
+    /// <summary>Dia do jogo, com a troca às 06:00 (de madrugada ainda conta como o dia anterior).</summary>
+    private static long GameDay() =>
+        (DateManager.Instance.Now.Ticks - 6L * 3600 * 10_000_000) / (24L * 3600 * 10_000_000);
+
+    private static string Capture()
+    {
+        var parts = PlayerContext.CaptureParts(PlayerContext.ProfileParts);
+        try { parts[DayKey] = GameDay().ToString(); } catch { /* sem relógio: sem a data */ }
+        return JsonSerializer.Serialize(parts);
+    }
 
     /// <summary>Convidado → host: perfil atual. Chamado ao dormir, periodicamente e ao sair.</summary>
     public static void Upload()

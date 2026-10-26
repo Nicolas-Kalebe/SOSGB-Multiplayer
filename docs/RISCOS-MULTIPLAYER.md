@@ -47,7 +47,7 @@ Legenda: ✅ coberto · 🛠️ feito nesta rodada · ⏳ a fazer · ❓ decisã
 - **Desmaio e cenas que avançam a hora** → ✅ D50 (o tempo segue o mais adiantado) e D33 (virada só quando todos dormem). Desmaio: 🛠️ D58 — conta como "dormiu" (passa pela mesma trava da cama). O teste achou um impasse sério: dormindo ou desmaiando depois da meia-noite, o host não percebia o fim da virada e os convidados ficavam dormindo para sempre; corrigido.
 
 - **Dois jogadores no mesmo celeiro/animal no mesmo segundo** → ⏳ (achado na revisão do núcleo, D63): o estado inteiro do animal/celeiro é aplicado, então uma ação pode desfazer a outra (ex.: os dois pegando ovos ao mesmo tempo: o contador de ovos cai só 1). Precisa mandar diferenças (como o dinheiro) e só dá para validar com duas pessoas.
-- **Convidado que volta depois de alguns dias** → ⏳ (D63): o perfil é aplicado sem rodar os dias que passaram (ex.: "já deu presente hoje" a um morador).
+- **Convidado que volta depois de alguns dias** → 🛠️ D63: o perfil guarda o dia; na entrada atrasada roda a virada pessoal uma vez (antes: "já deu presente hoje" a um morador).
 
 ### Média prioridade
 - **Festivais com competição** (Pet Show, Horse Derby, Animal/Crop Show, Cook-off): cada jogo roda o próprio minigame; resultados compartilhados (D43). ❓ Quem inscreve o pet/cavalo compartilhado.
