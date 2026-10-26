@@ -191,8 +191,12 @@ public class MissionSync : MonoBehaviour
                     var pendingState = local.TryGetValue(o.Id, out var ls) && Baseline.TryGetValue(o.Id, out var bs) && ls.State != bs.State ? ls.State : -1;
                     od.State = (MissionManager.OrderState)Math.Max(o.State, pendingState);
                     if (od.ProgressValue != o.Progress + pending) od.SetProgress(Math.Max(0, o.Progress + pending));
-                    od.ReceivedTicks = o.Received;
-                    od.CompleteTicks = o.Completed;
+                    // Mudança de estado feita aqui e ainda não enviada: mantém as datas locais (vão junto no próximo envio).
+                    if (pendingState <= o.State)
+                    {
+                        od.ReceivedTicks = o.Received;
+                        od.CompleteTicks = o.Completed;
+                    }
                 }
                 MissionManager.Instance.IsNewOpenShop = newShop;
                 // A base fica na lista do host: a diferença local que sobrou ainda vai ser mandada.
