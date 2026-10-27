@@ -640,17 +640,42 @@ public class AppearanceSync : MonoBehaviour
                     if (t == null || localAssets.Contains(t.GetInstanceID())) continue;
                     if (!texCopies.TryGetValue(t.GetInstanceID(), out var tcopy))
                     {
-                        tcopy = Instantiate(t);
-                        tcopy.name = t.name;
-                        Own(clone, tcopy);
+                        tcopy = CopyTexture(t);
+                        if (tcopy != null) { Own(clone, tcopy); textures++; }
                         texCopies[t.GetInstanceID()] = tcopy;
-                        textures++;
                     }
+                    if (tcopy == null) continue;
                     m.SetTexture(p, tcopy);
                 }
             }
         }
         if (meshes + textures > 0) Plugin.Logger.LogInfo($"[Appearance] avatar com peças próprias: {meshes} malha(s), {textures} textura(s) que o personagem local não usa");
+    }
+
+    /// <summary>
+    /// Cópia de textura feita na placa de vídeo (mesmo formato e níveis de detalhe). Instantiate numa textura comprimida e
+    /// não legível do jogo dava uma textura PRETA (medido com o comando texavg: média 0,00): rosto e pele sumiam (D78).
+    /// </summary>
+    private static Texture CopyTexture(Texture t)
+    {
+        try
+        {
+            var src = t.TryCast<Texture2D>();
+            if (src == null) return null;
+            var linear = false;
+            try { linear = !src.isDataSRGB; } catch { /* sem a informação: sRGB, como as texturas de cor */ }
+            var dst = new Texture2D(src.width, src.height, src.format, src.mipmapCount, linear)
+            {
+                name = src.name, wrapMode = src.wrapMode, filterMode = src.filterMode, anisoLevel = src.anisoLevel,
+            };
+            Graphics.CopyTexture(src, dst);
+            return dst;
+        }
+        catch (Exception e)
+        {
+            Plugin.Logger.LogWarning($"[Appearance] cópia da textura {t.name}: {e.Message.Split((char)10)[0]}");
+            return null;
+        }
     }
 
     /// <summary>

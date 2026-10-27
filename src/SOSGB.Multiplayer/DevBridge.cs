@@ -1151,6 +1151,42 @@ public class DevBridge : MonoBehaviour
                 Net.PlayerSync.InvalidateAvatar(byte.Parse(arg.Trim()));
                 return Json(new { ok = true });
 
+            case "texavg":
+            {
+                // texavg local|<id> <renderer> — cor média de cada textura dessa parte, lida da placa de vídeo (cópias vazias? D78)
+                var ta = arg.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                GameObject tgo2 = ta[0] == "local" ? GameController.Instance.GetPlayer()?.Model : Net.PlayerSync.RemoteAvatar(byte.Parse(ta[0]));
+                if (tgo2 == null) return Json(new { ok = false, error = "sem modelo" });
+                var tres = new List<string>();
+                foreach (var r in tgo2.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (r.gameObject.name != ta[1]) continue;
+                    var smr = r.TryCast<SkinnedMeshRenderer>();
+                    var mesh = smr != null ? smr.sharedMesh : null;
+                    if (mesh != null) tres.Add($"malha {mesh.name} v{mesh.vertexCount} sub{mesh.subMeshCount} legível={mesh.isReadable} limites={mesh.bounds.size}");
+                    foreach (var m in r.sharedMaterials)
+                    {
+                        if (m == null) continue;
+                        foreach (var p in m.GetTexturePropertyNames())
+                        {
+                            var t = m.GetTexture(p);
+                            if (t == null) continue;
+                            var rt = RenderTexture.GetTemporary(16, 16, 0, RenderTextureFormat.ARGB32);
+                            Graphics.Blit(t, rt);
+                            var prev = RenderTexture.active; RenderTexture.active = rt;
+                            var tex = new Texture2D(16, 16, TextureFormat.RGBA32, false);
+                            tex.ReadPixels(new Rect(0, 0, 16, 16), 0, 0); tex.Apply();
+                            RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+                            float rr = 0, gg = 0, bb = 0;
+                            foreach (var px in tex.GetPixels()) { rr += px.r; gg += px.g; bb += px.b; }
+                            UnityEngine.Object.Destroy(tex);
+                            tres.Add($"{m.name.Replace(" (Instance)", "")}.{p}={t.name} média={rr / 256:0.00},{gg / 256:0.00},{bb / 256:0.00}");
+                        }
+                    }
+                }
+                return Json(new { ok = true, result = tres });
+            }
+
             case "fadein":
                 // fadein — clareia a tela (destravar uma tela preta de "carregando" em testes)
                 FadeManager.FadeIn(null, null, 0f, 0f);
