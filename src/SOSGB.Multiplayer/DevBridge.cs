@@ -1703,6 +1703,29 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.ChangeField((FieldMasterId)uint.Parse(arg), "", "", false, true, false, null, null, null, false);
                 return Json(new { ok = true, changing = uint.Parse(arg) });
 
+            case "shop":
+            {
+                // shop list <categoria 0-24> | shop buy <categoria> <índice> [qtd] — compra pela rotina da loja (ShopManager.BuyItem, 4.5)
+                var sa = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var sm = ShopManager.Instance;
+                sm.AccessShopCategory = (ShopCategory)int.Parse(sa[1]);
+                var prods = sm.GetProducts();
+                if (sa[0] == "list")
+                {
+                    var pl = new List<string>();
+                    for (var i = 0; i < prods.Count; i++) { var pr = prods[i]; pl.Add($"{i}: {pr.Name} id={pr.ShopItemId} preço={sm.GetPrice(pr)} cat={pr.ProductCategory}"); }
+                    return Json(new { ok = true, count = prods.Count, products = pl.Take(40) });
+                }
+                if (sa[0] == "buy" && sa.Length >= 3)
+                {
+                    var pr = prods[int.Parse(sa[2])];
+                    var moneyB = ExternalData.Instance.UserInfo.PlayerMoney;
+                    sm.BuyItem(pr, sa.Length >= 4 ? int.Parse(sa[3]) : 1, ShopManager.BuyType.Money);
+                    return Json(new { ok = true, item = pr.Name, id = pr.ShopItemId, price = sm.GetPrice(pr), moneyBefore = moneyB, moneyAfter = ExternalData.Instance.UserInfo.PlayerMoney });
+                }
+                return Json(new { ok = false, error = "use: shop list <cat> | shop buy <cat> <i> [qtd]" });
+            }
+
             case "event":
                 // event watch <id...> | event close | event state — assistir uma cena com uma instância só (D84)
                 return Json(new { ok = true, result = Net.EventWatch.Test(arg) });

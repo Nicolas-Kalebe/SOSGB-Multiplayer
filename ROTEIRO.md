@@ -73,7 +73,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 
 ---
 
-## Fase 4 — Economia · **v0.3** ✅ (falta só o teste do usuário numa loja de verdade, 4.5)
+## Fase 4 — Economia · **v0.3** ✅
 
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
@@ -81,7 +81,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 4.2 ✅ | **Armazém da casa** compartilhado (`HouseStorage`, D37): uma pessoa por vez + sincronização pelo conteúdo | M | Teste da IA: duas instâncias (guardar/pegar dos dois lados, trava, virada do dia) |
 | 4.3 ✅ | **Mochila e ferramentas individuais (D13)**: já feitas pelo perfil de cada jogador (D24/D30) | G | Teste da IA: mochila da convidada se mantém dela depois da virada do dia |
 | 4.4 ✅ | **Upgrades de ferramenta** por jogador (D38): upgrade é imediato e fica na mochila do perfil; estado das ferramentas e vigor máximo entraram no perfil | M | Teste da IA: `ctx save/load` com as partes novas |
-| 4.5 🟡 | **Lojas**: compras e vendas descontam e creditam na carteira do grupo (já coberto pela D36; falta testar numa loja de verdade) | M | Teste do usuário |
+| 4.5 ✅ | **Lojas**: compras e vendas descontam e creditam na carteira do grupo (D36). Conferido em 2026-10-27 pela rotina de compra da loja (`ShopManager.BuyItem`): a carteira muda nos dois jogos e o item vai só para a mochila de quem comprou. Animal comprado: D81 | M | Teste da IA: duas instâncias |
 | 4.6 ✅ | **Correio compartilhado (D10/D10a, D39)**: estado do correio sincronizado pelo host | M | Teste da IA: duas instâncias (carta nova, pegar as cartas) |
 
 **✔ Pronto quando:** dá para comprar, vender, guardar e pegar itens juntos sem duplicar nem perder nada.

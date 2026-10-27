@@ -374,6 +374,7 @@ Regras deste arquivo:
 - **Verificado (duas instâncias):** convidada +500, host +1000, convidada −300, os dois gastando juntos (−200 e −100): os dois ficaram sempre com o mesmo valor. Depois da virada do dia o valor continua igual nos dois.
 - **Consequências:**
   - Lojas, vendas e prêmios entram sem código extra (4.5 sai junto; falta o teste numa loja de verdade).
+- **Conferido depois (2026-10-27, duas instâncias, comando `shop buy`, a rotina que a tela da loja chama: `ShopManager.BuyItem` → `SpendMoney`):** a convidada comprou 2 sementes de abóbora (308 cada) → a carteira foi de 69.365 para 68.749 nos dois jogos e as sementes foram só para a mochila dela; o host comprou 1 → 68.441 nos dois.
   - Limite conhecido: se dois jogadores gastam ao mesmo tempo mais do que existe, o host corta em 0 e uma das compras sai "de graça". Aceito entre amigos.
   - Protocolo 10 (`MoneyState` 15, `MoneyDelta` 26).
 

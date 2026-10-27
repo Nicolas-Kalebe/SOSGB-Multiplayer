@@ -254,6 +254,9 @@ Armadilhas das flags de evento:
 - `tools/Cpp2IL.exe --game-path ... --exe-name SOSGrandBazaar --output-as isil --output-to <pasta fora do repo>` gera, por classe, o assembly e o **ISIL** de cada método (chamadas por nome, comparações, saltos). ~5 min e ~480 MB: gerar fora do repositório (pasta temporária). Bom para saber **o que um método chama** (ex.: `AddAnimalParam`, `UIMapArea.SetPlayerPosition`).
 - Deslocamentos de campo no ISIL (`[rax+1068]`) batem com os `Field offset` do dump diffable-cs (0x42C = `PlayerCharacter.GridPosition`).
 
+### Lojas (4.5)
+- `ShopManager.AccessShopCategory` (25 lojas, `ShopCategory.Shop01`...) → `GetProducts()` (`IProduct`: `Name`, `ShopItemId`, `ProductCategory`) e `GetPrice(produto)`. A compra é `BuyItem(produto, qtd, BuyType.Money|HappyPoint|Free)`: desconta pela `GameController.SpendMoney`/`SpendHappyPoint`, cria o item (mochila de quem comprou), guarda histórico e roupas. A tela é `UIShopPage`. Comando de teste: `shop list <cat>`, `shop buy <cat> <i> [qtd]`.
+
 ### Festivais (D83)
 - Dia do festival: `FestivalExecutor.IsInSession` (o dia todo), `GetCurrentFestivalCategory`, `State` (`Unjoining` → `JoinAfter` no fim da cerimônia; não muda na inscrição). `IsAnyFestivalOpen(data, out master)`: `master.HostCharaId` = anfitrião (Exposição de Animais: Félix, 400).
 - A cerimônia acontece entre 12:00 e 15:59 na praça da Cidade Zephyr (20001; sazonal 20003), começando pela conversa com o anfitrião (perto de x −36,5, z 0). No fim, o jogo leva o relógio a 16:00 e o anfitrião sai da praça (mudar a hora para trás não o traz de volta).
