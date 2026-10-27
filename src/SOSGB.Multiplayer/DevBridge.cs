@@ -1409,6 +1409,41 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, npcs = list, sync = Net.NpcSync.Status() });
             }
 
+            case "npcpause":
+            {
+                // npcpause pauser|resume — teste: pausa do próprio jogo (Pauser) sem o jogador e a música
+                var pz = GameController.Instance.pauser;
+                if (arg == "pauser")
+                {
+                    pz.SetIgnorePause(PauseTarget.Player, true);
+                    pz.SetIgnorePause(PauseTarget.Bgm, true);
+                    pz.Pause(PauseType.Idle, null);
+                }
+                else if (arg == "resume")
+                {
+                    pz.Resume();
+                    pz.SetIgnorePause(PauseTarget.Player, false);
+                    pz.SetIgnorePause(PauseTarget.Bgm, false);
+                }
+                return Json(new { ok = true, pausingAny = pz.IsPausingAny, pausingAll = pz.IsPausingAll });
+            }
+
+            case "npcpos":
+            {
+                // npcpos — amostra compacta para medir movimento: id:x,z:p(ausado)
+                var sb = new System.Text.StringBuilder();
+                foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+                {
+                    if (npc == null || !npc.gameObject.activeInHierarchy) continue;
+                    Vector3 p;
+                    p = npc.transform.position;
+                    bool paused; try { paused = npc.PauseObject != null && npc.PauseObject.IsPaused; } catch { paused = false; }
+                    sb.Append($"{npc.CharacterId}:{p.x:0.00},{p.z:0.00}:{(paused ? 1 : 0)} ");
+                }
+                var dm = DateManager.Instance;
+                return Json(new { ok = true, t = Time.unscaledTime, clock = dm.Now.ToString(), upd = dm.IsUpdateEnabled, npcs = sb.ToString() });
+            }
+
             case "spectate":
                 // spectate — estado do espectador (D69); a tecla F7 é apertada de verdade nos testes
                 return Json(new { ok = true, spectator = Net.Spectator.Status(), field = FieldManager.Instance.CurrentFieldId });

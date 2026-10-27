@@ -60,6 +60,8 @@ public class ClockSync : MonoBehaviour
 
     /// <summary>D83: quem segura o tempo do grupo num diálogo/cena em dia de festival. UnknownId = ninguém.</summary>
     public static byte HeldBy { get; private set; } = NetSession.UnknownId;
+    /// <summary>O próprio jogo está numa tela que pausa (menu, diálogo, mensagem).</summary>
+    public static bool LocalUiPause => _ui != null && (_ui.IsMenu || _ui.CurrentUIType != UIType.Main);
     /// <summary>D83: o que segura o tempo: 0 nada, 1 diálogo/tela, 2 cena (evento).</summary>
     public static byte HeldKind { get; private set; }
     /// <summary>D83: o próprio jogador segura o tempo (0, 1 ou 2, como HeldKind).</summary>
@@ -132,12 +134,9 @@ public class ClockSync : MonoBehaviour
     {
         if (!LocalPaused || DaySync.LocalSleeping || InPauseMenu) return 0;
         if (!FestivalExecutor.IsInstance || !FestivalExecutor.Instance.IsInSession) return 0;
-        if (GameController.IsInstance && GameController.Instance.IsPlayingEvent) return 2;
-        if (_ui == null) return 0;
-        var type = _ui.CurrentUIType;
-        if (type == UIType.Dialog || type == UIType.Message) return 1;
-        var key = (int)_ui.CurrentUIKey;
-        return (byte)(key == FairKey || key == FairEvaluateKey || key == AnimalSelectKey ? 1 : 0);
+        // Só a cena (o evento em si) segura o tempo do grupo (pedido do usuário, 2026-10-27). Diálogos, mensagens e as telas
+        // da inscrição seguravam também, mas aí o relógio parava no jogo do outro e os moradores dele iam e voltavam.
+        return (byte)(GameController.IsInstance && GameController.Instance.IsPlayingEvent ? 2 : 0);
     }
 
     private static uint _festHostDay = uint.MaxValue, _festHost;
