@@ -111,7 +111,7 @@ public static class WorldSync
                 if (!NetSession.Players.ContainsKey(id)) continue; // saiu enquanto capturava
                 NetSession.SendTo(id, MsgType.WorldData, w => { w.Put(data.Length); w.Put(data); }, DeliveryMethod.ReliableOrdered);
                 Plugin.Logger.LogInfo($"[WorldSync] mundo enviado para #{id} ({data.Length} bytes)");
-                if (Joining.Remove(id)) PlayerProfiles.SendStoredProfile(id);
+                if (Joining.Remove(id)) { PlayerProfiles.SendStoredProfile(id); WindmillToolGuard.SendList(id); }
                 DevBridge.PushEvent($"world-enviado:{id}:{data.Length}");
             }
         });

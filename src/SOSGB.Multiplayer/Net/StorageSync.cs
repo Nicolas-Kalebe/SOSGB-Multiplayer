@@ -1,7 +1,9 @@
 // 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md e DECISOES.md#d37 / #d46.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using BokuMono;
 using LiteNetLib;
@@ -18,7 +20,10 @@ namespace SOSGB.Multiplayer.Net;
 ///  - Sincronização pelo CONTEÚDO: cada jogo confere cada armazém a cada 0,5 s (assinatura dos espaços). Mudou
 ///    por conta própria (guardou, pegou, cozinhou com ingredientes de lá)? Manda o armazém inteiro, em JSON
 ///    comprimido, ao host (StorageData). O host aplica e repassa aos outros.
-///  - Conflito (alguém mudou o armazém enquanto outro estava com ele aberto): vence quem está com ele aberto.
+///  - Quem mexe SEM estar com a tela aberta (cozinhar com ingredientes do armazém, guardar automático...) manda a
+///    DIFERENÇA (item, qualidade, frescor, embrulho, +/− quantidade; StorageDelta, D88), não o armazém inteiro. Ela vai a
+///    quem está com o armazém aberto (ou ao host, se ninguém está), que aplica no dele e espalha o resultado. Antes essa
+///    mudança era descartada ("vale o de quem está com a tela") e os ingredientes gastos voltavam (revisão A02).
 ///  - Depois de carregar um mundo (entrada, virada do dia), a base é zerada: o snapshot já traz os armazéns.
 /// </summary>
 public class StorageSync : MonoBehaviour
@@ -39,6 +44,7 @@ public class StorageSync : MonoBehaviour
         public bool HasBaseline;
         public bool LocalOpen;
         public string LastReceived;    // último conteúdo vindo da rede (ou enviado): o ajudante do Bazaar volta a ele (D56)
+        public Dictionary<(uint id, int q, int f, uint wrap), int> Content; // conteúdo na última base (para a diferença, D88)
     }
 
     private static readonly Store[] Stores =
@@ -104,19 +110,22 @@ public class StorageSync : MonoBehaviour
             {
                 if (s.Get() == null) continue;
                 var sig = Signature(s);
-                if (!s.HasBaseline) { s.Baseline = sig; s.HasBaseline = true; continue; }
+                if (!s.HasBaseline) { s.Baseline = sig; s.HasBaseline = true; s.Content = ContentOf(s); continue; }
                 if (sig == s.Baseline) continue;
                 s.Baseline = sig;
+                var before = s.Content;
+                s.Content = ContentOf(s);
                 if (s.Index == 1 && BazaarHelpSync.SuppressWrites)
                 {
                     // Ajudante do Bazaar: o deck só é escrito pelo dono da barraca (D56). Mudança local não vai para a rede.
                     Plugin.Logger.LogInfo("[StorageSync] deck mudou no jogo do ajudante; não enviado (vale o do dono)");
                     continue;
                 }
-                if (s.Holder != NoHolder && s.Holder != NetSession.LocalId)
+                // Sem a tela aberta aqui (outro está com ela, ou ninguém e eu sou convidado): manda só a diferença (D88).
+                var other = s.Holder != NoHolder && s.Holder != NetSession.LocalId;
+                if ((other || (s.Holder == NoHolder && NetSession.Current == NetSession.Mode.Client)) && before != null)
                 {
-                    // Mexeram aqui enquanto outro está com a tela aberta: vale o dele (o próximo StorageData corrige).
-                    Plugin.Logger.LogInfo($"[StorageSync] {s.Name} mudou aqui enquanto outro jogador estava com ele; vale o dele");
+                    SendDelta(s, Diff(before, s.Content));
                     continue;
                 }
                 SendSnapshot(s);
@@ -289,6 +298,7 @@ public class StorageSync : MonoBehaviour
         s.Get().FromSaveData(StringExtensions.JsonToObject<StorageManager.SaveData>(json));
         s.Baseline = Signature(s);
         s.HasBaseline = true;
+        s.Content = ContentOf(s);
         s.LastReceived = json;
         // A lista do mini deck do Bazaar é uma cópia que o jogo não refaz sozinho quando o deck muda (D56).
         if (s.Index == 1) BazaarHelpSync.RefreshMiniDeck();
@@ -340,6 +350,94 @@ public class StorageSync : MonoBehaviour
 
     private static Store ByIndex(byte i) => i < Stores.Length ? Stores[i] : null;
 
+    // ---------- diferença (D88, revisão A02) ----------
+
+    private static Dictionary<(uint id, int q, int f, uint wrap), int> ContentOf(Store s)
+    {
+        var c = new Dictionary<(uint, int, int, uint), int>();
+        var datas = s.Get().ItemDatas;
+        for (var i = 0; i < datas.Length; i++)
+        {
+            var d = datas[i];
+            if (d == null || d.ItemId == 0) continue;
+            var k = (d.ItemId, d.QualityValue, d.FreshnessValue, d.WrapId);
+            c[k] = c.TryGetValue(k, out var n) ? n + d.Stack : d.Stack;
+        }
+        return c;
+    }
+
+    private static List<((uint id, int q, int f, uint wrap) k, int d)> Diff(Dictionary<(uint, int, int, uint), int> a, Dictionary<(uint, int, int, uint), int> b)
+    {
+        var res = new List<((uint, int, int, uint), int)>();
+        foreach (var kv in b) { var d = kv.Value - (a.TryGetValue(kv.Key, out var n) ? n : 0); if (d != 0) res.Add((kv.Key, d)); }
+        foreach (var kv in a) if (!b.ContainsKey(kv.Key)) res.Add((kv.Key, -kv.Value));
+        return res;
+    }
+
+    private static void WriteDelta(NetDataWriter w, byte idx, List<((uint id, int q, int f, uint wrap) k, int d)> diff)
+    {
+        w.Put(idx);
+        w.Put(diff.Count);
+        foreach (var (k, d) in diff) { w.Put(k.id); w.Put(k.q); w.Put(k.f); w.Put(k.wrap); w.Put(d); }
+    }
+
+    private static List<((uint id, int q, int f, uint wrap) k, int d)> ReadDelta(NetDataReader r)
+    {
+        var n = r.GetInt();
+        var res = new List<((uint, int, int, uint), int)>();
+        for (var i = 0; i < n; i++) res.Add(((r.GetUInt(), r.GetInt(), r.GetInt(), r.GetUInt()), r.GetInt()));
+        return res;
+    }
+
+    /// <summary>Mudança feita aqui sem a tela do armazém aberta: só a diferença vai, para quem está com ele (ou o host).</summary>
+    private static void SendDelta(Store s, List<((uint id, int q, int f, uint wrap) k, int d)> diff)
+    {
+        if (diff.Count == 0) return;
+        var idx = s.Index;
+        if (NetSession.Current == NetSession.Mode.Host) NetSession.SendTo(s.Holder, MsgType.StorageDelta, w => WriteDelta(w, idx, diff), DeliveryMethod.ReliableOrdered);
+        else NetSession.SendGame(MsgType.StorageDelta, w => WriteDelta(w, idx, diff), DeliveryMethod.ReliableOrdered);
+        Plugin.Logger.LogInfo($"[StorageSync] {s.Name} mudou aqui sem a tela aberta: diferença enviada ({string.Join(", ", diff.Select(x => $"{x.k.id}q{x.k.q}{(x.d > 0 ? "+" : "")}{x.d}"))})");
+        DevBridge.PushEvent($"armazem{s.Index}:diferenca");
+    }
+
+    /// <summary>
+    /// Aplica a diferença de outro jogador no armazém daqui (sou quem está com ele, ou o host com ele livre). Tira primeiro do
+    /// espaço igual (item, qualidade, frescor, embrulho), depois de qualquer um com o mesmo item e qualidade, depois só o item.
+    /// O que não der para tirar (o outro gastou algo que aqui já não havia) fica registrado.
+    /// </summary>
+    private static void ApplyDelta(Store s, List<((uint id, int q, int f, uint wrap) k, int d)> diff, byte from)
+    {
+        var st = s.Get();
+        var missing = 0;
+        foreach (var (k, d) in diff)
+        {
+            if (d > 0)
+            {
+                st.PutIn(new BokuMono.Data.ItemData { ItemId = k.id, Stack = d, QualityValue = k.q, FreshnessValue = k.f, WrapId = k.wrap }, out var rem);
+                if (rem != null && rem.ItemId != 0 && rem.Stack > 0) Plugin.Logger.LogWarning($"[StorageSync] {s.Name} cheio: {rem.Stack}× item {k.id} de #{from} não couberam");
+                continue;
+            }
+            var need = -d;
+            for (var pass = 0; pass < 3 && need > 0; pass++)
+            {
+                var datas = st.ItemDatas;
+                for (var i = 0; i < datas.Length && need > 0; i++)
+                {
+                    var it = datas[i];
+                    if (it == null || it.ItemId != k.id || it.Stack <= 0) continue;
+                    if (pass == 0 && (it.QualityValue != k.q || it.FreshnessValue != k.f || it.WrapId != k.wrap)) continue;
+                    if (pass == 1 && it.QualityValue != k.q) continue;
+                    var take = Math.Min(need, it.Stack);
+                    st.PutOut(i, take);
+                    need -= take;
+                }
+            }
+            missing += need;
+        }
+        Plugin.Logger.LogInfo($"[StorageSync] {s.Name}: diferença de #{from} aplicada aqui{(missing > 0 ? $" ({missing} item(ns) que o outro gastou já não estavam aqui)" : "")}");
+        DevBridge.PushEvent($"armazem{s.Index}:diferenca-aplicada:{missing}");
+    }
+
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
         switch (type)
@@ -367,6 +465,23 @@ public class StorageSync : MonoBehaviour
                     CloseStorageUi(Ui);
                     s.LocalOpen = false;
                 }
+                break;
+            }
+            case MsgType.StorageDelta:
+            {
+                if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; }
+                var s = ByIndex(r.GetByte());
+                var diff = ReadDelta(r);
+                if (s == null || s.Get() == null) return;
+                if (NetSession.Current == NetSession.Mode.Host && s.Holder != NoHolder && s.Holder != NetSession.LocalId && s.Holder != from)
+                {
+                    // está com outro convidado: ele aplica no dele (é o dele que vale enquanto a tela está aberta)
+                    var idx = s.Index;
+                    NetSession.SendTo(s.Holder, MsgType.StorageDelta, w => WriteDelta(w, idx, diff), DeliveryMethod.ReliableOrdered);
+                    break;
+                }
+                if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
+                ApplyDelta(s, diff, from); // a conferência de 0,5 s vê a mudança e manda o armazém inteiro a todos
                 break;
             }
             case MsgType.StorageData:

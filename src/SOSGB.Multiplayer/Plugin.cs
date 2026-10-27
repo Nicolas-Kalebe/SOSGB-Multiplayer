@@ -12,7 +12,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "com.nicolaskalebe.sosgb.multiplayer";
     public const string Name = "SOSGB Multiplayer";
-    public const string Version = "0.6.3";
+    public const string Version = "0.6.4";
 
     internal static ManualLogSource Logger;
 
@@ -150,6 +150,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.NetRunner>();
         AddComponent<Net.PlayerSync>();
         Net.WorldSync.Init();
+        Net.WindmillToolGuard.Init();
         AddComponent<Net.ClockSync>();
         AddComponent<Net.DaySync>();
         AddComponent<Net.PlayerProfiles>();

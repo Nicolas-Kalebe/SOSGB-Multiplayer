@@ -37,7 +37,11 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
-| D84 | **Assistir junto à cena do festival** (experimental, desligado): a convidada já assiste à cerimônia inteira com as falas sincronizadas; falta a saída da cena (o personagem fica preso no fim) | 🟡 Em aberto |
+| D88 | **Armazém mexido sem a tela aberta** (cozinhar com ingredientes de lá) manda a diferença a quem está com ele; dois consumos ao mesmo tempo valem os dois (revisão A02) | ✅ Decidido |
+| D87 | **Fechamento do dia**: antes do "dormi", o convidado manda tudo o que ainda não foi enviado (revisão A03) | ✅ Decidido |
+| D86 | **Parte com erro** na sincronização: desliga só na 3ª falha seguida, avisa na tela e volta ao reconectar (revisão A08) | ✅ Decidido |
+| D85 | **Dono por encomenda** de ferramenta no moinho (PlayerGuid, guardado pelo host): só quem encomendou retira (revisão A01) | ✅ Decidido |
+| D84 | **Assistir junto à cena do festival** (experimental, desligado): a convidada assiste à cerimônia inteira com falas, fades e animações junto com o host, sai da cena normalmente (HUD, moradores, relógio) e pula junto quando o host pula; falta o teste do usuário e outros festivais | 🟡 Testado pela IA |
 | D83 | **Festivais**: em dia de festival, diálogo e cena de qualquer um param o tempo do grupo; uma inscrição só; relógio não salta em dobro nem com o host sozinho | ✅ Decidido |
 | D82 | **Mapa (M) com os outros jogadores**: marcador colorido no lugar calculado pelo próprio jogo (grade do outro) ou no ponto do prédio | ✅ Decidido |
 | D81 | **Animal comprado ou vendido ao vivo**: aparece/some nos outros jogos (antes o comprado pela convidada sumia na virada, com o dinheiro gasto) | ✅ Decidido |

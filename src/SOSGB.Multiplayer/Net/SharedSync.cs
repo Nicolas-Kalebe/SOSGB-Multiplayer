@@ -32,6 +32,7 @@ public class SharedSync : MonoBehaviour
         public Action<string> Apply;
         public bool Disabled;
         public bool CaptureFailLogged;
+        public int Failures; // falhas SEGUIDAS ao aplicar (A08): desliga só na 3ª; um sucesso zera
     }
 
     /// <summary>Campos de movimento/IA (em qualquer nível do JSON): fora da comparação, mantidos locais ao mesclar.</summary>
@@ -550,9 +551,9 @@ public class SharedSync : MonoBehaviour
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
-        WorldSync.OnWorldReceived += () => Baseline.Clear();
-        NetSession.OnHosting += () => Baseline.Clear();
-        NetSession.OnJoined += () => Baseline.Clear();
+        WorldSync.OnWorldReceived += ResetSession;
+        NetSession.OnHosting += ResetSession;
+        NetSession.OnJoined += ResetSession;
     }
 
     private static bool Ready()
@@ -618,37 +619,59 @@ public class SharedSync : MonoBehaviour
             if (!Ready()) return;
             if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
             if (Time.unscaledTime < _nextTick) return;
-            // Rodízio: uma parte por tick, para espalhar o custo (com ~19 partes, cada uma é conferida a cada ~5 s;
-            // pets e animais mudam pouco, e o progresso do mundo não tem pressa).
+            // Rodízio: uma parte por tick, para espalhar o custo (com ~27 partes, cada uma é conferida a cada ~7 s;
+            // pets e animais mudam pouco, e o progresso do mundo não tem pressa). Antes de dormir, FlushAll manda tudo (A03).
             _nextTick = Time.unscaledTime + 0.25f;
             _cursor = (_cursor + 1) % Parts.Count;
-            foreach (var p in new[] { Parts[_cursor] })
-            {
-                if (p.Disabled || !p.Available() || TestDisabled(p.Name)) continue;
-                string json;
-                try { json = p.Capture(); }
-                catch (Exception e)
-                {
-                    // Falha ao capturar é TEMPORÁRIA (ex.: o Bazaar só fica completo no dia e no mapa dele): só pula.
-                    if (!p.CaptureFailLogged) { p.CaptureFailLogged = true; Plugin.Logger.LogInfo($"[SharedSync] '{p.Name}' indisponível agora ({FirstLine(e.Message)}); tentando de novo depois"); }
-                    continue;
-                }
-                var sig = Signature(json);
-                if (!Baseline.TryGetValue(p.Name, out var old)) { Baseline[p.Name] = sig; continue; }
-                if (old == sig) continue;
-                Baseline[p.Name] = sig;
-                // Ajudante do Bazaar (D56): o jogo dele abre e fecha uma loja "de mentira"; o progresso do Bazaar é só do dono.
-                if (p.Name.StartsWith("bazaar") && BazaarHelpSync.SuppressWrites) continue;
-                var packed = LetterSync.Pack(json);
-                var name = p.Name;
-                if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: NetSession.LocalId);
-                else NetSession.SendGame(MsgType.SharedState, w => { w.Put(name); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
-                Sent++;
-                Plugin.Logger.LogInfo($"[SharedSync] {name} mudou: enviado ({packed.Length} bytes)");
-                DevBridge.PushEvent($"compartilhado:enviado:{name}");
-            }
+            TrySend(Parts[_cursor]);
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[SharedSync] {e.Message}"); }
+    }
+
+    /// <summary>
+    /// A03: confere e manda AGORA todas as partes que mudaram. Chamado quando o convidado deita, antes do aviso "dormi": as
+    /// mensagens vão em ordem pelo mesmo canal, então o host aplica estas mudanças antes de contar o convidado como dormindo
+    /// (sem isso, uma mudança feita até ~7 s antes de deitar podia ficar fora do save da manhã).
+    /// </summary>
+    public static int FlushAll()
+    {
+        if (!Ready()) return 0;
+        var n = 0;
+        foreach (var p in Parts)
+        {
+            try { if (TrySend(p)) n++; }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[SharedSync] enviar '{p.Name}' antes de dormir: {e.Message}"); }
+        }
+        return n;
+    }
+
+    /// <summary>Captura a parte e, se mudou desde o último envio/recebimento, manda. Devolve se mandou.</summary>
+    private static bool TrySend(Part p)
+    {
+        if (p.Disabled || !p.Available() || TestDisabled(p.Name)) return false;
+        if (p.Name == "festival" && EventWatch.HoldFestivalSync) return false; // D84: quem assiste não manda o festival dele
+        string json;
+        try { json = p.Capture(); }
+        catch (Exception e)
+        {
+            // Falha ao capturar é TEMPORÁRIA (ex.: o Bazaar só fica completo no dia e no mapa dele): só pula.
+            if (!p.CaptureFailLogged) { p.CaptureFailLogged = true; Plugin.Logger.LogInfo($"[SharedSync] '{p.Name}' indisponível agora ({FirstLine(e.Message)}); tentando de novo depois"); }
+            return false;
+        }
+        var sig = Signature(json);
+        if (!Baseline.TryGetValue(p.Name, out var old)) { Baseline[p.Name] = sig; return false; }
+        if (old == sig) return false;
+        Baseline[p.Name] = sig;
+        // Ajudante do Bazaar (D56): o jogo dele abre e fecha uma loja "de mentira"; o progresso do Bazaar é só do dono.
+        if (p.Name.StartsWith("bazaar") && BazaarHelpSync.SuppressWrites) return false;
+        var packed = LetterSync.Pack(json);
+        var name = p.Name;
+        if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: NetSession.LocalId);
+        else NetSession.SendGame(MsgType.SharedState, w => { w.Put(name); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
+        Sent++;
+        Plugin.Logger.LogInfo($"[SharedSync] {name} mudou: enviado ({packed.Length} bytes)");
+        DevBridge.PushEvent($"compartilhado:enviado:{name}");
+        return true;
     }
 
     // Testes: SOSGB_TEST_DISABLE_SHARED="parte1,parte2" desliga partes nesta execução (para isolar problemas).
@@ -661,10 +684,40 @@ public class SharedSync : MonoBehaviour
 
     private static string FirstLine(string s) { var i = s.IndexOf((char)10); return i < 0 ? s : s.Substring(0, i); }
 
+    /// <summary>
+    /// Sessão nova ou mundo recebido de novo (A08): tudo volta a sincronizar do zero, inclusive partes desligadas por falha na
+    /// sessão anterior (antes ficavam desligadas até fechar o jogo, sem aviso).
+    /// </summary>
+    private static void ResetSession()
+    {
+        Baseline.Clear();
+        foreach (var p in Parts)
+        {
+            if (p.Disabled) Plugin.Logger.LogInfo($"[SharedSync] parte '{p.Name}' religada (sessão nova)");
+            p.Disabled = false;
+            p.Failures = 0;
+            p.CaptureFailLogged = false;
+        }
+    }
+
+    private const int MaxFailures = 3;
+
+    /// <summary>
+    /// Falha ao aplicar o que veio do outro (A08): tenta de novo na próxima atualização; na 3ª falha seguida, desliga a parte
+    /// (não fica repetindo uma aplicação inválida) e AVISA na tela, porque a partir daí aquela parte do mundo pode divergir.
+    /// </summary>
     private static void Disable(Part p, string what, Exception e)
     {
+        p.Failures++;
+        if (p.Failures < MaxFailures)
+        {
+            Plugin.Logger.LogWarning($"[SharedSync] parte '{p.Name}': falha ao {what} ({p.Failures}/{MaxFailures}; tenta de novo na próxima): {e.Message}");
+            return;
+        }
         p.Disabled = true;
-        Plugin.Logger.LogWarning($"[SharedSync] parte '{p.Name}' desligada (falha ao {what}): {e.Message}");
+        Plugin.Logger.LogWarning($"[SharedSync] parte '{p.Name}' desligada (falha ao {what}, {MaxFailures}x seguidas): {e.Message}");
+        try { GameNotify.Show($"Multiplayer: \"{p.Name}\" parou de sincronizar (erro). Reconecte e gere o log (F9)."); }
+        catch { /* aviso é só ajuda */ }
     }
 
     private static void SendToClients(string name, byte[] packed, byte except)
@@ -681,6 +734,16 @@ public class SharedSync : MonoBehaviour
         var name = r.GetString();
         var packed = r.GetBlob();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
+        if (name == "festival" && EventWatch.HoldFestivalSync)
+        {
+            // D84: assistindo à cerimônia de outro jogador. O fim da cerimônia é disparado pela MUDANÇA de estado do festival
+            // (FestivalEnd: inscrito → terminado); se o estado "terminado" do outro chegasse antes, a cena daqui nunca acabava
+            // (P2 presa no fim). Guarda a versão mais recente e aplica quando a cena daqui terminar.
+            _heldFestival = packed;
+            if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: from);
+            Plugin.Logger.LogInfo($"[SharedSync] festival de #{from} guardado até a cena daqui terminar");
+            return;
+        }
         _applyingFromGuest = NetSession.Current == NetSession.Mode.Host;
         _filtered = false;
         string res;
@@ -701,6 +764,20 @@ public class SharedSync : MonoBehaviour
         DevBridge.PushEvent($"compartilhado:recebido:{name}:{res}");
     }
 
+    private static byte[] _heldFestival;
+
+    /// <summary>D84: aplica a parte "festival" guardada enquanto a cena era assistida.</summary>
+    public static void ReleaseHeldFestival()
+    {
+        var packed = _heldFestival;
+        _heldFestival = null;
+        if (packed == null) return;
+        string res;
+        try { res = ApplyPart("festival", LetterSync.Unpack(packed)); }
+        catch (Exception e) { res = "erro: " + e.Message; }
+        Plugin.Logger.LogInfo($"[SharedSync] festival guardado aplicado: {res}");
+    }
+
     /// <summary>Aplica uma parte (mesclando com o estado local). Também usado nos testes (ponte).</summary>
     public static string ApplyPart(string name, string json, bool markSynced = true)
     {
@@ -715,6 +792,7 @@ public class SharedSync : MonoBehaviour
         {
             var merged = Merge(json, localJson);
             p.Apply(merged);
+            p.Failures = 0;
             if (markSynced) Baseline[name] = Signature(p.Capture());
             return "ok";
         }

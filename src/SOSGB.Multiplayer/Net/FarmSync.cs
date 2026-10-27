@@ -96,6 +96,13 @@ public class FarmSync : MonoBehaviour
         catch (Exception e) { Plugin.Logger.LogWarning($"[FarmSync] {e.Message}"); }
     }
 
+    /// <summary>A03: manda agora o que mudou no mapa (antes do aviso "dormi").</summary>
+    public static void FlushNow()
+    {
+        try { if (Ready()) Flush(); }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[FarmSync] enviar antes de dormir: {e.Message}"); }
+    }
+
     /// <summary>Compara o mapa atual com a base e manda as diferenças.</summary>
     private static void Flush()
     {

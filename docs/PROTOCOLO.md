@@ -50,6 +50,8 @@ Mensagens ≥ 10 enviadas por um convidado chegam ao host, que as entrega localm
 
 | # | Nome | Direção | Corpo | Entrega | Fase |
 |---|---|---|---|---|---|
+| 44 | `StorageDelta` | convidado → host (→ quem está com o armazém aberto); host → quem está com ele | `byte armazém, int n, n × (uint item, int qualidade, int frescor, uint embrulho, int +/− quantidade)`: mudança feita sem a tela do armazém aberta | Reliable | D88 |
+| 43 | `WindmillOwner` | convidado → host: `byte 1 registrou / 2 retirou, int moinho, uint item, string dono (PlayerGuid), long início`; host → convidados: `byte 3, int n, n × (int moinho, uint item, string dono, long início)` (a lista inteira, a cada mudança e ao entrar) | Reliable | D85 |
 | 20 | `WorldRequest` | convidado → host | (vazio). Enviada automaticamente após o `Welcome` | Reliable | 3.1 |
 | 23 | `SleepReady` | convidado → host | `bool dormindo`: o convidado deitou (a virada dele foi segurada) | Reliable | 3.4 |
 | 24 | `ProfileUpload` | convidado → host | `string json`: perfil individual (ao dormir, a cada 60 s, ao sair) | Reliable | 3.6 |
@@ -64,6 +66,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 28 | `WindmillOwner` (43): dono de cada encomenda de ferramenta no moinho (D85). `StorageDelta` (44): armazém mexido sem a tela aberta manda a diferença (D88). `EventWatch` (42) ganha o tipo 8 = pulou ([uint cena]) e os tipos 4–7 (escolha, chegou, começou/parou de assistir) já usados desde a 0.6.3 (D84). Mod 0.6.4 |
 | 27 | `EventWatch` (42), qualquer → host → todos: [byte 1 começou / 2 chegou numa espera / 3 terminou][byte quem] + começou: [uint cena][string roteiro][uint mapa]; espera: [uint cena][int comando][byte 1 fala, 2 tela, 3 escolha] (D84). Mod 0.6.3 |
 | 26 | `PauseReport` (22) leva no fim [byte segurando o tempo: 0 nada, 1 diálogo/tela, 2 cena], só em dia de festival; `ClockState` (11) leva no fim [byte quem segura][byte o quê] (D83). Mod 0.6.2 |
 | 25 | `PlayerState` (10) leva no fim [int gradeX][int gradeY] (`PlayerCharacter.GridPosition`), para o mapa (D82). `AnimalData` (32): animal novo vai com o estado completo e quem não o tem o cria; item com guid `del:<guid>` (json vazio) = animal vendido (D81). Mod 0.6.1 |

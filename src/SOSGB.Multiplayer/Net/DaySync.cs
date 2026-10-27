@@ -74,12 +74,14 @@ public class DaySync : MonoBehaviour
             if (NetSession.Current == NetSession.Mode.Offline)
             {
                 if (LocalSleeping) LeftSessionInBed();
+                _sleepReadyAt = -1;
                 GuestsSleeping.Clear();
                 _guestDayChanging = false;
                 _lastMode = NetSession.Mode.Offline;
                 return;
             }
             _lastMode = NetSession.Current;
+            SendSleepReadyWhenFlushed();
             if (NetSession.Current == NetSession.Mode.Host)
             {
                 if (_evaluateLater && !WorldSnapshot.Capturing) { _evaluateLater = false; Evaluate(); }
@@ -104,11 +106,29 @@ public class DaySync : MonoBehaviour
         DevBridge.PushEvent("dormindo:local");
         if (NetSession.Current == NetSession.Mode.Client)
         {
-            PlayerProfiles.Upload(); // o host grava o perfil junto com o save do dia (D23)
-            NetSession.SendGame(MsgType.SleepReady, w => w.Put(true), DeliveryMethod.ReliableOrdered);
+            // Fechamento do dia (A03): primeiro sai tudo o que ainda não foi enviado (as partes do mundo andam em rodízio de
+            // ~7 s; a fazenda, os animais, o armazém, cartas e pedidos, a cada 1 s ou menos). O "dormi" vai 1,2 s depois, pelo
+            // mesmo canal ordenado: o host aplica essas mudanças antes de contar este jogador como dormindo e virar o dia.
+            var parts = SharedSync.FlushAll();
+            FarmSync.FlushNow();
+            _sleepReadyAt = Time.unscaledTime + 1.2f;
+            Plugin.Logger.LogInfo($"[DaySync] fechando o dia: {parts} parte(s) do mundo enviada(s) agora; aviso de dormir em 1,2 s");
         }
         else
             Evaluate();
+    }
+
+    private static float _sleepReadyAt = -1;
+
+    /// <summary>Convidado: depois do fechamento do dia (A03), perfil e aviso "dormi" ao host.</summary>
+    private static void SendSleepReadyWhenFlushed()
+    {
+        if (_sleepReadyAt < 0 || Time.unscaledTime < _sleepReadyAt) return;
+        _sleepReadyAt = -1;
+        if (!LocalSleeping || NetSession.Current != NetSession.Mode.Client) return;
+        PlayerProfiles.Upload(); // o host grava o perfil junto com o save do dia (D23)
+        NetSession.SendGame(MsgType.SleepReady, w => w.Put(true), DeliveryMethod.ReliableOrdered);
+        Plugin.Logger.LogInfo("[DaySync] aviso de dormir enviado ao host");
     }
 
     /// <summary>
@@ -162,6 +182,7 @@ public class DaySync : MonoBehaviour
         Spectator.Unpin(); // voltou de espectar: estava pausado na pose deitada
         Unstick(mode);
         LocalSleeping = false;
+        _sleepReadyAt = -1;
         Plugin.Logger.LogInfo($"[DaySync] jogador local levantou da cama ({mode})");
         DevBridge.PushEvent("levantou");
         if (NetSession.Current == NetSession.Mode.Client)

@@ -31,7 +31,7 @@ public static class NetBlob
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 27;
+    public const int Version = 28;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -161,6 +161,12 @@ public enum MsgType : byte
     /// <summary>Host → convidado: [uint mapa][string guid] — item do chão que outro jogador pegou primeiro; o convidado tira da mochila o que pegou junto (D70)</summary>
     ItemTakeBack = 41,
 
-    /// <summary>Qualquer → host (→ todos): [byte 1=começou 2=chegou numa espera 3=terminou][byte quem] + começou: [uint cena][string roteiro][uint mapa]; espera: [uint cena][int comando][byte 1 fala 2 tela 3 escolha] — assistir junto à cena do festival (D84)</summary>
+    /// <summary>Qualquer → host (→ todos): [byte tipo][byte quem] + corpo — assistir junto à cena do festival (D84). Tipos: 1 começou [uint cena][string roteiro][uint mapa][int n][n × uint cadastro][uint mapa destino][string ponto]; 2 passo [uint cena][int comando][byte espera]; 3 terminou; 4 escolha [uint cena][int comando][int opção]; 5 quem assiste chegou [uint cena][int comando]; 6/7 começou/parou de assistir; 8 pulou [uint cena]</summary>
     EventWatch = 42,
+
+    /// <summary>Convidado → host: [byte 1=registrou 2=retirou][int moinho][uint item][string dono][long início]; host → convidados: [byte 3][int n] + n × encomenda — dono de cada encomenda de ferramenta no moinho (D85)</summary>
+    WindmillOwner = 43,
+
+    /// <summary>Convidado → host (→ quem está com o armazém aberto); host → quem está com ele: [byte armazém][int n] + n × [uint item][int qualidade][int frescor][uint embrulho][int +/− quantidade] — mudança feita sem a tela do armazém aberta (D88)</summary>
+    StorageDelta = 44,
 }

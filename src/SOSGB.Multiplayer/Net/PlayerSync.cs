@@ -258,7 +258,9 @@ public class PlayerSync : MonoBehaviour
             SyncController(rm);
 
             // 2.5: só no mesmo mapa. D75: com a tela de aparência aberta, a prévia é montada no mapa e os outros apareciam nela.
-            var visible = rm.Field == localField && !CharacterCreator.OnScreen && !rm.Broken;
+            // D84: numa cena, os outros não aparecem (a cena é de quem a vê: visto pelo usuário, a convidada ficava parada no fundo
+            // da cerimônia do host); assistindo à cena de alguém, só o avatar dele (o protagonista) aparece.
+            var visible = rm.Field == localField && !CharacterCreator.OnScreen && !rm.Broken && EventWatch.ShowRemoteInEvent(kv.Key);
             if (rm.Avatar.activeSelf != visible) rm.Avatar.SetActive(visible);
             if (!visible) continue;
 

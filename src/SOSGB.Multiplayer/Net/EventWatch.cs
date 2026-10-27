@@ -31,7 +31,8 @@ public class EventWatch : MonoBehaviour
 {
     public EventWatch(IntPtr ptr) : base(ptr) { }
 
-    private const byte KStart = 1, KStep = 2, KEnd = 3;
+    private const byte KStart = 1, KStep = 2, KEnd = 3, KChoice = 4, KReach = 5, KWatchBegin = 6, KWatchEnd = 7, KSkip = 8;
+    private const float LockstepTimeout = 8f; // quem está na cena espera no máximo isso por quem assiste, em cada fala
     private const byte WaitMessage = 1, WaitUi = 2, WaitDialog = 3;
     private const float OpenTimeout = 25f; // a cena carrega de forma assíncrona (EventConductor.Load)
 
@@ -62,6 +63,7 @@ public class EventWatch : MonoBehaviour
     private static bool _hostEnded;
     private static float _hostEndedAt;
     private static int _myWait = -1;
+    private static int _lastWait = -1;
     private static byte _myWaitKind;
     private static float _waitSince;
     private static float _startedAt;
@@ -91,6 +93,19 @@ public class EventWatch : MonoBehaviour
 
     private static bool InEvent => GameController.IsInstance && GameController.Instance.IsPlayingEvent;
 
+    /// <summary>
+    /// Assistindo, com a cena já aberta: a parte "festival" do outro fica guardada (o fim da cerimônia daqui depende da mudança de
+    /// estado que o FestivalEnd faz aqui) e a daqui não é enviada. Aplicada no fim (StopWatch).
+    /// </summary>
+    public static bool HoldFestivalSync => Watching && _deferred == null;
+
+    /// <summary>Avatar de outro jogador durante uma cena: assistindo, só o protagonista; na própria cena, nenhum.</summary>
+    public static bool ShowRemoteInEvent(byte id)
+    {
+        if (Watching) return id == _watchedId;
+        return !InEvent;
+    }
+
     /// <summary>Ligado na configuração, ou só nesta execução por SOSGB_WATCH_FESTIVAL=1 (testes; o .cfg fica como está).</summary>
     private static bool Enabled => Plugin.WatchFestivalScenes.Value || System.Environment.GetEnvironmentVariable("SOSGB_WATCH_FESTIVAL") == "1";
 
@@ -104,6 +119,53 @@ public class EventWatch : MonoBehaviour
         try { return FestivalExecutor.IsInstance && FestivalExecutor.Instance.GetCurrentFestivalPlayerRanking() > 0; }
         catch { return false; }
     }
+
+    /// <summary>Festivais com competição (classificação na cena): exposições, corrida, concurso de pets, culinária, sucos.</summary>
+    private static bool NeedsRanking()
+    {
+        try
+        {
+            if (!FestivalExecutor.IsInstance) return false;
+            var cat = FestivalExecutor.Instance.GetCurrentFestivalCategory().ToString();
+            return cat.StartsWith("Competition") || cat.StartsWith("HorseRacing") || cat.StartsWith("PetContest")
+                   || cat.StartsWith("Food") || cat == "Juice";
+        }
+        catch { return false; }
+    }
+
+    private static readonly Dictionary<long, int> HostChoice = new();   // (cena << 20 | comando) → opção escolhida por quem está na cena
+    private static int _bcLastDialog = -1;
+    private static int _bcLastWait = -1;
+    private static readonly Dictionary<byte, int> Watchers = new(); // quem assiste à minha cena → última espera a que chegou
+    private static bool _pendingNext, _allowNext;
+    private static float _pendingSince;
+    private static bool _skipTried, _closeTried, _sawCommand; // _sawCommand: algum comando já rodou (antes disso, "acabaram" = ainda carregando)
+    private static float _allEndSince = -1;
+    private static bool _closingWatch, _finishTried;
+    private static bool _closeSeen;      // o CloseEvent do jogo já rodou nesta cena (fechamento natural ou pelo Pular)
+    private static float _closeSeenAt;
+    private static EventExecCommandBase _fadeCmd;
+    private static float _fadeAt;
+    private static bool _fadeIsIn;
+
+    /// <summary>Fade de quem assiste parado mais de 3 s: completa (o comando é dado como terminado).</summary>
+    private static void RescueStuckFade()
+    {
+        if (_fadeCmd == null) return;
+        try
+        {
+            if (_fadeCmd.IsCommandEnd) { _fadeCmd = null; return; }
+            if (Time.unscaledTime - _fadeAt < 3f) return;
+            if (_fadeIsIn) FadeManager.FadeIn(null, null, 0.3f, 0f);
+            else FadeManager.FadeOut(FadeType.Black, null, null, 0.3f);
+            _fadeCmd.IsForceCommandNext = true;
+            _fadeCmd.IsCommandEnd = true;
+            Plugin.Logger.LogInfo($"[EventWatch] fade {(_fadeIsIn ? "de entrada" : "de saída")} parado aqui: completado");
+        }
+        catch { /* comando já liberado */ }
+        _fadeCmd = null;
+    }
+    private static long ChoiceKey(uint ev, int idx) => ((long)ev << 20) | (uint)idx;
 
     private static StartInfo _deferred;
     private static float _deferredSince;
@@ -127,7 +189,12 @@ public class EventWatch : MonoBehaviour
         _broadcasting = true;
         _bcEvent = eventId;
         _bcIdleSince = -1;
-        var field = FieldManager.IsInstance ? FieldManager.Instance.CurrentFieldId : 0;
+        _bcLastWait = -1;
+        _bcLastDialog = -1;
+        _bcSkipped = false;
+        Watchers.Clear();
+        _pendingNext = false;
+        var field =FieldManager.IsInstance ? FieldManager.Instance.CurrentFieldId : 0;
         var script = scriptId ?? "";
         var ids = masters ?? new List<uint>();
         Send(KStart, w =>
@@ -141,10 +208,67 @@ public class EventWatch : MonoBehaviour
 
     private static void OnLocalWait(int commandIndex, byte kind)
     {
-        if (Watching) { _myWait = commandIndex; _myWaitKind = kind; _waitSince = Time.unscaledTime; return; }
+        if (Watching)
+        {
+            _myWait = commandIndex; _myWaitKind = kind; _waitSince = Time.unscaledTime; _advanceTries = 0;
+            var evw = _curEvent;
+            Send(KReach, w => { w.Put(evw); w.Put(commandIndex); }); // espera conjunta: quem está na cena só passa quando eu chego
+            return;
+        }
         if (!_broadcasting) return;
         var ev = _bcEvent;
+        _bcLastWait = commandIndex;
+        if (kind == WaitDialog) _bcLastDialog = commandIndex;
         Send(KStep, w => { w.Put(ev); w.Put(commandIndex); w.Put(kind); });
+    }
+
+    /// <summary>
+    /// Quem está na cena passou a fala/tela (Enter: EventConductor.Next): quem assiste passa a dela NA HORA. Antes o aviso só ia
+    /// quando a fala seguinte começava, e quem assiste ficava sempre um trecho atrás: tocava as animações depois e as falas
+    /// fechavam de uma vez, cortando animações (visto pelo usuário).
+    /// </summary>
+    /// <summary>
+    /// Espera conjunta: quem está na cena só passa a fala quando todos os que assistem já chegaram nela (até 8 s). Assim os
+    /// dois tocam juntos as animações do trecho seguinte, e quem assiste não precisa fechar falas de uma vez para alcançar
+    /// (isso cortava as animações, visto pelo usuário). O Enter fica guardado e é aplicado sozinho quando o outro chega.
+    /// </summary>
+    private static bool HoldNext()
+    {
+        if (_allowNext || _bcSkipped || !_broadcasting || Watchers.Count == 0 || _bcLastWait < 0) return false;
+        var behind = Watchers.Any(kv => kv.Value < _bcLastWait);
+        if (!behind) return false;
+        if (!_pendingNext) { _pendingNext = true; _pendingSince = Time.unscaledTime; Plugin.Logger.LogInfo($"[EventWatch] esperando quem assiste chegar na fala {_bcLastWait}"); }
+        return true;
+    }
+
+    private static void OnLocalNext()
+    {
+        if (!_broadcasting || _bcLastWait < 0) return;
+        var ev = _bcEvent;
+        var passed = _bcLastWait + 1;
+        Send(KStep, w => { w.Put(ev); w.Put(passed); w.Put((byte)0); });
+    }
+
+    private static bool _bcSkipped;
+
+    /// <summary>Quem está na cena confirmou "Pular": quem assiste pula junto (a espera conjunta não segura mais nada).</summary>
+    private static void OnLocalSkip()
+    {
+        if (!_broadcasting || _bcSkipped) return;
+        _bcSkipped = true;
+        _pendingNext = false;
+        var ev = _bcEvent;
+        Send(KSkip, w => w.Put(ev));
+        Plugin.Logger.LogInfo($"[EventWatch] cena {ev} pulada aqui: quem assiste pula junto");
+    }
+
+    /// <summary>Quem está na cena escolheu uma opção num diálogo: quem assiste escolhe a mesma (roteiros com bifurcação).</summary>
+    private static void OnLocalChoice(int selectIndex)
+    {
+        if (!_broadcasting || _bcLastDialog < 0) return;
+        var ev = _bcEvent;
+        var idx = _bcLastDialog;
+        Send(KChoice, w => { w.Put(ev); w.Put(idx); w.Put(selectIndex); });
     }
 
     // ---------- quem assiste ----------
@@ -208,6 +332,32 @@ public class EventWatch : MonoBehaviour
                     _hostEnded = true;
                     _hostEndedAt = Time.unscaledTime;
                     break;
+                case KWatchBegin:
+                    if (_broadcasting) { Watchers[who] = -1; Plugin.Logger.LogInfo($"[EventWatch] #{who} está assistindo à minha cena"); }
+                    break;
+                case KWatchEnd:
+                    if (Watchers.Remove(who)) Plugin.Logger.LogInfo($"[EventWatch] #{who} parou de assistir à minha cena");
+                    break;
+                case KReach:
+                {
+                    var ev = rr.GetUInt();
+                    var idx = rr.GetInt();
+                    if (_broadcasting && ev == _bcEvent) Watchers[who] = Watchers.TryGetValue(who, out var cur) ? Math.Max(cur, idx) : idx;
+                    break;
+                }
+                case KChoice:
+                {
+                    var ev = rr.GetUInt();
+                    var idx = rr.GetInt();
+                    var choice = rr.GetInt();
+                    if (!Watching || who != _watchedId) return;
+                    HostChoice[ChoiceKey(ev, idx)] = choice;
+                    break;
+                }
+                case KSkip:
+                    if (!Watching || who != _watchedId) return;
+                    _hostSkipped = true;
+                    break;
             }
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] mensagem: {e.Message}"); }
@@ -233,11 +383,14 @@ public class EventWatch : MonoBehaviour
         _watchedId = who;
         HostStep.Clear();
         HostDone.Clear();
+        HostChoice.Clear();
         Pending.Clear();
         _hostEnded = false;
+        _hostSkipped = false;
         var name = NetSession.Players.TryGetValue(who, out var p) ? p.Name : "outro jogador";
         Last = $"assistindo a cena {info.Event} de {name}";
         Plugin.Logger.LogInfo($"[EventWatch] {Last}");
+        Send(KWatchBegin, null);
         _deferred = info;                       // abre quando a classificação do festival estiver aqui (Update)
         _deferredSince = Time.unscaledTime;
         _startedAt = Time.unscaledTime;
@@ -254,40 +407,85 @@ public class EventWatch : MonoBehaviour
         _myWait = -1;
         _startedAt = Time.unscaledTime;
         _everInEvent = false;
+        _skipTried = false;
+        _closeTried = false;
+        _finishTried = false;
+        _closeSeen = false;
+        _skipCloseAt = -1;
+        _fadeCmd = null;
+        _sawCommand = false;
+        _allEndSince = -1;
         var list = new Il2CppSystem.Collections.Generic.List<EventMasterData>();
         foreach (var md in MasterDataManager.Instance.EventMasterData)
             if (md != null && info.Masters.Contains(md.Id)) list.Add(md);
         if (list.Count == 0) { StopWatch($"cadastro da cena {info.Event} não encontrado"); return false; }
+        // mapa de destino 0 = "nenhum": usa o mapa atual (testes com uma instância mandavam 0)
+        _openList = list;
+        _openNext = info.NextField != 0 ? info.NextField : (FieldManager.IsInstance ? FieldManager.Instance.CurrentFieldId : 0);
+        _openSpawn = info.Spawn;
+        // Como o TalkEventStart do jogo: escurece a tela ANTES de abrir a cena. O primeiro comando da cena é um FadeIn de cena
+        // (FadeManager.EventFadeIn), que espera a tela escura; sem esse escurecer prévio ele nunca terminava, e daí em diante
+        // nenhum fade completava (o FadeOut só age com o fade anterior completo), inclusive o do fim de cena, que é o que devolve
+        // o personagem, os moradores e o HUD (visto pelo usuário: P2 presa e praça vazia no fim).
+        try
+        {
+            if (FadeManager.IsFadeOut) OpenPrepared();
+            else
+            {
+                _awaitingFade = true;
+                _awaitFadeSince = Time.unscaledTime;
+                FadeManager.FadeOut(FadeType.Black, null, (Il2CppSystem.Action)new Action(OpenPrepared), 0f);
+            }
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] escurecer antes da cena: {e.Message}"); OpenPrepared(); }
+        return true;
+    }
+
+    private static Il2CppSystem.Collections.Generic.List<EventMasterData> _openList;
+    private static uint _openNext;
+    private static string _openSpawn = "";
+    private static bool _awaitingFade;
+    private static float _awaitFadeSince;
+
+    /// <summary>Abre a cena preparada (depois do escurecer, ou no socorro de 3 s se o escurecer não avisar).</summary>
+    private static void OpenPrepared()
+    {
+        _awaitingFade = false;
+        var list = _openList;
+        _openList = null;
+        if (list == null || !Watching) return;
+        _startedAt = Time.unscaledTime;
         _starting = true;
         try
         {
-            // mapa de destino 0 = "nenhum": usa o mapa atual (testes com uma instância mandavam 0)
-            var next = info.NextField != 0 ? info.NextField : (FieldManager.IsInstance ? FieldManager.Instance.CurrentFieldId : 0);
             var gc = GameController.Instance;
             switch (_openMode)
             {
-                case "talk": gc.TalkEventStart(list, next, info.Spawn, "", false, false, null, null, null, null); break;
-                case "talkfade": gc.TalkEventStart(list, next, info.Spawn, "", true, false, null, null, null, null); break;
-                default: gc.StartEvent(list, next, info.Spawn, ""); break;
+                case "talk": gc.TalkEventStart(list, _openNext, _openSpawn, "", false, false, null, null, null, null); break;
+                case "talkfade": gc.TalkEventStart(list, _openNext, _openSpawn, "", true, false, null, null, null, null); break;
+                default: gc.StartEvent(list, _openNext, _openSpawn, ""); break;
             }
-            Plugin.Logger.LogInfo($"[EventWatch] abrindo a cena {info.Event} ({_openMode}, mapa {next}, ponto '{info.Spawn}')");
+            Plugin.Logger.LogInfo($"[EventWatch] abrindo a cena {_curEvent} ({_openMode}, mapa {_openNext}, ponto '{_openSpawn}')");
         }
-        catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] abrir a cena {info.Event}: {e.Message}"); Recover("erro ao abrir"); return false; }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] abrir a cena {_curEvent}: {e.Message}"); Recover("erro ao abrir"); }
         finally { _starting = false; }
-        return true;
     }
 
     private static void StopWatch(string why)
     {
+        if (Watching) Send(KWatchEnd, null);
         Watching = false;
         _testAuto = false;
         _deferred = null;
+        _awaitingFade = false;
+        _openList = null;
         _watchedId = NetSession.UnknownId;
         _curEvent = 0;
         _myWait = -1;
         Pending.Clear();
         foreach (var rd in Hidden) if (rd != null) rd.enabled = true;
         Hidden.Clear();
+        try { SharedSync.ReleaseHeldFestival(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] festival guardado: {e.Message}"); }
         Last = $"parou de assistir: {why}";
         Plugin.Logger.LogInfo($"[EventWatch] {Last}");
     }
@@ -342,11 +540,29 @@ public class EventWatch : MonoBehaviour
                 }
             }
 
+            if (_pendingNext)
+            {
+                var ready = !_broadcasting || Watchers.Count == 0 || Watchers.All(kv => kv.Value >= _bcLastWait);
+                if (ready || Time.unscaledTime - _pendingSince > LockstepTimeout)
+                {
+                    _pendingNext = false;
+                    if (!ready) Plugin.Logger.LogInfo($"[EventWatch] quem assiste não chegou na fala {_bcLastWait} em {LockstepTimeout} s: seguindo");
+                    _allowNext = true;
+                    try { EventManager.Instance.conductor?.Next(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] passar a fala: {e.Message}"); }
+                    finally { _allowNext = false; }
+                }
+            }
+
             if (!Watching) return;
             if (_deferred != null)
             {
-                if (RankingReady() || _testAuto) { var d = _deferred; _deferred = null; StartLocal(d); }
+                if (!NeedsRanking() || RankingReady() || _testAuto) { var d = _deferred; _deferred = null; StartLocal(d); }
                 else if (Time.unscaledTime - _deferredSince > 8f) { _deferred = null; StopWatch("a classificação do festival não chegou: cena não aberta"); }
+                return;
+            }
+            if (_awaitingFade)
+            {
+                if (Time.unscaledTime - _awaitFadeSince > 3f) { Plugin.Logger.LogInfo("[EventWatch] o escurecer antes da cena não avisou: abrindo assim mesmo"); OpenPrepared(); }
                 return;
             }
             if (!_testAuto) HideLocalPlayer();
@@ -366,31 +582,152 @@ public class EventWatch : MonoBehaviour
                 return;
             }
 
+            // a cena já está fechando pelo caminho do jogo (EventEnd: mapa recarregado, HUD, moradores): só espera; se travar, socorro
+            if (_closeSeen)
+            {
+                var since = Time.unscaledTime - _closeSeenAt;
+                if (since > 20f && !_finishTried)
+                {
+                    _finishTried = true;
+                    try { EventManager.Instance.OnFinishEventEnd(true); Plugin.Logger.LogInfo($"[EventWatch] cena {_curEvent}: o fechamento do jogo parou; fim de cena chamado"); }
+                    catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] fim de cena do jogo: {e.Message}"); }
+                }
+                if (since > 35f) Recover("o fechamento da cena não terminou");
+                return;
+            }
+
+            RetrySkipClose();
+
+            // quem está na cena pulou: pula junto, pelo mesmo caminho do "Pular" do jogo
+            if (_hostSkipped && !_skipTried)
+            {
+                SkipLikeGame($"cena {_curEvent}: o outro pulou; pulando junto");
+                return;
+            }
+
             // fala/tela/escolha esperando: passa quando o outro já passou dela (ou já terminou a cena)
             if (_myWait >= 0)
             {
                 var done = _hostEnded || HostDone.Contains(_curEvent) || Pending.Count > 0;
                 var passed = HostStep.TryGetValue(_curEvent, out var hs) && hs > _myWait;
+                if (_myWaitKind == WaitDialog && HostChoice.ContainsKey(ChoiceKey(_curEvent, _myWait))) passed = true;
                 if (_testAuto) passed = Time.unscaledTime - _waitSince > 1.5f;
-                if (done || passed) Advance();
+                if (done || passed)
+                {
+                    if (_myWaitKind == WaitMessage) AdvanceMessage();
+                    else Advance();
+                }
             }
 
-            // o outro terminou faz tempo e a cena daqui não: encerra
-            if (_hostEnded && Time.unscaledTime - _hostEndedAt > 20f) Recover("cena encerrada (o outro já tinha terminado)");
+            RescueStuckFade();
+
+            // Todos os comandos acabaram e o jogo não fechou a cena em 20 s: o fechamento normal do jogo (é o que a corrotina de
+            // entrada, CheckInputCoroutine, chama no fim). Daí em diante quem cuida é o bloco do _closeSeen.
+            var cdc = EventManager.Instance.conductor;
+            if (cdc != null && _sawCommand && cdc.IsAllCommandEnd)
+            {
+                if (_allEndSince < 0) _allEndSince = Time.unscaledTime;
+                else if (!_closeTried && Time.unscaledTime - _allEndSince > 20f)
+                {
+                    _closeTried = true;
+                    _closingWatch = true;
+                    try { EventManager.Instance.CloseEvent(); Plugin.Logger.LogInfo($"[EventWatch] cena {_curEvent}: comandos acabaram; fechando como o jogo fecha"); }
+                    catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] fechar: {e}"); }
+                    finally { _closingWatch = false; }
+                }
+            }
+            else _allEndSince = -1;
+
+            // O outro terminou e a cena daqui não fechou: "Pular" do próprio jogo (leva ao fim e fecha direito, devolvendo o
+            // personagem); só se nem isso fechar, a recuperação.
+            if (_hostEnded && !_skipTried && !_closeTried && Time.unscaledTime - _hostEndedAt > 6f)
+                SkipLikeGame($"cena {_curEvent}: pulando até o fim (o outro já terminou)");
+            if (_hostEnded && Time.unscaledTime - _hostEndedAt > 30f) Recover("cena encerrada (o outro já tinha terminado)");
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] {e.Message}"); }
+    }
+
+    private static bool _hostSkipped;
+
+    /// <summary>
+    /// Pula até o fim e fecha a cena como o "Pular" do jogo faz quando o roteiro não tem rótulo de pulo (o fechamento b__0 do
+    /// EventManager.OpenSkipDialog: pulo forçado, ExecuteSkip, para as corrotinas da cena e ForceEventClose, que escurece e
+    /// chama o CloseEvent normal). O próprio b__0 não serve aqui: ele só age com o fade completo, e em quem assiste quase
+    /// sempre há um fade da cena em andamento (testado: o host pulou e a convidada seguiu a cena até o socorro de 30 s).
+    /// </summary>
+    private static void SkipLikeGame(string why)
+    {
+        _skipTried = true;
+        _myWait = -1;
+        if (!EventManager.IsInstance) return;
+        var em = EventManager.Instance;
+        var cd = em.conductor;
+        try { if (cd != null) { cd.SetIsForceSkip(true); cd.ExecuteSkip(); } }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] pular os comandos: {e.Message}"); }
+        try { em.StopAllCoroutines(); } catch { /* segue para o fechamento */ }
+        try { EventCoroutineManager.instance?.AllStopRunningCoroutine(); } catch { /* segue para o fechamento */ }
+        // O ForceEventClose não faz nada (devolve false) com um fade em andamento: o Update tenta de novo e, em 2 s, fecha direto.
+        var closing = false;
+        try { closing = em.ForceEventClose(null); }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] fechar depois de pular: {e.Message}"); }
+        _skipCloseAt = closing ? -1 : Time.unscaledTime;
+        Plugin.Logger.LogInfo($"[EventWatch] {why}{(closing ? "" : " (fechamento espera o fade)")}");
+    }
+
+    private static float _skipCloseAt = -1;
+
+    /// <summary>Depois de pular: o fechamento que o ForceEventClose recusou (fade em andamento).</summary>
+    private static void RetrySkipClose()
+    {
+        if (_skipCloseAt < 0 || _closeSeen) { _skipCloseAt = -1; return; }
+        var em = EventManager.Instance;
+        bool ok;
+        try { ok = em.ForceEventClose(null); } catch { ok = false; }
+        if (ok) { _skipCloseAt = -1; return; }
+        if (Time.unscaledTime - _skipCloseAt < 2f) return;
+        _skipCloseAt = -1;
+        try { FadeManager.FadeOut(FadeType.Black, null, null, 0f); } catch { /* fecha mesmo assim */ }
+        _closingWatch = true;
+        try { em.CloseEvent(); Plugin.Logger.LogInfo($"[EventWatch] cena {_curEvent}: fechada direto depois de pular"); }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] fechar depois de pular: {e.Message}"); }
+        finally { _closingWatch = false; }
+    }
+
+    private static int _advanceTries;
+    private static float _nextAdvanceTry;
+
+    /// <summary>
+    /// Passa a fala de quem assiste pelo mesmo caminho do Enter (EventConductor.Next). Fechar a janela por fora
+    /// (UIManager.CloseMessage) fazia o jogo tratar a fala como pulada e cortava as animações (visto pelo usuário). Se a fala
+    /// não passar em 4 tentativas, fecha por fora.
+    /// </summary>
+    private static void AdvanceMessage()
+    {
+        if (Time.unscaledTime < _nextAdvanceTry) return;
+        var cd = EventManager.IsInstance ? EventManager.Instance.conductor : null;
+        if (cd == null) { Advance(); return; }
+        if (!cd.IsMessageCommand) { _myWait = -1; _advanceTries = 0; return; } // a fala já passou
+        if (_advanceTries >= 4) { _advanceTries = 0; Advance(); return; }
+        _advanceTries++;
+        _nextAdvanceTry = Time.unscaledTime + 0.4f;
+        try { cd.Next(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] passar a fala aqui: {e.Message}"); Advance(); }
     }
 
     private static void Advance()
     {
         if (_ui == null) _ui = UnityEngine.Object.FindObjectOfType<UIManager>();
         var kind = _myWaitKind;
+        _lastWait = _myWait;
         _myWait = -1;
         if (_ui == null) return;
         try
         {
             if (kind == WaitMessage) _ui.CloseMessage(null, null);
-            else if (kind == WaitDialog) _ui.CloseDialog(null, null, true, false, false);
+            else if (kind == WaitDialog)
+            {
+                if (HostChoice.TryGetValue(ChoiceKey(_curEvent, _lastWait), out var choice)) EventManager.Instance.conductor?.SendDialogParameter(choice);
+                _ui.CloseDialog(null, null, true, false, false);
+            }
             else _ui.CloseMenu(null, null, false, null, false);
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] passar: {e.Message}"); }
@@ -423,6 +760,14 @@ public class EventWatch : MonoBehaviour
             return "aberta pelo caminho privado; a recuperação deve agir em 6 s se não abrir";
         }
         if (a.Length >= 1 && a[0] == "close") { Recover("teste"); return "encerrada"; }
+        if (a.Length >= 1 && a[0] == "skip") // como o jogador confirmando "Pular" no diálogo do jogo
+        {
+            var em = EventManager.Instance;
+            var canSkip = em.IsEnableSkip;
+            if (em.conductor != null) em.conductor.IsOpenDialog = true; // o fechamento só age com o diálogo aberto
+            new EventManager.__c__DisplayClass38_0 { __4__this = em }._OpenSkipDialog_b__0(true);
+            return $"pulando (a cena permite pular: {canSkip})";
+        }
         string cond;
         try
         {
@@ -430,6 +775,12 @@ public class EventWatch : MonoBehaviour
             var pd = cd?.PrevData;
             var cur = pd?.GetCurrentMasterData();
             cond = $"condutor={(cd != null)} dados={(pd != null)} cenaAtual={cur?.Id}";
+            if (cd != null)
+            {
+                var om = cd.ObjectModel;
+                cond += $" comandosAcabaram={cd.IsAllCommandEnd} próximo={cd.IsCommandNext} janelaFala={cd.IsPlayingMessageWindowAnim} diálogo={cd.IsOpenDialog} pausada={cd.IsPauseEvent}";
+                if (om != null) cond += $" mexendo={om.CheckMoveAnyObject()} animando={om.CheckPlayAnyMotion()} pescoço={om.CheckMoveAnyNeck()} efeito={om.CheckMoveAnyEffect()} olhos={om.CheckMoveAnyEye()}";
+            }
         }
         catch (Exception e) { cond = "condutor: " + e.Message; }
         return $"emCena={InEvent} executando={Executing} assistindo={Watching} cena={_curEvent} espera={_myWait} {cond} last={Last}";
@@ -477,15 +828,124 @@ public class EventWatch : MonoBehaviour
         }
     }
 
-    /// <summary>Diagnóstico (só com a ponte de teste): cada comando executado em quem assiste e em quem está na cena.</summary>
+    /// <summary>Marca que a cena de quem assiste já está rodando; com a ponte de teste, registra cada comando (diagnóstico).</summary>
     [HarmonyPatch(typeof(EventExecCommandBase), nameof(EventExecCommandBase.Execute))]
     private static class TraceCommandsPatch
     {
         private static void Postfix(EventExecCommandBase __instance)
         {
+            if (Watching) _sawCommand = true;
             if (!Plugin.DevMode || (!Watching && !_broadcasting) || __instance == null) return;
             try { Plugin.Logger.LogInfo($"[EventWatch] {(Watching ? "assiste" : "cena")} cmd {__instance.commandIndex} {__instance.Type} {__instance.GetIl2CppType().Name}"); }
             catch { /* diagnóstico */ }
+        }
+    }
+
+    /// <summary>
+    /// No fim da cena de quem assiste, o fechamento normal (CloseEvent → EventConductor.Reset → ReleaseAllEventObjects) quebrava
+    /// num objeto com id −1 (dicionário do jogo; o objeto exato não foi identificado) e o personagem ficava preso. Em quem assiste,
+    /// a falha é registrada e o fechamento continua.
+    /// </summary>
+    [HarmonyPatch(typeof(EventObjectModel), nameof(EventObjectModel.ReleaseAllEventObjects))]
+    private static class ReleasePatch
+    {
+        // Diagnóstico (ponte de teste): os objetos da cena no momento da liberação, nos dois jogos, para achar o id −1.
+        private static void Prefix(EventObjectModel __instance)
+        {
+            if (!Plugin.DevMode || !(Watching || _closingWatch || _broadcasting) || __instance == null) return;
+            try
+            {
+                var parts = new List<string>();
+                var dic = __instance.transformInfoDic;
+                if (dic != null)
+                    foreach (var kv in dic)
+                    {
+                        var ti = kv.Value;
+                        var oi = ti?.TryCast<ObjectInfo>();
+                        parts.Add($"{kv.Key}:{ti?.ObjectName}/{ti?.Type}{(oi != null ? $"/cat{oi.ModelCategory}/t{oi.TableId}/{(oi.Instance != null ? oi.Instance.name : "sem-instância")}" : "")}");
+                    }
+                var comp = new List<string>();
+                if (__instance.festivalCompetitionDic != null) foreach (var kv in __instance.festivalCompetitionDic) comp.Add($"{kv.Key}:{kv.Value?.EventObjectName}");
+                Plugin.Logger.LogInfo($"[EventWatch] liberando objetos ({(Watching || _closingWatch ? "assiste" : "cena")}): {string.Join(" | ", parts)} || competidores: {string.Join(", ", comp)}");
+            }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] diagnóstico da liberação: {e.Message}"); }
+        }
+
+        private static Exception Finalizer(Exception __exception)
+        {
+            if (__exception == null || !(Watching || _closingWatch)) return __exception;
+            Plugin.Logger.LogWarning($"[EventWatch] liberar objetos da cena falhou aqui (seguindo com o fechamento): {__exception.Message.Split((char)10)[0]}");
+            return null;
+        }
+    }
+
+    private static float _traceUntil;
+
+    /// <summary>Diagnóstico (ponte de teste): cada passo do fim de cena, nos dois jogos, até 90 s depois da cena.</summary>
+    [HarmonyPatch]
+    private static class EndTracePatch
+    {
+        private static IEnumerable<MethodBase> TargetMethods()
+        {
+            foreach (var (t, n) in new (Type, string)[]
+                     {
+                         (typeof(EventManager), "EventEnd"), (typeof(EventManager), "OnFinishEventEnd"), (typeof(EventManager), "OnCompleteEventEnd"),
+                         (typeof(EventManager), "CloseEvent"), (typeof(GameController), "TalkEventEnd"), (typeof(GameController), "EventFadeIn"),
+                         (typeof(GameController), "RewardDialogEndAction"), (typeof(EventEndChangeField), "EndChangeField"),
+                         (typeof(PlayerCharacter), "OnEndEvent"), (typeof(FestivalExecutor), "OnFadeInImmidiateExecute"),
+                     })
+            {
+                var m = AccessTools.GetDeclaredMethods(t).FirstOrDefault(x => x.Name == n);
+                if (m != null) yield return m;
+            }
+        }
+
+        private static void Prefix(MethodBase __originalMethod)
+        {
+            if (!Plugin.DevMode) return;
+            if (Watching || _broadcasting) _traceUntil = Time.unscaledTime + 90f;
+            if (Time.unscaledTime > _traceUntil) return;
+            Plugin.Logger.LogInfo($"[EventWatch] fim: {__originalMethod.DeclaringType?.Name}.{__originalMethod.Name} ({(Watching ? "assiste" : _broadcasting ? "cena" : "depois")})");
+        }
+    }
+
+    [HarmonyPatch(typeof(EventConductor), nameof(EventConductor.Next))]
+    private static class NextPatch
+    {
+        private static bool Prefix(EventConductor __instance)
+        {
+            try { if (__instance.IsMessageCommand && HoldNext()) return false; } catch { /* segue */ }
+            return true;
+        }
+
+        private static void Postfix()
+        {
+            try { OnLocalNext(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] passar: {e.Message}"); }
+        }
+    }
+
+    /// <summary>"Pular" confirmado no diálogo do jogo (fechamento b__0 do OpenSkipDialog, isSkip = true).</summary>
+    [HarmonyPatch(typeof(EventManager.__c__DisplayClass38_0), nameof(EventManager.__c__DisplayClass38_0._OpenSkipDialog_b__0))]
+    private static class SkipDialogPatch
+    {
+        private static void Prefix(bool __0)
+        {
+            if (!__0 || Watching) return;
+            try
+            {
+                var cd = EventManager.IsInstance ? EventManager.Instance.conductor : null;
+                if (cd != null && cd.IsOpenDialog) OnLocalSkip(); // sem o diálogo aberto o jogo não pula (o fechamento sai sem fazer nada)
+            }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] pular: {e.Message}"); }
+        }
+    }
+
+    [HarmonyPatch(typeof(EventConductor), nameof(EventConductor.SendDialogParameter))]
+    private static class ChoicePatch
+    {
+        private static void Postfix(int selectIndex)
+        {
+            try { OnLocalChoice(selectIndex); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] escolha: {e.Message}"); }
         }
     }
 
@@ -536,26 +996,20 @@ public class EventWatch : MonoBehaviour
     [HarmonyPatch]
     private static class FadePatch
     {
-        // Em quem assiste, os fades da cena são feitos na hora e o comando é dado como terminado: na convidada o FadeIn do
-        // meio da cerimônia (comando 285) nunca terminava a espera dele e a cena parava ali (teste com duas instâncias).
+        // Em quem assiste, os fades da cena rodam normalmente (feitos na hora, eles sumiam da tela: visto pelo usuário); só o que
+        // ficar parado mais de 3 s é completado pelo Update (na convidada o FadeIn do comando 285 nunca terminava a espera dele).
         private static IEnumerable<MethodBase> TargetMethods()
         {
             yield return AccessTools.DeclaredMethod(typeof(BokuMono.FieldEvent.FadeIn), "Execute");
             yield return AccessTools.DeclaredMethod(typeof(BokuMono.FieldEvent.FadeOut), "Execute");
         }
 
-        private static bool Prefix(EventExecCommandBase __instance)
+        private static void Postfix(EventExecCommandBase __instance)
         {
-            if (!Watching) return true;
-            try
-            {
-                if (__instance.TryCast<BokuMono.FieldEvent.FadeIn>() != null) FadeManager.FadeIn(null, null, 0.3f, 0f);
-                else FadeManager.FadeOut(FadeType.Black, null, null, 0.3f);
-            }
-            catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] fade: {e.Message}"); }
-            __instance.IsForceCommandNext = true;
-            __instance.IsCommandEnd = true;
-            return false;
+            if (!Watching || __instance == null) return;
+            _fadeCmd = __instance;
+            _fadeAt = Time.unscaledTime;
+            _fadeIsIn = __instance.TryCast<BokuMono.FieldEvent.FadeIn>() != null;
         }
     }
 
@@ -578,15 +1032,31 @@ public class EventWatch : MonoBehaviour
         private static bool Prefix() => !Watching;
     }
 
-    /// <summary>Em quem assiste: o fim do roteiro (recompensas e finais especiais) não roda.</summary>
+    /// <summary>
+    /// Em quem assiste: o fim do roteiro (recompensas e finais especiais) não roda, mas responde "seguir". No CloseEvent do jogo,
+    /// ScenarioEnd = false faz o fechamento PARAR ali, antes do EventEnd (que religa o HUD, a agenda dos moradores e recarrega o
+    /// mapa): era o que deixava a P2 presa no fim da cerimônia, sem HUD (rastro do fim nos dois jogos, 2026-10-27).
+    /// </summary>
     [HarmonyPatch(typeof(EventExternal), nameof(EventExternal.ScenarioEnd))]
     private static class SkipScenarioEndPatch
     {
         private static bool Prefix(ref bool __result)
         {
             if (!Watching) return true;
-            __result = false;
+            __result = true;
             return false;
+        }
+    }
+
+    /// <summary>Quem assiste: a cena começou a fechar pelo caminho do jogo; os socorros não mexem mais nela.</summary>
+    [HarmonyPatch(typeof(EventManager), "CloseEvent")]
+    private static class CloseSeenPatch
+    {
+        private static void Prefix()
+        {
+            if (!Watching || _closeSeen) return;
+            _closeSeen = true;
+            _closeSeenAt = Time.unscaledTime;
         }
     }
 }

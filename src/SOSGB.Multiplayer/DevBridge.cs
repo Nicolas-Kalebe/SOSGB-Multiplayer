@@ -385,7 +385,9 @@ public class DevBridge : MonoBehaviour
                     var sd0 = sa2.Length >= 3 && sa2[2] == "raw" ? StringExtensions.JsonToObject<BazaarManager.BazaarSaveData>(js0) : Net.SharedSync.BuildBazaar(js0);
                     return Json(new { ok = true, nulo = sd0 == null, original = js0, volta = sd0 == null ? null : StringExtensions.ToJson(sd0) });
                 }
-                if (sa2.Length >= 2 && sa2[0] == "reapply") return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], Net.SharedSync.CaptureJson(sa2[1]), markSynced: true) });
+                // A08: aplica um JSON inválido (simula falha de aplicação); "status" mostra a parte desligada na 3ª
+                if (sa2.Length >= 2 && sa2[0] == "bad") return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], "{\"quebrado\":", markSynced: false), status = Net.SharedSync.Status() });
+                if (sa2.Length >= 2 && sa2[0] == "reapply")return Json(new { ok = true, result = Net.SharedSync.ApplyPart(sa2[1], Net.SharedSync.CaptureJson(sa2[1]), markSynced: true) });
                 if (sa2.Length >= 2 && sa2[0] == "json") { var js = Net.SharedSync.CaptureJson(sa2[1]) ?? ""; return Json(new { ok = true, length = js.Length, head = js.Substring(0, Math.Min(900, js.Length)) }); }
                 return Json(new { ok = true, status = Net.SharedSync.Status() });
             }
@@ -1319,6 +1321,7 @@ public class DevBridge : MonoBehaviour
                             if (d != null && d.ItemId == uint.Parse(wmA[1])) { InventoryManager.Instance.BagToolStorage.PutOut(d); return "tirada"; }
                         return "não tem";
                     });
+                if (wmA.Length >= 4 && wmA[0] == "own") res = Net.WindmillToolGuard.TestAdd(int.Parse(wmA[1]), uint.Parse(wmA[2]), wmA[3]); // D85: windmill own <tipo> <item> <eu|guid>
                 if (wmA.Length >= 2 && wmA[0] == "takeout")
                     res = RW(() => { wm.TakeOutAction((WindmillCraftingType)int.Parse(wmA[1]), (Il2CppSystem.Action)(() => PushEvent("moinho:retirado"))); return "chamado"; });
                 var mills = new List<string>();
@@ -1355,7 +1358,7 @@ public class DevBridge : MonoBehaviour
                     }
                 var tools = new List<string>();
                 foreach (var d in InventoryManager.Instance.BagToolStorage.ItemDatas) if (d != null && d.ItemId != 0) tools.Add(d.ItemId.ToString());
-                return Json(new { ok = true, result = res, mills, recipes, tools });
+                return Json(new { ok = true, result = res, mills, recipes, tools, owners = Net.WindmillToolGuard.Status() });
             }
 
             case "trophy":
