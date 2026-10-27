@@ -85,6 +85,6 @@ Clique em **Gerar log** (painel da tela de título ou F9) e mande o `.zip` que a
 
 ### Para desenvolvedores: montar o pacote
 
-Use `python scripts/make-package.py --version 0.6.0 --ip <IP do host>` (gera `Downloads/SOSGB-Multiplayer-v<versão>-amiga.zip`; ver `scripts/CONTEXTO.md`).
+Use `python scripts/make-package.py --version 0.6.1 --ip <IP do host>` (gera `Downloads/SOSGB-Multiplayer-v<versão>-amiga.zip`; ver `scripts/CONTEXTO.md`).
 Pacote = da pasta do jogo do desenvolvedor: `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`, `dotnet/`, `BepInEx/core/`, `BepInEx/patchers/`, `BepInEx/plugins/SOSGB.Multiplayer/` + um `.cfg` com `AutoStart = join` + `LEIA-ME.txt`.
 **Nunca** incluir `BepInEx/interop/`, `BepInEx/unity-libs/` (gerados a partir do jogo), logs, `savedump/`, screenshots, nem um `.cfg` com `[DevBridge] Enabled = true`.
