@@ -1187,6 +1187,16 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, result = tres });
             }
 
+            case "actwake":
+                // actwake — PlayerCharacter.ActionWakeUp (animação de levantar da cama), investigação D80
+                GameController.Instance.GetPlayer().ActionWakeUp();
+                return Json(new { ok = true });
+
+            case "fadeout":
+                // fadeout — escurece a tela (FadeType.Black), investigação D80
+                FadeManager.FadeOut(FadeType.Black, null, null, 0f);
+                return Json(new { ok = true });
+
             case "fadein":
                 // fadein — clareia a tela (destravar uma tela preta de "carregando" em testes)
                 FadeManager.FadeIn(null, null, 0f, 0f);

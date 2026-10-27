@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D80 | **Transição da noite no convidado**: escurece na virada, carrega no escuro e acorda com a animação do jogo | ✅ Decidido |
 | D79 | **Guarda-roupa no meio de uma montagem** espera ela terminar (antes: "carregando" infinito); tela de aparência com diálogo por cima conta como aberta | ✅ Decidido |
 | D78 | **Rosto, pele e cores aplicados de verdade** (funções internas do jogo por peça) nos avatares dos outros e no visual próprio do convidado; peças só do outro copiadas para o avatar | ✅ Decidido |
 | D77 | **Peças dos avatares protegidas** contra a descarga do jogo (lista de proteção do gerenciador de peças); avatar estragado fica escondido até remontar | ✅ Decidido |

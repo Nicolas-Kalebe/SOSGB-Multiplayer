@@ -146,7 +146,7 @@ public class PlayerProfiles : MonoBehaviour
         {
             if (SceneManager.IsInstance && SceneManager.Instance.CurrentSceneMode != SceneMode.Game) _sawSceneChange = true;
             if (!WorldReady()) { _readySince = -1; return; }
-            if (_readySince < 0) { _readySince = Time.unscaledTime; return; }
+            if (_readySince < 0) { _readySince = Time.unscaledTime; if (_pendingIsNewDay) DaySync.GuestMorningLoaded(); return; }
             if (Time.unscaledTime - _readySince < 1.5f) return; // deixa os sistemas do mundo novo assentarem
             // Na entrada, espera a resposta do host (ProfileData) por até 8 s; sem resposta, começa do zero.
             if (!_firstWorldDone && !_profileAnswered)
@@ -165,7 +165,9 @@ public class PlayerProfiles : MonoBehaviour
                 if (_joinedWithoutSave) CharacterCreator.OpenSoon(3f); // D72: sem save, cria o personagem agora
             }
             _worldLoading = false;
+            var newDay = _pendingIsNewDay;
             ApplyPending();
+            if (newDay) DaySync.GuestMorning(); // D80: acorda e clareia
             _firstWorldDone = true;
             _nextUpload = Time.unscaledTime + 5f;
             return;

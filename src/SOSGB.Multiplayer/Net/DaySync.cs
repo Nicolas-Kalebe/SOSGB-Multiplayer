@@ -68,6 +68,7 @@ public class DaySync : MonoBehaviour
 
     private void Update()
     {
+        NightFadeWatchdog();
         try
         {
             if (NetSession.Current == NetSession.Mode.Offline)
@@ -246,9 +247,53 @@ public class DaySync : MonoBehaviour
                     _guestDayChanging = true;
                     _guestDayChangeSince = Time.unscaledTime;
                     Plugin.Logger.LogInfo("[DaySync] o host começou a virada do dia");
+                    GuestNightFade();
                 }
                 break;
         }
+    }
+
+    // ---------- D80: transição da noite no convidado ----------
+    // O jogo do convidado não faz a virada (recebe o mundo novo do host e recarrega): ele via o próprio personagem no meio
+    // da animação de deitar ("deitada fora da cama") e acordava em pé, sem animação (visto pelo usuário). Agora a tela
+    // escurece quando a virada começa, continua escura enquanto o mundo novo carrega e o perfil é aplicado, e clareia com
+    // a animação de acordar do jogo (ActionWakeUp, o espreguiçar).
+    private static bool _nightFaded;
+    private static float _nightFadedAt;
+
+    private static void GuestNightFade()
+    {
+        if (!LocalSleeping || _nightFaded) return;
+        try { FadeManager.FadeOut(FadeType.Black, null, null, 0f); } catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] escurecer: {e.Message}"); return; }
+        _nightFaded = true;
+        _nightFadedAt = Time.unscaledTime;
+    }
+
+    /// <summary>O mundo novo carregou (antes do perfil): mantém a tela escura.</summary>
+    public static void GuestMorningLoaded()
+    {
+        if (!_nightFaded) return;
+        try { if (FadeManager.IsInstance && !FadeManager.IsFadeOut) FadeManager.FadeOut(FadeType.Black, null, null, 0f); } catch { /* segue */ }
+    }
+
+    /// <summary>Perfil aplicado no dia novo: acorda (espreguiçar) e clareia.</summary>
+    public static void GuestMorning()
+    {
+        if (!_nightFaded) return;
+        _nightFaded = false;
+        try { GameController.Instance.GetPlayer()?.ActionWakeUp(); } catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] acordar: {e.Message}"); }
+        try { FadeManager.FadeIn(null, null, 0f, 0f); } catch (Exception e) { Plugin.Logger.LogWarning($"[DaySync] clarear: {e.Message}"); }
+        Plugin.Logger.LogInfo("[DaySync] manhã no convidado: acordou e a tela clareou");
+        DevBridge.PushEvent("manha-convidado");
+    }
+
+    /// <summary>Segurança: a tela nunca fica escura para sempre (ex.: o mundo novo não veio).</summary>
+    private static void NightFadeWatchdog()
+    {
+        if (!_nightFaded || Time.unscaledTime - _nightFadedAt < 90f) return;
+        _nightFaded = false;
+        Plugin.Logger.LogWarning("[DaySync] a manhã não chegou em 90 s: clareando a tela");
+        try { FadeManager.FadeIn(null, null, 0f, 0f); } catch { /* segue */ }
     }
 
     /// <summary>Host: conta quem dorme, anuncia e, se todos dormem, vira o dia.</summary>
