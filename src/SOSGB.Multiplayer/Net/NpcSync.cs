@@ -51,6 +51,7 @@ public class NpcSync : MonoBehaviour
     private static void ResetAll()
     {
         foreach (var n in new List<uint>(Frozen.Keys)) Unfreeze(n);
+        HoldFrozen.Clear();
         Busy.Clear();
         BusySince.Clear();
         _localTalk = 0;
@@ -79,8 +80,54 @@ public class NpcSync : MonoBehaviour
             foreach (var n in new List<uint>(Frozen.Keys))
                 if (Frozen[n] == null || !Busy.ContainsKey(n)) Unfreeze(n);
             foreach (var kv in Busy) Freeze(kv.Key, kv.Value);
+            HoldNpcsWhileGroupHeld();
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[NpcSync] {e.Message}"); }
+    }
+
+    private static bool FestivalDay()
+    {
+        try { return FestivalExecutor.IsInstance && FestivalExecutor.Instance.IsInSession; } catch { return false; }
+    }
+
+    private static readonly List<NonPlayerCharacter> HoldFrozen = new();
+    private static float _heldOffSince = -1;
+
+    /// <summary>
+    /// D83: outro jogador segura o tempo do grupo (diálogo ou cena em dia de festival). Aqui o relógio também para, mas os
+    /// moradores seguiam andando e o jogo os puxava de volta para o lugar da hora parada (iam e voltavam, visto pelo
+    /// usuário). Enquanto o tempo está segurado, eles ficam parados com a pausa do jogo; voltam quando o tempo volta.
+    /// </summary>
+    private static void HoldNpcsWhileGroupHeld()
+    {
+        var held = ClockSync.HeldBy != NetSession.UnknownId && ClockSync.HeldBy != NetSession.LocalId;
+        if (held)
+        {
+            foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+            {
+                if (npc == null || Frozen.ContainsKey(npc.CharacterId)) continue;
+                var po = npc.PauseObject;
+                if (po == null || po.IsPaused) continue;
+                // como na conversa (Freeze): só a pausa não segura; a agenda do morador também para
+                try { po.Pause(PauseType.Idle); npc.NPCSchedule?.SetNpcTalkStop(true); HoldFrozen.Add(npc); } catch { /* próximo tick */ }
+            }
+            _heldOffSince = -1;
+            return;
+        }
+        if (HoldFrozen.Count == 0) return;
+        // Entre uma fala e outra a trava some por um instante; liberar na hora fazia os moradores darem uns passos e pararem
+        // de novo, várias vezes por conversa (visto pelo usuário). Só libera com o tempo solto por 2 s.
+        if (_heldOffSince < 0) { _heldOffSince = Time.unscaledTime; return; }
+        if (Time.unscaledTime - _heldOffSince < 2f) return;
+        _heldOffSince = -1;
+        foreach (var npc in HoldFrozen)
+        {
+            if (npc == null || Frozen.ContainsKey(npc.CharacterId)) continue;
+            try { npc.NPCSchedule?.SetNpcTalkStop(false); } catch { }
+            try { if (npc.PauseObject != null && npc.PauseObject.IsPaused) npc.PauseObject.Resume(); } catch { }
+        }
+        Plugin.Logger.LogInfo($"[NpcSync] tempo do grupo voltou: {HoldFrozen.Count} morador(es) liberado(s)");
+        HoldFrozen.Clear();
     }
 
     private static NonPlayerCharacter Find(uint charaId)
@@ -201,6 +248,9 @@ public class NpcSync : MonoBehaviour
     private static void KeepNpcsWalking()
     {
         if (NetSession.Current == NetSession.Mode.Offline || ClockSync.InPauseMenu) return;
+        // Dia de festival: a conversa PARA o tempo do grupo (D83), então os moradores ficam com a pausa do jogo. Tirando a
+        // pausa, eles tentavam seguir a agenda com o relógio parado e iam e voltavam (visto pelo usuário).
+        if (FestivalDay()) return;
         try
         {
             var pausing = GameController.Instance.pauser?.pausingObjects;

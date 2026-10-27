@@ -31,8 +31,14 @@ public class EventWatch : MonoBehaviour
 {
     public EventWatch(IntPtr ptr) : base(ptr) { }
 
-    private const byte KStart = 1, KStep = 2, KEnd = 3, KChoice = 4, KReach = 5, KWatchBegin = 6, KWatchEnd = 7, KSkip = 8;
-    private const float LockstepTimeout = 8f; // quem está na cena espera no máximo isso por quem assiste, em cada fala
+    private const byte KStart = 1, KStep = 2, KEnd = 3, KChoice = 4, KReach = 5, KWatchBegin = 6, KWatchEnd = 7, KSkip = 8, KNextReq = 9, KBranch = 10, KInput = 11;
+    private const float LockstepTimeout = 8f;
+    /// <summary>
+    /// Cada um no seu ritmo (pedido do usuário, 2026-10-27): quem assiste vê a mesma cena (mesmos ramos e escolhas de quem a
+    /// iniciou, o avatar dele no papel principal) mas passa as próprias falas; quem termina antes espera com o tempo do grupo
+    /// parado. A sincronia fala a fala (espera conjunta, Enter espelhado) brigava com o jogo: falas pulando, texto cortado.
+    /// </summary>
+    private const bool OwnPace = true; // quem está na cena espera no máximo isso por quem assiste, em cada fala
     private const byte WaitMessage = 1, WaitUi = 2, WaitDialog = 3;
     private const float OpenTimeout = 25f; // a cena carrega de forma assíncrona (EventConductor.Load)
 
@@ -43,6 +49,7 @@ public class EventWatch : MonoBehaviour
         public List<uint> Masters = new();
         public uint NextField;
         public string Spawn = "";
+        public int Ranking = -1; // classificação no jogo de quem está na cena (-1 = não veio)
     }
 
     // ----- quem está na cena (transmite) -----
@@ -99,6 +106,10 @@ public class EventWatch : MonoBehaviour
     /// estado que o FestivalEnd faz aqui) e a daqui não é enviada. Aplicada no fim (StopWatch).
     /// </summary>
     public static bool HoldFestivalSync => Watching && _deferred == null;
+
+    /// <summary>D84: o avatar deste jogador deve copiar o personagem local (a cena assistida já está rodando aqui).</summary>
+    public static bool MirrorRemote(byte id) =>
+        Watching && id == _watchedId && _deferred == null && !_awaitingFade && _everInEvent && InEvent && !_closeSeen;
 
     /// <summary>Avatar de outro jogador durante uma cena: assistindo, só o protagonista; na própria cena, nenhum.</summary>
     public static bool ShowRemoteInEvent(byte id)
@@ -172,6 +183,10 @@ public class EventWatch : MonoBehaviour
         _fadeCmd = null;
     }
     private static long ChoiceKey(uint ev, int idx) => ((long)ev << 20) | (uint)idx;
+    private static readonly Dictionary<long, bool> HostBranch = new(); // (cena, comando) → resultado do ramo em quem está na cena
+    private static Branch _pendingBranch;
+    private static float _pendingBranchSince;
+    private static bool _branchForce;
 
     private static StartInfo _deferred;
     private static float _deferredSince;
@@ -208,11 +223,14 @@ public class EventWatch : MonoBehaviour
         var field =FieldManager.IsInstance ? FieldManager.Instance.CurrentFieldId : 0;
         var script = scriptId ?? "";
         var ids = masters ?? new List<uint>();
+        int ranking;
+        try { ranking = FestivalExecutor.IsInstance ? FestivalExecutor.Instance.GetCurrentFestivalPlayerRanking() : 0; } catch { ranking = 0; }
         Send(KStart, w =>
         {
             w.Put(eventId); w.Put(script); w.Put(field);
             w.Put(ids.Count); foreach (var m in ids) w.Put(m);
             w.Put(nextField); w.Put(spawn);
+            w.Put(ranking); // no fim: quem assiste só espera a classificação se a cena dela usa uma
         });
         Plugin.Logger.LogInfo($"[EventWatch] cena {eventId} ({script}) começou aqui (cadastros {string.Join(",", ids)}, mapa {nextField}, ponto '{spawn}'): os outros no mapa {field} podem assistir");
     }
@@ -268,6 +286,7 @@ public class EventWatch : MonoBehaviour
     /// </summary>
     private static bool HoldNext()
     {
+        if (OwnPace) return false;
         if (_allowNext || _bcSkipped || !_broadcasting || Watchers.Count == 0 || _bcLastWait < 0) return false;
         var behind = Watchers.Any(kv => kv.Value < _bcLastWait);
         if (!behind) return false;
@@ -335,6 +354,7 @@ public class EventWatch : MonoBehaviour
                     for (var i = 0; i < n; i++) info.Masters.Add(rr.GetUInt());
                     info.NextField = rr.GetUInt();
                     info.Spawn = rr.GetString();
+                    if (rr.AvailableBytes >= 4) info.Ranking = rr.GetInt();
                     if (Watching && who == _watchedId)
                     {
                         // a cena anterior do outro acabou e começou outra (cenas em sequência)
@@ -392,6 +412,40 @@ public class EventWatch : MonoBehaviour
                     if (!Watching || who != _watchedId) return;
                     _hostSkipped = true;
                     break;
+                case KBranch:
+                {
+                    var ev = rr.GetUInt();
+                    var idx = rr.GetInt();
+                    var res = rr.GetBool();
+                    if (!Watching || who != _watchedId) return;
+                    HostBranch[ChoiceKey(ev, idx)] = res;
+                    break;
+                }
+                case KInput:
+                {
+                    // o mesmo Enter de quem está na cena, na mesma fala
+                    var ev = rr.GetUInt();
+                    var idx = rr.GetInt();
+                    if (OwnPace || !Watching || who != _watchedId || ev != _curEvent || idx != _myWait) return;
+                    var cd = EventManager.IsInstance ? EventManager.Instance.conductor : null;
+                    if (cd == null || !cd.IsMessageCommand) return;
+                    _modNext = true;
+                    try { cd.Next(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] Enter espelhado: {e.Message}"); }
+                    finally { _modNext = false; }
+                    break;
+                }
+                case KNextReq:
+                {
+                    // quem assiste apertou Enter numa fala: passa aqui (e daí para todos) se ainda estamos nela
+                    var ev = rr.GetUInt();
+                    var idx = rr.GetInt();
+                    if (!_broadcasting || ev != _bcEvent || idx != _bcLastWait) return;
+                    var cd = EventManager.IsInstance ? EventManager.Instance.conductor : null;
+                    if (cd == null || !cd.IsMessageCommand) return;
+                    _allowNext = true;
+                    try { cd.Next(); } finally { _allowNext = false; }
+                    break;
+                }
             }
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] mensagem: {e.Message}"); }
@@ -418,6 +472,8 @@ public class EventWatch : MonoBehaviour
         HostStep.Clear();
         HostDone.Clear();
         HostChoice.Clear();
+        HostBranch.Clear();
+        _pendingBranch = null;
         Pending.Clear();
         _hostEnded = false;
         _hostSkipped = false;
@@ -599,10 +655,15 @@ public class EventWatch : MonoBehaviour
                 }
             }
 
+            if (_broadcasting) CheckAdvance();
+
             if (_pendingNext)
             {
                 var ready = !_broadcasting || Watchers.Count == 0 || Watchers.All(kv => kv.Value >= _bcLastWait);
-                if (ready || Time.unscaledTime - _pendingSince > LockstepTimeout)
+                // quem assiste ainda não chegou em nenhuma fala (carregando a cena): espera mais; antes a 1ª fala passava sem
+                // ele e, quando ele chegava, ela pulava sozinha (visto pelo usuário)
+                var limit = Watchers.Any(kv => kv.Value < 0) ? 30f : LockstepTimeout;
+                if (ready || Time.unscaledTime - _pendingSince > limit)
                 {
                     _pendingNext = false;
                     if (!ready) Plugin.Logger.LogInfo($"[EventWatch] quem assiste não chegou na fala {_bcLastWait} em {LockstepTimeout} s: seguindo");
@@ -615,7 +676,10 @@ public class EventWatch : MonoBehaviour
             if (!Watching) return;
             if (_deferred != null)
             {
-                if (!NeedsRanking() || RankingReady() || _testAuto) { var d = _deferred; _deferred = null; StartLocal(d); }
+                // Só espera a classificação se a de quem está na cena é > 0 (o suco, por exemplo, não tem classificação na
+                // cerimônia; com a lista de categorias antiga, a convidada esperava 8 s e desistia: visto pelo usuário).
+                var needs = _deferred.Ranking >= 0 ? _deferred.Ranking > 0 : NeedsRanking();
+                if (!needs || RankingReady() || _testAuto) { var d = _deferred; _deferred = null; StartLocal(d); }
                 else if (Time.unscaledTime - _deferredSince > 8f) { _deferred = null; StopWatch("a classificação do festival não chegou: cena não aberta"); }
                 return;
             }
@@ -656,6 +720,7 @@ public class EventWatch : MonoBehaviour
             }
 
             RetrySkipClose();
+            RunPendingBranch();
 
             // quem está na cena pulou: pula junto, pelo mesmo caminho do "Pular" do jogo
             if (_hostSkipped && !_skipTried)
@@ -667,8 +732,9 @@ public class EventWatch : MonoBehaviour
             // fala/tela/escolha esperando: passa quando o outro já passou dela (ou já terminou a cena)
             if (_myWait >= 0)
             {
-                var done = _hostEnded || HostDone.Contains(_curEvent) || Pending.Count > 0;
-                var passed = HostStep.TryGetValue(_curEvent, out var hs) && hs > _myWait;
+                var done = !OwnPace && (_hostEnded || HostDone.Contains(_curEvent) || Pending.Count > 0);
+                var passed = !OwnPace && HostStep.TryGetValue(_curEvent, out var hs) && hs > _myWait;
+                // escolha: sempre a de quem iniciou a cena (os caminhos ficam iguais)
                 if (_myWaitKind == WaitDialog && HostChoice.ContainsKey(ChoiceKey(_curEvent, _myWait))) passed = true;
                 if (_testAuto) passed = Time.unscaledTime - _waitSince > 1.5f;
                 if (done || passed)
@@ -699,14 +765,28 @@ public class EventWatch : MonoBehaviour
 
             // O outro terminou e a cena daqui não fechou: "Pular" do próprio jogo (leva ao fim e fecha direito, devolvendo o
             // personagem); só se nem isso fechar, a recuperação.
-            if (_hostEnded && !_skipTried && !_closeTried && Time.unscaledTime - _hostEndedAt > 6f)
+            if (!OwnPace && _hostEnded && !_skipTried && !_closeTried && Time.unscaledTime - _hostEndedAt > 6f)
                 SkipLikeGame($"cena {_curEvent}: pulando até o fim (o outro já terminou)");
-            if (_hostEnded && Time.unscaledTime - _hostEndedAt > 30f) Recover("cena encerrada (o outro já tinha terminado)");
+            if (!OwnPace && _hostEnded && Time.unscaledTime - _hostEndedAt > 30f) Recover("cena encerrada (o outro já tinha terminado)");
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] {e.Message}"); }
     }
 
     private static bool _hostSkipped;
+
+    /// <summary>Ramo que esperava o resultado de quem está na cena: roda quando ele chega (ou em 6 s, com o daqui).</summary>
+    private static void RunPendingBranch()
+    {
+        var b = _pendingBranch;
+        if (b == null) return;
+        var known = HostBranch.ContainsKey(ChoiceKey(_curEvent, b.commandIndex));
+        if (!known && !_hostEnded && Time.unscaledTime - _pendingBranchSince < 6f) return;
+        _pendingBranch = null;
+        if (!known) Plugin.Logger.LogInfo($"[EventWatch] ramo {b.commandIndex}: resultado de quem está na cena não chegou; usando o daqui");
+        _branchForce = true;
+        try { b.Execute(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] ramo {b.commandIndex}: {e.Message}"); }
+        finally { _branchForce = false; }
+    }
 
     /// <summary>
     /// Pula até o fim e fecha a cena como o "Pular" do jogo faz quando o roteiro não tem rótulo de pulo (o fechamento b__0 do
@@ -752,6 +832,7 @@ public class EventWatch : MonoBehaviour
         finally { _closingWatch = false; }
     }
 
+    private static bool _modNext; // o próprio mod passando a fala de quem assiste (não é o Enter do jogador)
     private static int _advanceTries;
     private static float _nextAdvanceTry;
 
@@ -769,7 +850,9 @@ public class EventWatch : MonoBehaviour
         if (_advanceTries >= 4) { _advanceTries = 0; Advance(); return; }
         _advanceTries++;
         _nextAdvanceTry = Time.unscaledTime + 0.4f;
+        _modNext = true;
         try { cd.Next(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] passar a fala aqui: {e.Message}"); Advance(); }
+        finally { _modNext = false; }
     }
 
     private static void Advance()
@@ -784,7 +867,11 @@ public class EventWatch : MonoBehaviour
             if (kind == WaitMessage) _ui.CloseMessage(null, null);
             else if (kind == WaitDialog)
             {
-                if (HostChoice.TryGetValue(ChoiceKey(_curEvent, _lastWait), out var choice)) EventManager.Instance.conductor?.SendDialogParameter(choice);
+                if (HostChoice.TryGetValue(ChoiceKey(_curEvent, _lastWait), out var choice))
+                {
+                    _modNext = true;
+                    try { EventManager.Instance.conductor?.SendDialogParameter(choice); } finally { _modNext = false; }
+                }
                 _ui.CloseDialog(null, null, true, false, false);
             }
             else _ui.CloseMenu(null, null, false, null, false);
@@ -981,13 +1068,31 @@ public class EventWatch : MonoBehaviour
     {
         private static bool Prefix(EventConductor __instance)
         {
-            try { if (__instance.IsMessageCommand && HoldNext()) return false; } catch { /* segue */ }
+            try
+            {
+                // Quem assiste não comanda nada até a cena acabar (pedido do usuário): o Enter dele não passa a fala; ela passa
+                // quando quem está na cena passar.
+                if (!OwnPace && Watching && !_modNext && !_testAuto && __instance.IsMessageCommand) return false; // só a fala: o condutor usa o Next para andar entre comandos
+                if (__instance.IsMessageCommand && HoldNext()) { _heldNow = true; return false; }
+            }
+            catch { /* segue */ }
             return true;
         }
 
         private static void Postfix()
         {
-            try { OnLocalNext(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] passar: {e.Message}"); }
+            if (_heldNow) { _heldNow = false; return; } // segurado pela espera conjunta: vai quando quem assiste chegar
+            // Cada Enter de quem está na cena vai a quem assiste, que aperta o mesmo Enter: o 1º completa o texto nos dois,
+            // o 2º passa a fala nos dois (antes o texto de quem assiste era cortado de uma vez, visto pelo usuário).
+            if (_broadcasting && !Watching && _bcMsg != null && _bcLastWait >= 0)
+            {
+                var ev = _bcEvent;
+                var idx = _bcLastWait;
+                Send(KInput, w => { w.Put(ev); w.Put(idx); });
+            }
+            // O aviso "passou" só vai quando a fala de fato acaba aqui (ArmAdvance/CheckAdvance): o 1º Enter com o texto ainda
+            // sendo escrito só completa o texto, e avisar já fazia quem assiste pular a fala (visto pelo usuário).
+            try { ArmAdvance(); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] passar: {e.Message}"); }
         }
     }
 
@@ -995,21 +1100,62 @@ public class EventWatch : MonoBehaviour
     [HarmonyPatch(typeof(EventManager.__c__DisplayClass38_0), nameof(EventManager.__c__DisplayClass38_0._OpenSkipDialog_b__0))]
     private static class SkipDialogPatch
     {
-        private static void Prefix(bool __0)
+        private static bool Prefix(bool __0)
         {
-            if (!__0 || Watching) return;
+            if (Watching) return OwnPace; // no próprio ritmo, quem assiste pode pular a cena dele
+            if (!__0) return true;
             try
             {
                 var cd = EventManager.IsInstance ? EventManager.Instance.conductor : null;
                 if (cd != null && cd.IsOpenDialog) OnLocalSkip(); // sem o diálogo aberto o jogo não pula (o fechamento sai sem fazer nada)
             }
             catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] pular: {e.Message}"); }
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Ramos do roteiro (Branch): a condição depende dos dados de quem está na cena (ex.: o resultado do suco). Em quem assiste
+    /// ela dava outro caminho (rótulo 361 em vez de 647, visto no teste) e as falas desse caminho passavam sozinhas. Quem está
+    /// na cena manda o resultado; quem assiste usa ele e, se chegar antes, espera.
+    /// </summary>
+    [HarmonyPatch(typeof(Branch), "getBranchCondition")]
+    private static class BranchConditionPatch
+    {
+        private static bool Prefix(Branch __instance, ref bool __result)
+        {
+            if (!Watching || __instance == null) return true;
+            if (!HostBranch.TryGetValue(ChoiceKey(_curEvent, __instance.commandIndex), out var v)) return true;
+            __result = v;
+            return false;
+        }
+
+        private static void Postfix(Branch __instance, bool __result)
+        {
+            if (!_broadcasting || Watching || __instance == null) return;
+            var ev = _bcEvent;
+            var idx = __instance.commandIndex;
+            Send(KBranch, w => { w.Put(ev); w.Put(idx); w.Put(__result); });
+        }
+    }
+
+    [HarmonyPatch(typeof(Branch), nameof(Branch.Execute))]
+    private static class BranchWaitPatch
+    {
+        private static bool Prefix(Branch __instance)
+        {
+            if (!Watching || _branchForce || _testAuto || __instance == null) return true;
+            if (HostBranch.ContainsKey(ChoiceKey(_curEvent, __instance.commandIndex))) return true;
+            if (_pendingBranch == null) { _pendingBranch = __instance; _pendingBranchSince = Time.unscaledTime; }
+            return false; // espera o resultado de quem está na cena (RunPendingBranch)
         }
     }
 
     [HarmonyPatch(typeof(EventConductor), nameof(EventConductor.SendDialogParameter))]
     private static class ChoicePatch
     {
+        private static bool Prefix() => !Watching || _modNext; // quem assiste não escolhe: vale a escolha de quem está na cena
+
         private static void Postfix(int selectIndex)
         {
             try { OnLocalChoice(selectIndex); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] escolha: {e.Message}"); }
@@ -1019,7 +1165,41 @@ public class EventWatch : MonoBehaviour
     [HarmonyPatch(typeof(Message), nameof(Message.Execute))]
     private static class MessagePatch
     {
-        private static void Postfix(Message __instance) => OnLocalWait(__instance.commandIndex, WaitMessage);
+        private static void Postfix(Message __instance)
+        {
+            if (_broadcasting) _bcMsg = __instance;
+            OnLocalWait(__instance.commandIndex, WaitMessage);
+        }
+    }
+
+    private static Message _bcMsg;      // fala atual de quem está na cena
+    private static bool _heldNow;       // o Enter deste quadro foi segurado pela espera conjunta
+    private static Message _advMsg;     // fala em que quem está na cena apertou Enter (esperando ela acabar)
+    private static int _advIdx;
+    private static float _advUntil;
+
+    private static void ArmAdvance()
+    {
+        if (!_broadcasting || Watching || _bcLastWait < 0 || _bcMsg == null) return;
+        _advMsg = _bcMsg;
+        _advIdx = _bcLastWait;
+        _advUntil = Time.unscaledTime + 4f;
+    }
+
+    /// <summary>Quem está na cena: a fala do Enter acabou (ou a cena já está noutra espera)? Avisa quem assiste.</summary>
+    private static void CheckAdvance()
+    {
+        if (_advMsg == null) return;
+        bool ended;
+        try { ended = _advMsg.IsCommandEnd || _advMsg.IsForceCommandNext || _bcLastWait != _advIdx; } catch { ended = true; }
+        if (ended)
+        {
+            _advMsg = null;
+            var ev = _bcEvent;
+            var passed = _advIdx + 1;
+            Send(KStep, w => { w.Put(ev); w.Put(passed); w.Put((byte)0); });
+        }
+        else if (Time.unscaledTime > _advUntil) _advMsg = null; // o Enter só completou o texto: a fala continua
     }
 
     [HarmonyPatch(typeof(BokuMono.FieldEvent.UI), nameof(BokuMono.FieldEvent.UI.Execute))]

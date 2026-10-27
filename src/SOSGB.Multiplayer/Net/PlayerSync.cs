@@ -46,6 +46,11 @@ public class PlayerSync : MonoBehaviour
         public float RepairBackoff = 5f;
         public Vector2Int Grid;                      // posição em grade (PlayerCharacter.GridPosition), para o mapa (D82)
         public bool HasGrid;
+        // D84: espelho do personagem local durante a cena assistida (ossos copiados quadro a quadro)
+        public bool Mirroring;
+        public List<(Transform src, Transform dst)> Bones;
+        public Animator MirrorSrcAnim;
+        public AnimatorCullingMode MirrorCulling;
     }
 
     private static readonly Dictionary<byte, Remote> Remotes = new();
@@ -264,6 +269,7 @@ public class PlayerSync : MonoBehaviour
             if (rm.Avatar.activeSelf != visible) rm.Avatar.SetActive(visible);
             if (!visible) continue;
 
+            if (rm.Mirroring) continue; // na cena assistida quem posiciona é o espelho (LateUpdate)
             var tr = rm.Avatar.transform;
             // Interpolação simples: suaviza os 10 pacotes/s em movimento contínuo.
             if ((tr.position - rm.Target).sqrMagnitude > 25f) tr.position = rm.Target; // teleporte (>5 m)
@@ -271,6 +277,92 @@ public class PlayerSync : MonoBehaviour
             var rot = Quaternion.Euler(0, rm.TargetRotY, 0);
             tr.rotation = Quaternion.Slerp(tr.rotation, rot, Time.deltaTime * 12f);
         }
+    }
+
+    // ---------- D84: espelho na cena assistida ----------
+
+    /// <summary>
+    /// Assistindo à cena de alguém, a MESMA cena roda aqui no personagem local escondido, com todas as animações dela (beber
+    /// suco, sentar, segurar o troféu, rosto). O avatar do protagonista não tem essas animações (só as normais, vindas pela
+    /// rede) e ficava parado em pé (visto pelo usuário). Durante a cena, o avatar copia o personagem local: posição e cada osso,
+    /// depois das animações do quadro (LateUpdate).
+    /// </summary>
+    private void LateUpdate()
+    {
+        try
+        {
+            foreach (var kv in Remotes)
+            {
+                var rm = kv.Value;
+                var want = rm.Avatar != null && rm.Avatar.activeSelf && EventWatch.MirrorRemote(kv.Key);
+                if (!want) { if (rm.Mirroring) EndMirror(rm); continue; }
+                Mirror(rm);
+            }
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[PlayerSync] espelho na cena: {e.Message}"); }
+    }
+
+    private static Transform FindDeep(Transform root, string name)
+    {
+        if (root == null) return null;
+        if (root.name == name) return root;
+        for (var i = 0; i < root.childCount; i++)
+        {
+            var f = FindDeep(root.GetChild(i), name);
+            if (f != null) return f;
+        }
+        return null;
+    }
+
+    private static void MapBones(Transform src, Transform dst, string path, Dictionary<string, Transform> into)
+    {
+        into[path] = src;
+        for (var i = 0; i < src.childCount; i++) { var c = src.GetChild(i); MapBones(c, null, path + "/" + c.name, into); }
+    }
+
+    private static void Mirror(Remote rm)
+    {
+        var player = GameController.Instance.GetPlayer();
+        var lt = GameController.Instance.GetPlayerTransform();
+        if (player == null || lt == null || player.Model == null) return;
+        if (!rm.Mirroring || rm.Bones == null || rm.Bones.Count == 0 || rm.Bones[0].src == null)
+        {
+            var srcRoot = FindDeep(player.Model.transform, "Chr_root");
+            var dstRoot = FindDeep(rm.Avatar.transform, "Chr_root");
+            if (srcRoot == null || dstRoot == null) return;
+            var srcMap = new Dictionary<string, Transform>();
+            MapBones(srcRoot, null, "", srcMap);
+            var dstMap = new Dictionary<string, Transform>();
+            MapBones(dstRoot, null, "", dstMap);
+            rm.Bones = new List<(Transform, Transform)>();
+            foreach (var kv in srcMap) if (dstMap.TryGetValue(kv.Key, out var d)) rm.Bones.Add((kv.Value, d));
+            // o personagem local está invisível: sem isto o Animator dele pode parar de animar os ossos (culling)
+            rm.MirrorSrcAnim = player.Model.GetComponentInChildren<Animator>();
+            if (rm.MirrorSrcAnim != null) { rm.MirrorCulling = rm.MirrorSrcAnim.cullingMode; rm.MirrorSrcAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate; }
+            if (rm.Animator != null) rm.Animator.enabled = false;
+            rm.Mirroring = true;
+            Plugin.Logger.LogInfo($"[PlayerSync] avatar espelhando a cena local ({rm.Bones.Count} ossos)");
+        }
+        var tr = rm.Avatar.transform;
+        tr.position = lt.position;
+        tr.rotation = lt.rotation;
+        foreach (var (s, d) in rm.Bones)
+        {
+            if (s == null || d == null) continue;
+            d.localPosition = s.localPosition;
+            d.localRotation = s.localRotation;
+            d.localScale = s.localScale;
+        }
+    }
+
+    private static void EndMirror(Remote rm)
+    {
+        rm.Mirroring = false;
+        rm.Bones = null;
+        if (rm.MirrorSrcAnim != null) { try { rm.MirrorSrcAnim.cullingMode = rm.MirrorCulling; } catch { } }
+        rm.MirrorSrcAnim = null;
+        if (rm.Animator != null) { rm.Animator.enabled = true; rm.Hashes = Array.Empty<int>(); } // volta aos estados da rede
+        Plugin.Logger.LogInfo("[PlayerSync] avatar voltou a seguir a rede");
     }
 
     private float _nextControllerCheck;
