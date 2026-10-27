@@ -72,6 +72,7 @@ public class EventWatch : MonoBehaviour
     private static bool _testAuto;               // teste com uma instância: as falas passam sozinhas
     private static string _openMode = "start";   // teste: start (StartEvent) | talk | talkfade (TalkEventStart)
     private static readonly List<Renderer> Hidden = new();
+    private const uint PlayerObjectKey = 4294967295; // id do personagem na lista de objetos da cena
     private static UIManager _ui;
     private static bool _subscribed;
     public static string Last = "";
@@ -148,16 +149,21 @@ public class EventWatch : MonoBehaviour
     private static float _fadeAt;
     private static bool _fadeIsIn;
 
-    /// <summary>Fade de quem assiste parado mais de 3 s: completa (o comando é dado como terminado).</summary>
+    /// <summary>
+    /// Fade de quem assiste parado mais de 10 s: o comando é dado como terminado (e, se era de clarear, a tela clareia). Antes
+    /// eram 3 s e o escurecer era refeito com um fade comum: o escurecer lento da passagem de ano (contagem regressiva) era
+    /// "socorrido" no meio e o clarear do fim de cena (por id de fade de cena) não tinha o que clarear, deixando a convidada
+    /// com a tela preta e a mensagem final escondida (testado). O que travava de verdade (o FadeIn inicial) já foi resolvido
+    /// escurecendo antes de abrir a cena.
+    /// </summary>
     private static void RescueStuckFade()
     {
         if (_fadeCmd == null) return;
         try
         {
             if (_fadeCmd.IsCommandEnd) { _fadeCmd = null; return; }
-            if (Time.unscaledTime - _fadeAt < 3f) return;
+            if (Time.unscaledTime - _fadeAt < 10f) return;
             if (_fadeIsIn) FadeManager.FadeIn(null, null, 0.3f, 0f);
-            else FadeManager.FadeOut(FadeType.Black, null, null, 0.3f);
             _fadeCmd.IsForceCommandNext = true;
             _fadeCmd.IsCommandEnd = true;
             Plugin.Logger.LogInfo($"[EventWatch] fade {(_fadeIsIn ? "de entrada" : "de saída")} parado aqui: completado");
@@ -186,6 +192,11 @@ public class EventWatch : MonoBehaviour
         var spawn = _pubSpawn ?? "";
         _pubMasters = null;
         if (NetSession.Current == NetSession.Mode.Offline || _starting || Watching || !FestivalWindow()) return;
+        if (IsPersonal(eventId, masters))
+        {
+            Plugin.Logger.LogInfo($"[EventWatch] cena {eventId} ({scriptId}) é pessoal (encontro): não transmitida");
+            return;
+        }
         _broadcasting = true;
         _bcEvent = eventId;
         _bcIdleSince = -1;
@@ -204,6 +215,29 @@ public class EventWatch : MonoBehaviour
             w.Put(nextField); w.Put(spawn);
         });
         Plugin.Logger.LogInfo($"[EventWatch] cena {eventId} ({script}) começou aqui (cadastros {string.Join(",", ids)}, mapa {nextField}, ponto '{spawn}'): os outros no mapa {field} podem assistir");
+    }
+
+    /// <summary>
+    /// Cenas pessoais de festival: os encontros da festa do calor, da noite das estrelas e do mel pedem casamento, compromisso
+    /// ou afeição com um morador (condições Married/Appointment/Likeability). Não são transmitidas: quem assistisse "invadiria"
+    /// o encontro do outro. As coletivas (cerimônias, chá, flores, contagem regressiva) não têm essas condições.
+    /// </summary>
+    private static bool IsPersonal(uint eventId, List<uint> masters)
+    {
+        try
+        {
+            foreach (var md in MasterDataManager.Instance.EventMasterData)
+            {
+                if (md == null || md.ConditionTypes == null || (md.Id != eventId && (masters == null || !masters.Contains(md.Id)))) continue;
+                foreach (var c in md.ConditionTypes)
+                {
+                    var n = c.ToString();
+                    if (n == "Married" || n == "Appointment" || n == "Likeability") return true;
+                }
+            }
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] condições da cena {eventId}: {e.Message}"); }
+        return false;
     }
 
     private static void OnLocalWait(int commandIndex, byte kind)
@@ -471,9 +505,18 @@ public class EventWatch : MonoBehaviour
         finally { _starting = false; }
     }
 
+    private static float _blockRewardsUntil;
+
+    /// <summary>
+    /// Prêmios bloqueados: assistindo e por 15 s depois. O festival dá o prêmio DEPOIS do fim da cena, já fora dela
+    /// (FestivalExecutor.OnFadeInImmidiateExecute: na contagem regressiva, +500 de Happy Energy com mensagem e depois dormir);
+    /// sem a folga a convidada ganhava o prêmio também, e a Happy Energy compartilhada saía em dobro (testado).
+    /// </summary>
+    public static bool BlockRewards => Watching || Time.unscaledTime < _blockRewardsUntil;
+
     private static void StopWatch(string why)
     {
-        if (Watching) Send(KWatchEnd, null);
+        if (Watching) { Send(KWatchEnd, null); _blockRewardsUntil = Time.unscaledTime + 15f; }
         Watching = false;
         _testAuto = false;
         _deferred = null;
@@ -509,9 +552,25 @@ public class EventWatch : MonoBehaviour
     {
         var t = GameController.IsInstance ? GameController.Instance.GetPlayerTransform() : null;
         if (t == null) return;
+        // Objetos da cena presos ao personagem (o troféu na mão, na cerimônia) continuam visíveis: antes sumiam junto com o
+        // corpo e a entrega do troféu não aparecia em quem assiste (visto pelo usuário).
+        var props = new List<UnityEngine.Transform>();
+        try
+        {
+            var dic = EventManager.Instance.conductor?.ObjectModel?.transformInfoDic;
+            if (dic != null)
+                foreach (var kv in dic)
+                {
+                    if (kv.Key == PlayerObjectKey) continue;
+                    var inst = kv.Value?.TryCast<ObjectInfo>()?.Instance;
+                    if (inst != null && inst.transform.IsChildOf(t)) props.Add(inst.transform);
+                }
+        }
+        catch { /* sem a lista: esconde tudo, como antes */ }
         foreach (var rd in t.GetComponentsInChildren<Renderer>(true))
         {
             if (rd == null || !rd.enabled) continue;
+            if (props.Count > 0 && props.Any(pr => rd.transform.IsChildOf(pr))) continue;
             rd.enabled = false;
             if (!Hidden.Contains(rd)) Hidden.Add(rd);
         }
@@ -862,7 +921,15 @@ public class EventWatch : MonoBehaviour
                     {
                         var ti = kv.Value;
                         var oi = ti?.TryCast<ObjectInfo>();
-                        parts.Add($"{kv.Key}:{ti?.ObjectName}/{ti?.Type}{(oi != null ? $"/cat{oi.ModelCategory}/t{oi.TableId}/{(oi.Instance != null ? oi.Instance.name : "sem-instância")}" : "")}");
+                        var vis = "";
+                        if (oi?.Instance != null)
+                        {
+                            var rs = oi.Instance.GetComponentsInChildren<Renderer>(true);
+                            var on = 0;
+                            foreach (var r in rs) if (r != null && r.enabled) on++;
+                            vis = $"/visível {on}/{rs.Length}";
+                        }
+                        parts.Add($"{kv.Key}:{ti?.ObjectName}/{ti?.Type}{(oi != null ? $"/cat{oi.ModelCategory}/t{oi.TableId}/{(oi.Instance != null ? oi.Instance.name : "sem-instância")}{vis}" : "")}");
                     }
                 var comp = new List<string>();
                 if (__instance.festivalCompetitionDic != null) foreach (var kv in __instance.festivalCompetitionDic) comp.Add($"{kv.Key}:{kv.Value?.EventObjectName}");
@@ -1029,7 +1096,12 @@ public class EventWatch : MonoBehaviour
             yield return AccessTools.Method(typeof(EventReward), "ReciveReward");
         }
 
-        private static bool Prefix() => !Watching;
+        private static bool Prefix(MethodBase __originalMethod)
+        {
+            if (!BlockRewards) return true;
+            if (!Watching) Plugin.Logger.LogInfo($"[EventWatch] {__originalMethod.Name} bloqueado logo depois da cena assistida (o prêmio é de quem estava nela)");
+            return false;
+        }
     }
 
     /// <summary>

@@ -1751,6 +1751,52 @@ public class DevBridge : MonoBehaviour
                 // fest | fest state <None|Unjoining|Joining|JoinAfter> — festival de hoje (FestivalExecutor, 7.2/P13)
                 var fe = FestivalExecutor.Instance;
                 var festArgs = arg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+                if (festArgs.Length >= 1 && festArgs[0] == "list")
+                {
+                    // fest list — todos os festivais: estação, dias, anfitrião, categoria, regra de abertura (D84: testar outros)
+                    var all = new List<string>();
+                    var mdm = MasterDataManager.Instance;
+                    foreach (var f in mdm.FestivalMaster.list)
+                    {
+                        if (f == null) continue;
+                        var cat = FestivalExecutor.CategoryDic != null && FestivalExecutor.CategoryDic.ContainsKey(f.Id) ? FestivalExecutor.CategoryDic[f.Id].ToString() : "?";
+                        var days = new List<string>();
+                        foreach (var od in mdm.FestivalOpenDayMaster.list)
+                            if (od != null && od.FestivalId == f.Id) days.Add($"{od.Type}:{od.Param1},{od.Param2},{od.Param3}");
+                        var rew = new List<string>();
+                        try { foreach (var e in f.RewardEventIds) rew.Add(e.ToString()); } catch { /* sem cenas de prêmio */ }
+                        all.Add($"{f.Id} {cat} estação={f.Season} dias={f.DaysNum} anfitrião={f.HostCharaId} prefab={f.AddPrefabName} abre=[{string.Join(" ", days)}] cenas=[{string.Join(",", rew)}]");
+                    }
+                    return Json(new { ok = true, festivals = all });
+                }
+                if (festArgs.Length >= 2 && festArgs[0] == "items")
+                {
+                    // fest items <festivalId> — categoria de item que o festival aceita e alguns itens dela (para inscrever)
+                    var exFid = uint.Parse(festArgs[1]);
+                    BokuMono.Data.FestivalMasterData fmd = null;
+                    foreach (var f in MasterDataManager.Instance.FestivalMaster.list) if (f != null && f.Id == exFid) fmd = f;
+                    if (fmd == null) return Json(new { ok = false, error = "festival não existe" });
+                    var its = new List<string>();
+                    foreach (var im in MasterDataManager.Instance.ItemMaster.list)
+                        if (im != null && (uint)im.Category == fmd.ExhibitItemCategory && its.Count < 15) its.Add($"{im.Id} preço={im.Price}");
+                    return Json(new { ok = true, category = fmd.ExhibitItemCategory, competitionGroup = fmd.CompetitionGroupId, items = its });
+                }
+                if (festArgs.Length >= 1 && festArgs[0] == "scenes")
+                {
+                    // fest scenes [texto] — cenas com roteiro de festival ("Fes" ou o texto): id, roteiro, gatilho, alvos, estações
+                    var filter = festArgs.Length >= 2 ? festArgs[1] : "Fes";
+                    var sc = new List<string>();
+                    foreach (var em in MasterDataManager.Instance.EventMasterData)
+                    {
+                        if (em == null || em.ScriptId == null || !em.ScriptId.Contains(filter)) continue;
+                        var tg = new List<string>();
+                        if (em.TriggerTargets != null) foreach (var t in em.TriggerTargets) tg.Add(t);
+                        var cond = new List<string>();
+                        if (em.ConditionTypes != null) for (var k = 0; k < em.ConditionTypes.Count; k++) cond.Add($"{em.ConditionTypes[k]}={(em.Conditions != null && k < em.Conditions.Count ? em.Conditions[k] : 0)}");
+                        sc.Add($"{em.Id} {em.ScriptId} cat={em.Category} gatilho={em.Trigger} alvos=[{string.Join(",", tg)}] pular={em.EnableSkip} prim={(em.EnableSpring ? em.SpringStartDay : 0)} ver={(em.EnableSummer ? em.SummerStartDay : 0)} out={(em.EnableAutumn ? em.AutumnStartDay : 0)} inv={(em.EnableWinter ? em.WinterStartDay : 0)} cond=[{string.Join(" ", cond)}]");
+                    }
+                    return Json(new { ok = true, count = sc.Count, scenes = sc.Take(200) });
+                }
                 if (festArgs.Length >= 2 && festArgs[0] == "state")
                     fe.SetCurrentFestivalState(Enum.Parse<FestivalExecutor.FestivalState>(festArgs[1]));
                 var open = fe.IsAnyFestivalOpen(DateManager.Instance.Now, out var fm);
@@ -1911,6 +1957,29 @@ public class DevBridge : MonoBehaviour
         var a = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (a.Length > 0 && a[0] == "take") // tira <qtd> do slot <n>
             bag.PutOut(int.Parse(a[1]), int.Parse(a[2]));
+        if (a.Length > 1 && a[0] == "find") // itens cujo ícone/modelo contém o texto (ex.: juice)
+        {
+            var found = new List<string>();
+            var text = string.Join(" ", a.Skip(1));
+            foreach (var im in MasterDataManager.Instance.ItemMaster.list)
+            {
+                if (im == null || found.Count >= 30) continue;
+                string name;
+                try { name = LanguageManager.Instance.GetLocalizeText(LocalizeTextTableType.ItemNameText, im.NameTextId, false) ?? ""; } catch { name = ""; }
+                if (name.Contains(text, StringComparison.OrdinalIgnoreCase) || (im.IconId ?? "").Contains(text, StringComparison.OrdinalIgnoreCase) || (im.ModelId ?? "").Contains(text, StringComparison.OrdinalIgnoreCase))
+                    found.Add($"{im.Id} '{name}' cat={im.Category} ícone={im.IconId}");
+            }
+            return Json(new { ok = true, found });
+        }
+        if (a.Length > 1 && a[0] == "select") // seleciona o espaço <n> na barra (o item "em mãos")
+        {
+            var sl = int.Parse(a[1]);
+            bag.SetSelectedBar(sl / 8);
+            bag.SetInventoryBarSlot(sl % 8);
+            return Json(new { ok = true, selected = bag.SelectedSlot });
+        }
+        if (a.Length > 2 && a[0] == "put") // põe <qtd> do item <id> [qualidade] (testes de festival: algo para inscrever)
+            bag.PutIn(BokuMono.Data.ItemData.CreateByQualityValue(uint.Parse(a[1]), int.Parse(a[2]), a.Length > 3 ? int.Parse(a[3]) : 50), out _, false);
         var items = new List<string>();
         var datas = bag.ItemDatas;
         for (var i = 0; i < datas.Length; i++)

@@ -89,6 +89,16 @@ public class MoneySync : MonoBehaviour
         var now = w.Get(ui);
         if (w.Baseline < 0) { w.Baseline = now; if (NetSession.Current == NetSession.Mode.Host) w.ForceSend = true; return; }
 
+        // D84: assistindo à cena de outro jogador (e logo depois dela), um GANHO aqui é o prêmio da cena, que já foi para quem
+        // estava nela (a carteira é compartilhada). Desfaz e não conta. Ex.: a contagem regressiva dá +500 de Happy Energy
+        // depois do fim da cena, e a convidada ganhava também (testado). Gastos seguem normais.
+        if (now > w.Baseline && EventWatch.BlockRewards)
+        {
+            w.Set(ui, (uint)w.Baseline);
+            Plugin.Logger.LogInfo($"[MoneySync] {w.Name}: ganho de {now - w.Baseline} {w.Unit} na cena assistida desfeito (o prêmio é de quem estava nela)");
+            return;
+        }
+
         if (NetSession.Current == NetSession.Mode.Host)
         {
             // Host: o valor dele é o oficial. Mudou (ou alguém entrou)? Manda o total. E um "lembrete" a cada 5 s.

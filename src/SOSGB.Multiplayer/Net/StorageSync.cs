@@ -37,6 +37,7 @@ public class StorageSync : MonoBehaviour
         public byte Index;
         public string Name;            // nome no aviso ("o armazém", "o deck do Bazaar")
         public int UiKey;              // UILoadKey da tela (trava); -1 = sem trava
+        public int[] AlsoUiKeys;       // outras telas que gastam deste armazém e também seguram a trava (cozinhar, D88)
         public Func<bool> OpenNow;     // em vez da tela: outra condição de "em uso" (ex.: barraca do Bazaar aberta)
         public Func<StorageManager> Get;
         public byte Holder = NoHolder;
@@ -49,7 +50,9 @@ public class StorageSync : MonoBehaviour
 
     private static readonly Store[] Stores =
     {
-        new() { Index = 0, Name = "o armazém", UiKey = 102, Get = () => InventoryManager.Instance.HouseStorage },          // UILoadKey.HouceStorage
+        // Cozinhar (Cooking 106 e a janela de quantidade 213) gasta ingredientes do armazém: segura a trava como a tela dele,
+        // para dois jogadores não gastarem o mesmo último ingrediente ao mesmo tempo (revisão A02, D88).
+        new() { Index = 0, Name = "o armazém", UiKey = 102, AlsoUiKeys = new[] { 106, 213 }, Get = () => InventoryManager.Instance.HouseStorage }, // UILoadKey.HouceStorage
         new() { Index = 1, Name = "o deck do Bazaar", UiKey = 103, Get = () => InventoryManager.Instance.DeckStorage },     // UILoadKey.DeckStorage
         new() { Index = 2, Name = "as peças do Bazaar", UiKey = 113, Get = () => InventoryManager.Instance.BazaarCustomPartsStorage }, // UILoadKey.BazaarCustom
         // Barraca do Bazaar: só uma pessoa vende por vez (D51; evita duas barracas vendendo os mesmos itens). Não tem
@@ -158,7 +161,7 @@ public class StorageSync : MonoBehaviour
         var ui = Ui;
         bool open;
         if (s.OpenNow != null) { try { open = s.OpenNow(); } catch { open = false; } }
-        else open = ui != null && (int)ui.UIMenuKey == s.UiKey && ui.IsMenu;
+        else open = ui != null && ui.IsMenu && ((int)ui.UIMenuKey == s.UiKey || (s.AlsoUiKeys != null && Array.IndexOf(s.AlsoUiKeys, (int)ui.UIMenuKey) >= 0));
         var me = NetSession.LocalId;
         var seller = Stores[3].Holder;
         var otherSelling = seller != NoHolder && seller != me;
