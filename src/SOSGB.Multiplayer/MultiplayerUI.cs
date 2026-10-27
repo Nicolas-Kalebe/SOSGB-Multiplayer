@@ -84,6 +84,18 @@ public class MultiplayerUI : MonoBehaviour
     private void DrawPauseNotice()
     {
         if (NetSession.Current == NetSession.Mode.Offline || !ClockSync.GroupPaused || ClockSync.InPauseMenu) return;
+        if (ClockSync.PausedBy == NetSession.UnknownId)
+        {
+            // D83: dia de festival, outro jogador numa conversa/cena segurando o tempo (aqui só o relógio para)
+            if (ClockSync.HeldBy == NetSession.UnknownId || ClockSync.HeldBy == NetSession.LocalId) return;
+            var holder = NetSession.Players.TryGetValue(ClockSync.HeldBy, out var hp) ? hp.Name : "Outro jogador";
+            var hr = new Rect(Screen.width / 2f - 260, 12, 520, 64);
+            Panel(hr, _panelBg);
+            GUI.Label(new Rect(hr.x + 18, hr.y + 6, hr.width - 36, 28), "Festival: tempo parado", _title);
+            GUI.Label(new Rect(hr.x + 18, hr.y + 36, hr.width - 36, 24),
+                ClockSync.HeldKind == 2 ? $"{holder} está numa cena do festival." : $"{holder} está numa conversa.", _label);
+            return;
+        }
         var who = NetSession.Players.TryGetValue(ClockSync.PausedBy, out var p) ? p.Name : "Outro jogador";
         var r = new Rect(Screen.width / 2f - 260, Screen.height * 0.18f, 520, 74);
         Panel(r, _panelBg);

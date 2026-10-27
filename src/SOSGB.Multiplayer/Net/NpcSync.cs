@@ -234,8 +234,9 @@ public class NpcSync : MonoBehaviour
     {
         private static void Postfix(NonPlayerCharacter __instance, ref bool __result)
         {
-            if (!__result || Busy.Count == 0 || __instance == null) return;
-            if (Busy.ContainsKey(__instance.CharacterId)) __result = false;
+            if (!__result || __instance == null) return;
+            if (Busy.Count > 0 && Busy.ContainsKey(__instance.CharacterId)) __result = false;
+            else if (ClockSync.FestivalHostBusy(__instance.CharacterId)) __result = false; // D83/P13: outro na cerimônia
         }
     }
 }

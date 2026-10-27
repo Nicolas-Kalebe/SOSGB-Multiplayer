@@ -20,6 +20,13 @@ namespace SOSGB.Multiplayer.Net;
 ///  - O relógio do grupo segue o MAIS ADIANTADO: se o jogo de alguém pula o tempo para frente (barraca do Bazaar
 ///    esgotou, evento que avança a hora...), o convidado avisa o host (ClockJump) e todos pulam junto.
 ///  - Dormindo à espera dos outros, o relógio de quem dormiu continua (D33).
+///  - D83: em DIA DE FESTIVAL, diálogo, mensagem, cena e as telas da inscrição (Fair, Animal, FairEvaluate) param o
+///    tempo do grupo, como no jogo sozinho (pedido do usuário: "nos festivais pode deixar o tempo pausar nos diálogos
+///    e eventos"). Os outros não ficam parados (só o relógio), com um aviso de quem está segurando o tempo. Enquanto
+///    alguém está numa cena do festival (a cerimônia), o anfitrião do festival não aceita conversa dos outros (P13:
+///    um só se inscreve). A cena da cerimônia leva o relógio dela a 16:00; o grupo vai junto pelo ClockJump.
+///  - D83: host sozinho (ninguém conectado) não adianta o próprio relógio ao sair de uma tela; e ao sair o relógio vai
+///    para a MAIOR hora entre a local e a do grupo (antes somava: uma cena que já tinha avançado a hora contava duas vezes).
 /// </summary>
 public class ClockSync : MonoBehaviour
 {
@@ -48,7 +55,18 @@ public class ClockSync : MonoBehaviour
     private static bool _frozenByPause; // o personagem local foi parado por causa da pausa de OUTRO jogador (D74)
 
     private static readonly Dictionary<byte, bool> GuestInPause = new();
-    private static long _hostBehind;     // host: quanto a hora do grupo está à frente da hora local do host (ticks)
+    private static long _hostBehind;     // host: quanto tempo do grupo passou desde que o host parou (ticks)
+    private static long _stoppedAt;      // host: hora local quando ele parou numa tela (D83)
+
+    /// <summary>D83: quem segura o tempo do grupo num diálogo/cena em dia de festival. UnknownId = ninguém.</summary>
+    public static byte HeldBy { get; private set; } = NetSession.UnknownId;
+    /// <summary>D83: o que segura o tempo: 0 nada, 1 diálogo/tela, 2 cena (evento).</summary>
+    public static byte HeldKind { get; private set; }
+    /// <summary>D83: o próprio jogador segura o tempo (0, 1 ou 2, como HeldKind).</summary>
+    public static byte LocalHold { get; private set; }
+    private static readonly Dictionary<byte, byte> GuestHold = new();
+    private byte _lastReportedHold;
+    private const int FairEvaluateKey = 127, FairKey = 128, AnimalSelectKey = 120; // telas da inscrição no festival
     private static float _jumpRequestedAt = -10;
     private static bool _subscribed;
     private float _nextSend;
@@ -60,7 +78,7 @@ public class ClockSync : MonoBehaviour
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
-        NetSession.OnPlayerLeft += id => GuestInPause.Remove(id);
+        NetSession.OnPlayerLeft += id => { GuestInPause.Remove(id); GuestHold.Remove(id); };
         WorldSync.OnWorldReceived += () => _hostBehind = 0;
     }
 
@@ -87,12 +105,14 @@ public class ClockSync : MonoBehaviour
             if (NetSession.Current == NetSession.Mode.Offline)
             {
                 GroupPaused = false; PausedBy = NetSession.UnknownId; GuestInPause.Clear(); _hostBehind = 0;
+                HeldBy = NetSession.UnknownId; HeldKind = 0; LocalHold = 0; GuestHold.Clear();
                 UpdateFreeze();
                 return;
             }
             if (!DateManager.IsInstance) return;
             InPauseMenu = PauseMenuOpen();
             _ = DateManager.Instance.IsUpdateEnabled; // atualiza LocalPaused pelo patch
+            LocalHold = FestivalHold();
 
             if (NetSession.Current == NetSession.Mode.Host) HostTick();
             else ClientTick();
@@ -101,29 +121,80 @@ public class ClockSync : MonoBehaviour
         catch (Exception e) { Plugin.Logger.LogWarning($"[ClockSync] {e.Message}"); }
     }
 
-    /// <summary>Hora do grupo vista pelo host (hora local + o que passou enquanto ele estava parado).</summary>
-    public static long GroupTicks => DateManager.Instance.Now.Ticks + _hostBehind;
+    /// <summary>Hora do grupo vista pelo host (a maior entre a local e a de quando parou + o que passou desde então).</summary>
+    public static long GroupTicks => _hostBehind > 0 ? Math.Max(DateManager.Instance.Now.Ticks, _stoppedAt + _hostBehind) : DateManager.Instance.Now.Ticks;
+
+    /// <summary>
+    /// D83: em dia de festival, o relógio deste jogo está parado por diálogo, mensagem, cena ou tela da inscrição?
+    /// 0 = não, 1 = diálogo/tela, 2 = cena. O menu de pausa tem a regra própria (D74).
+    /// </summary>
+    private static byte FestivalHold()
+    {
+        if (!LocalPaused || DaySync.LocalSleeping || InPauseMenu) return 0;
+        if (!FestivalExecutor.IsInstance || !FestivalExecutor.Instance.IsInSession) return 0;
+        if (GameController.IsInstance && GameController.Instance.IsPlayingEvent) return 2;
+        if (_ui == null) return 0;
+        var type = _ui.CurrentUIType;
+        if (type == UIType.Dialog || type == UIType.Message) return 1;
+        var key = (int)_ui.CurrentUIKey;
+        return (byte)(key == FairKey || key == FairEvaluateKey || key == AnimalSelectKey ? 1 : 0);
+    }
+
+    private static uint _festHostDay = uint.MaxValue, _festHost;
+
+    /// <summary>
+    /// D83/P13: enquanto OUTRO jogador está numa cena do festival (a cerimônia), o anfitrião do festival não aceita
+    /// conversa aqui: não dá para se inscrever de novo no mesmo festival. Depois da cerimônia o festival fica "JoinAfter"
+    /// (compartilhado pela SharedSync) e o próprio jogo não inscreve mais.
+    /// </summary>
+    public static bool FestivalHostBusy(uint charaId)
+    {
+        if (HeldKind != 2 || HeldBy == NetSession.UnknownId || HeldBy == NetSession.LocalId) return false;
+        try
+        {
+            if (!FestivalExecutor.IsInstance || !DateManager.IsInstance) return false;
+            var now = DateManager.Instance.Now;
+            var day = (uint)(now.Month * 100 + now.Day);
+            if (day != _festHostDay)
+            {
+                _festHostDay = day;
+                _festHost = FestivalExecutor.Instance.IsAnyFestivalOpen(now, out var fm) && fm != null ? fm.HostCharaId : 0;
+            }
+            return _festHost != 0 && charaId == _festHost;
+        }
+        catch { return false; }
+    }
 
     private void HostTick()
     {
         var by = InPauseMenu ? NetSession.LocalId : NetSession.UnknownId;
         foreach (var kv in GuestInPause) if (kv.Value && by == NetSession.UnknownId) by = kv.Key;
         PausedBy = by;
-        GroupPaused = by != NetSession.UnknownId;
+        // D83: em dia de festival, diálogo/cena de qualquer um segura o tempo do grupo (a cena vale mais que o diálogo).
+        var held = LocalHold != 0 ? NetSession.LocalId : NetSession.UnknownId;
+        var kind = LocalHold;
+        foreach (var kv in GuestHold)
+            if (kv.Value > kind) { held = kv.Key; kind = kv.Value; }
+        HeldBy = held;
+        HeldKind = kind;
+        GroupPaused = by != NetSession.UnknownId || held != NetSession.UnknownId;
 
         var dm = DateManager.Instance;
         var hostStopped = LocalPaused && !DaySync.LocalSleeping;
-        if (!GroupPaused && hostStopped && !DaySync.InDayChange)
+        var alone = NetSession.Players.Count <= 1; // D83: sem ninguém conectado, o tempo para nas telas como no jogo sozinho
+        if (!GroupPaused && hostStopped && !DaySync.InDayChange && !alone)
         {
             // O host está numa tela que para o relógio dele, mas o grupo segue: a hora do grupo anda por conta.
+            if (_hostBehind == 0) _stoppedAt = dm.Now.Ticks;
             _hostBehind = Math.Min(_hostBehind + (long)(Time.unscaledDeltaTime * TicksPerRealSecond), MaxJumpTicks);
         }
         else if (!hostStopped && _hostBehind > 0)
         {
-            // Saiu da tela: o host é adiantado até a hora do grupo.
-            var target = dm.Now.Ticks + _hostBehind;
+            // Saiu da tela: o host vai para a hora do grupo, se ela estiver à frente (a tela pode ter avançado a hora
+            // sozinha, ex.: a cerimônia do festival termina às 16:00; antes isso era somado e contava duas vezes).
+            var target = Math.Max(dm.Now.Ticks, _stoppedAt + _hostBehind);
             _hostBehind = 0;
-            if (!DaySync.InDayChange) SetLocal(target, "host saiu de uma tela; adiantado até a hora do grupo");
+            if (!DaySync.InDayChange && target > dm.Now.Ticks) SetLocal(target, "host saiu de uma tela; adiantado até a hora do grupo");
         }
 
         if (Time.unscaledTime < _nextSend) return;
@@ -131,17 +202,21 @@ public class ClockSync : MonoBehaviour
         var ticks = GroupTicks;
         var running = !GroupPaused;
         var pausedBy = PausedBy;
-        NetSession.SendGame(MsgType.ClockState, w => { w.Put(ticks); w.Put(running); w.Put(pausedBy); }, DeliveryMethod.Sequenced);
+        var heldBy = HeldBy;
+        var heldKind = HeldKind;
+        NetSession.SendGame(MsgType.ClockState, w => { w.Put(ticks); w.Put(running); w.Put(pausedBy); w.Put(heldBy); w.Put(heldKind); }, DeliveryMethod.Sequenced);
     }
 
     private void ClientTick()
     {
         // Avisa o host quando entra/sai do menu de pausa (e a cada 1 s, para o caso de um pacote se perder).
-        if (InPauseMenu == _lastReported && Time.unscaledTime < _nextReport) return;
+        if (InPauseMenu == _lastReported && LocalHold == _lastReportedHold && Time.unscaledTime < _nextReport) return;
         _lastReported = InPauseMenu;
+        _lastReportedHold = LocalHold;
         _nextReport = Time.unscaledTime + 1f;
         var p = InPauseMenu;
-        NetSession.SendGame(MsgType.PauseReport, w => w.Put(p), DeliveryMethod.ReliableOrdered);
+        var h = LocalHold;
+        NetSession.SendGame(MsgType.PauseReport, w => { w.Put(p); w.Put(h); }, DeliveryMethod.ReliableOrdered);
     }
 
     /// <summary>
@@ -151,7 +226,7 @@ public class ClockSync : MonoBehaviour
     /// </summary>
     private static void UpdateFreeze()
     {
-        var want = NetSession.Current != NetSession.Mode.Offline && GroupPaused && !InPauseMenu
+        var want = NetSession.Current != NetSession.Mode.Offline && GroupPaused && PausedBy != NetSession.UnknownId && !InPauseMenu
                    && !DaySync.LocalSleeping && !Spectator.Active && !Spectator.Pinned;
         if (want == _frozenByPause) return;
         var po = GameController.IsInstance ? GameController.Instance.GetPlayer()?.PauseObject : null;
@@ -183,6 +258,7 @@ public class ClockSync : MonoBehaviour
         {
             case MsgType.PauseReport when NetSession.Current == NetSession.Mode.Host:
                 GuestInPause[from] = r.GetBool();
+                GuestHold[from] = r.AvailableBytes > 0 ? r.GetByte() : (byte)0;
                 break;
 
             case MsgType.ClockJump when NetSession.Current == NetSession.Mode.Host:
@@ -193,7 +269,7 @@ public class ClockSync : MonoBehaviour
                 var ahead = ticks - GroupTicks;
                 if (ahead <= MinJumpTicks || ahead > MaxJumpTicks) return;
                 if (new BokuMonoDateTime(ticks).Day != dm.Now.Day) return; // não atravessa a virada do dia (é do DaySync)
-                if (LocalPaused && !DaySync.LocalSleeping) _hostBehind = ticks - dm.Now.Ticks; // host numa tela: adianta ao sair
+                if (LocalPaused && !DaySync.LocalSleeping) { _stoppedAt = dm.Now.Ticks; _hostBehind = ticks - dm.Now.Ticks; } // host numa tela: adianta ao sair
                 else SetLocal(ticks, $"tempo pulou no jogo de #{from}; o grupo pula junto");
                 var name = NetSession.Players.TryGetValue(from, out var pl) ? pl.Name : "outro jogador";
                 var t = new BokuMonoDateTime(ticks);
@@ -206,6 +282,8 @@ public class ClockSync : MonoBehaviour
                 var hostTicks = r.GetLong();
                 GroupPaused = !r.GetBool();
                 PausedBy = r.AvailableBytes > 0 ? r.GetByte() : NetSession.UnknownId;
+                HeldBy = r.AvailableBytes > 0 ? r.GetByte() : NetSession.UnknownId;
+                HeldKind = r.AvailableBytes > 0 ? r.GetByte() : (byte)0;
                 if (!DateManager.IsInstance || DaySync.InDayChange) return;
                 // Numa tela que para o relógio (menu, diálogo, evento): não mexe agora; ao sair, é adiantado.
                 if (LocalPaused && !DaySync.LocalSleeping) return;
@@ -238,6 +316,10 @@ public class ClockSync : MonoBehaviour
         frozenByPause = _frozenByPause,
         groupPaused = GroupPaused,
         guestsInPause = GuestInPause,
+        heldBy = HeldBy,
+        heldKind = HeldKind,
+        localHold = LocalHold,
+        guestsHold = GuestHold,
         hostBehindSeconds = _hostBehind / 10_000_000,
     };
 
