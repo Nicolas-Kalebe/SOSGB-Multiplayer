@@ -659,6 +659,7 @@ Regras deste arquivo:
   10. **Estados dos espaços:** um espaço com erro interno não apaga mais o estado dos outros. **"Loja nova"** dos pedidos: o convidado só acende o aviso quando o host passa de "não" para "sim" (antes o aviso voltava a cada lista do host).
 - **Limitações conhecidas (não corrigidas):** (a) se os dois abrirem a loja no mesmo instante e um virar ajudante, os itens que ele já tivesse posto no balcão dele são substituídos pelo espelho do dono (raro: no fim de cada turno o jogo devolve ao deck o que sobrou no balcão, testado; então o balcão de quem entra como ajudante está vazio); (b) trocar um item sem cliente pelo ajudante fica desligado até ser testado.
 - **Testado (uma instância):** dono da barraca no sábado continua vendendo (25 G, 50 G), trava com o dono, estados enviados, nenhum aviso do mod no log. O caminho com duas instâncias (ajudante) fica para o teste com o usuário (P14).
+- **Testado depois (2026-10-27, duas instâncias, save `sabado`):** host abre a loja, convidada escolhe "Abrir loja" na mesma barraca e vira ajudante (modo ajudante ligado, 26 clientes espelhados); os balões de desejo dos clientes aparecem iguais nas duas telas. O dono fechando antes não foi acionado por automação (`Esc` injetado abre a pausa; `BazaarManager.CloseShopCallBack` sozinho não fecha a loja).
 
 ### D61 — Happy Bingo compartilhado por mescla
 - **Status:** ✅ Decidido · **Data:** 2026-10-26 · **Decidido por:** IA (levantamento de riscos da D57; o usuário pediu para achar o que mais daria conflito)
