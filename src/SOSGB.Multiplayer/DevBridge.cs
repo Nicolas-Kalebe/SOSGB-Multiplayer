@@ -1428,6 +1428,77 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, pausingAny = pz.IsPausingAny, pausingAll = pz.IsPausingAll });
             }
 
+            case "npchold":
+            {
+                // npchold <idle|all|agent|cmd|pauser|off> — experimento (D90): qual parada segura de fato os moradores.
+                // Aplica em todos os NonPlayerCharacter do mapa; medir depois com npcpos.
+                var mode = arg.Trim();
+                int n = 0, errs = 0;
+                var pz = GameController.Instance.pauser;
+                if (mode == "pauser") { pz.SetIgnorePause(PauseTarget.Player, true); pz.SetIgnorePause(PauseTarget.Bgm, true); pz.Pause(PauseType.All, null); }
+                if (mode == "info")
+                {
+                    // o que move um morador pausado: agente, animador, corpo
+                    var rows = new List<string>();
+                    foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+                    {
+                        if (npc == null || !npc.gameObject.activeInHierarchy) continue;
+                        try
+                        {
+                            var sch = npc.NPCSchedule; var ag = sch?.Agent; var an = npc.GetComponentInChildren<Animator>(); var rb = npc.GetComponent<Rigidbody>();
+                            rows.Add($"{npc.CharacterId} paus={npc.PauseObject?.IsPaused} sch={(sch != null ? sch.GetIl2CppType().Name + "/" + sch.enabled : "-")} ag={(ag != null ? $"{ag.enabled}/stop={ag.isStopped}/v={ag.velocity.magnitude:0.00}/dv={ag.desiredVelocity.magnitude:0.00}/upd={ag.updatePosition}" : "-")} an={(an != null ? $"{an.speed:0.0}/rm={an.applyRootMotion}/en={an.enabled}" : "-")} rb={(rb != null ? $"kin={rb.isKinematic}/v={rb.velocity.magnitude:0.00}" : "-")}");
+                        }
+                        catch (Exception e) { rows.Add($"{npc.CharacterId} erro {e.Message}"); }
+                    }
+                    return Json(new { ok = true, rows });
+                }
+                if (mode == "list")
+                {
+                    // a lista que a NpcSync usa (NPCManager.GetPausables): são os mesmos PauseObject dos moradores?
+                    var npcm = ScheduleManager.Instance.NPCManager;
+                    var own = new HashSet<IntPtr>();
+                    foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+                        try { if (npc != null && npc.PauseObject != null) own.Add(npc.PauseObject.Pointer); } catch { }
+                    int tot = 0, same = 0; var kinds = new Dictionary<string, int>();
+                    var l = npcm.GetPausables(null);
+                    if (l != null) foreach (var x in l)
+                    {
+                        tot++;
+                        try { var k = x.Cast<Il2CppSystem.Object>().GetIl2CppType().Name; kinds[k] = kinds.TryGetValue(k, out var c) ? c + 1 : 1; } catch { }
+                        try { if (x.PauseObject != null && own.Contains(x.PauseObject.Pointer)) same++; } catch { }
+                        try { x.PauseObject?.Pause(PauseType.All); } catch { }
+                    }
+                    return Json(new { ok = true, tot, same, npcs = own.Count, kinds });
+                }
+                if (mode == "off" && pz.IsPausingAny) { pz.Resume(); pz.SetIgnorePause(PauseTarget.Player, false); pz.SetIgnorePause(PauseTarget.Bgm, false); }
+                foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+                {
+                    if (npc == null || !npc.gameObject.activeInHierarchy) continue;
+                    try
+                    {
+                        var po = npc.PauseObject;
+                        var sch = npc.NPCSchedule;
+                        var ag = sch?.Agent;
+                        switch (mode)
+                        {
+                            case "idle": po?.Pause(PauseType.Idle); break;
+                            case "all": po?.Pause(PauseType.All); break;
+                            case "agent": if (ag != null && ag.enabled && ag.isOnNavMesh) { ag.isStopped = true; ag.velocity = Vector3.zero; } break;
+                            case "sch": po?.Pause(PauseType.Idle); if (sch != null) sch.enabled = false; if (ag != null && ag.enabled && ag.isOnNavMesh) { ag.isStopped = true; ag.velocity = Vector3.zero; } break;
+                            case "cmd": if (sch != null) { sch.IsStopCommandUpdate = true; sch.IsStopSpeedUpdate = true; } break;
+                            case "off":
+                                if (po != null && po.IsPaused) po.Resume();
+                                if (ag != null && ag.enabled && ag.isOnNavMesh) ag.isStopped = false;
+                                if (sch != null) { sch.IsStopCommandUpdate = false; sch.IsStopSpeedUpdate = false; sch.enabled = true; }
+                                break;
+                        }
+                        n++;
+                    }
+                    catch { errs++; }
+                }
+                return Json(new { ok = true, mode, n, errs, pausingAny = pz.IsPausingAny });
+            }
+
             case "npcpos":
             {
                 // npcpos — amostra compacta para medir movimento: id:x,z:p(ausado)

@@ -98,6 +98,12 @@ public class ClockSync : MonoBehaviour
         return _ui != null && (int)_ui.UIMenuKey == PauseMenuKey && _ui.IsMenu;
     }
 
+    /// <summary>Menu de pausa aberto agora (sem esperar o Update; a pausa do jogo pode chegar antes dele), D89.</summary>
+    public static bool PauseMenuOpenNow()
+    {
+        try { return PauseMenuOpen(); } catch { return false; }
+    }
+
     private static long TicksPerRealSecond => (long)(DateManager.Instance.TimeScale * 10_000_000f);
 
     private void Update()
@@ -225,7 +231,8 @@ public class ClockSync : MonoBehaviour
     /// </summary>
     private static void UpdateFreeze()
     {
-        var want = NetSession.Current != NetSession.Mode.Offline && GroupPaused && PausedBy != NetSession.UnknownId && !InPauseMenu
+        // PausedBy = eu: é o eco da minha própria pausa voltando do host (já fechei o menu); não congela.
+        var want = NetSession.Current != NetSession.Mode.Offline && GroupPaused && PausedBy != NetSession.UnknownId && PausedBy != NetSession.LocalId && !InPauseMenu
                    && !DaySync.LocalSleeping && !Spectator.Active && !Spectator.Pinned;
         if (want == _frozenByPause) return;
         var po = GameController.IsInstance ? GameController.Instance.GetPlayer()?.PauseObject : null;

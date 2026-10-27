@@ -31,7 +31,7 @@ public static class NetBlob
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 28;
+    public const int Version = 29;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -169,4 +169,7 @@ public enum MsgType : byte
 
     /// <summary>Convidado → host (→ quem está com o armazém aberto); host → quem está com ele: [byte armazém][int n] + n × [uint item][int qualidade][int frescor][uint embrulho][int +/− quantidade] — mudança feita sem a tela do armazém aberta (D88)</summary>
     StorageDelta = 44,
+
+    /// <summary>Referência do mapa → host (→ quem está no mesmo mapa): [byte quem][uint mapa][long hora do relógio dela][byte n] + n × [ushort morador][short x,y,z cm][byte giro][int estado do Animator][byte tempo][byte velocidade] — moradores no mesmo lugar para todos (D90)</summary>
+    NpcPositions = 45,
 }

@@ -12,7 +12,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "com.nicolaskalebe.sosgb.multiplayer";
     public const string Name = "SOSGB Multiplayer";
-    public const string Version = "0.6.4";
+    public const string Version = "0.6.5";
 
     internal static ManualLogSource Logger;
 
@@ -20,6 +20,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<bool> SkipIntroLogos;
     internal static ConfigEntry<bool> WatchFestivalScenes;
+    internal static ConfigEntry<bool> SyncNpcPositions;
     internal static ConfigEntry<bool> FixStartupFocus;
     internal static ConfigEntry<bool> OwnAppearance;
     internal static ConfigEntry<string> PlayerName;
@@ -67,6 +68,9 @@ public class Plugin : BasePlugin
 
         // D84: quem está na praça assiste junto à cena do festival de quem se inscreveu.
         // Desligado por padrão: a cena aberta por fora do fluxo de conversa não carrega e o personagem fica preso (D84, em aberto).
+        // D90: o jogador de menor número no mapa manda a posição dos moradores; os outros mostram cópias.
+        SyncNpcPositions = Config.Bind("Multiplayer", "SyncNpcPositions", true,
+            "Moradores no mesmo lugar para todos: quem chegou primeiro ao mapa (o host, se estiver) manda a posição deles.");
         WatchFestivalScenes = Config.Bind("Multiplayer", "WatchFestivalScenes", false,
             "EXPERIMENTAL (não ligar): assistir junto à cena do festival quando outro jogador começa a cerimônia no mesmo mapa.");
 
@@ -167,6 +171,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.BazaarViewSync>();
         AddComponent<Net.BazaarHelpSync>();
         AddComponent<Net.NpcSync>();
+        AddComponent<Net.NpcPosSync>();
         AddComponent<Net.Spectator>();
         AddComponent<Net.SleepPoseSync>();
         AddComponent<Net.CharacterCreator>();

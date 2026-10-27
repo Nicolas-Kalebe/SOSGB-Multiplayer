@@ -314,3 +314,11 @@ Armadilhas das flags de evento:
 - `ImageConversion.EncodeToPNG` → `InvalidOperationException` (`BlittableArrayWrapper.Unmarshal`). Use `GetPixels32()` + um codificador próprio (`PngWriter`).
 - As constantes de `SceneMode` (`Game`, `Title`...) viram campos estáticos, sem `const`, e não podem ser usadas em `switch`.
 - Delegates `System.Action<T>` convertem sozinhos para `Il2CppSystem.Action<T>` com um cast explícito.
+
+### Moradores: o que segura e o que move (D89/D90, medido 2026-10-27) ✅
+- Cada morador é um `NonPlayerCharacter` (também os figurantes 3xx) com um script de agenda em `NPCSchedule` (`NPCScheduleAgent` para moradores, `NPCBazaarVisitorAgent` para os clientes/figurantes, ambos `NPCNavMeshAgentBase`) e um `NavMeshAgent` em `NPCSchedule.Agent`.
+- **`PauseObject.Pause(Idle|All)` sozinho NÃO segura o morador:** a animação congela, mas o script da agenda continua rodando e religa o agente (`isStopped` volta a falso no quadro seguinte; velocidade ~1 m/s). Parar só o agente ou ligar `IsStopCommandUpdate` também não segura.
+- **Segura:** pausa Idle + `NPCSchedule.enabled = false` + agente parado e sem controle do corpo (`updatePosition/updateRotation = false`), reaplicado a cada quadro. A pausa geral `GameController.pauser.Pause(All)` também segura (0 de 26), mas trava o jogador.
+- `NPCManager.GetPausables(null)` não traz todos os moradores do mapa (12 de 19 no teste).
+- ⚠️ `NavMeshAgent.Warp` apaga a rota do morador: ele fica parado até a agenda mandar o próximo destino e depois corre para recuperar o atraso. Para reposicionar o agente sem perder a rota: `nextPosition`.
+- Ponte: `npchold <idle|all|agent|cmd|sch|pauser|list|info|off>` aplica cada tipo de parada em todos os moradores do mapa; `npcpos` mede posição e pausa.

@@ -51,7 +51,7 @@ public class NpcSync : MonoBehaviour
     private static void ResetAll()
     {
         foreach (var n in new List<uint>(Frozen.Keys)) Unfreeze(n);
-        HoldPaused.Clear();
+        if (_holdKey != null) { NpcHold.ReleaseAll(_holdKey); _holdKey = null; }
         Busy.Clear();
         BusySince.Clear();
         _localTalk = 0;
@@ -62,6 +62,7 @@ public class NpcSync : MonoBehaviour
         try
         {
             if (NetSession.Current == NetSession.Mode.Offline) { if (Busy.Count > 0 || Frozen.Count > 0) ResetAll(); return; }
+            NpcHold.Tick(); // a cada quadro: o jogo religa o agente entre um tick e outro (D90)
             if (Time.unscaledTime < _nextTick) return;
             _nextTick = Time.unscaledTime + 0.5f;
             // Garantia do fim da conversa: se o jogo não chamar TalkEnd por algum caminho, a tela de volta ao normal por
@@ -90,67 +91,59 @@ public class NpcSync : MonoBehaviour
         try { return FestivalExecutor.IsInstance && FestivalExecutor.Instance.IsInSession; } catch { return false; }
     }
 
-    private static readonly List<PauseObject> HoldPaused = new(); // pausados por nós (tempo do grupo segurado por outro)
+    private static string _holdKey;              // NpcHold.KeyPause ou KeyFestival enquanto seguramos o mapa
     private static float _heldOffSince = -1;
 
     /// <summary>
-    /// Os mesmos grupos que a pausa do jogo (Pauser.PauseAllPausableTargets) pausa: moradores e os pausáveis do Bazaar (os
-    /// visitantes do festival). A pausa geral do jogo não serve: ela trava o controle do jogador (testado pelo usuário).
+    /// Menu de pausa (Esc) de QUALQUER jogador, inclusive o daqui (D89). O relógio do grupo para (D50) e os personagens
+    /// também (D74), mas os moradores seguiam andando nos dois jogos (visto pelo usuário): no de quem pausou, o
+    /// KeepNpcsWalking os soltava; no dos outros, nada os parava. O próprio menu daqui vale na hora (o PausedBy do host
+    /// chega com atraso para o convidado).
     /// </summary>
-    private static IEnumerable<IPausable> GamePausables()
-    {
-        var npcm = ScheduleManager.IsInstance ? ScheduleManager.Instance.NPCManager : null;
-        if (npcm != null)
-        {
-            var l = npcm.GetPausables(null);
-            if (l != null) foreach (var x in l) yield return x;
-        }
-        if (BazaarManager.IsInstance)
-        {
-            var l = BazaarManager.Instance.GetPausables(null);
-            if (l != null) foreach (var x in l) yield return x;
-        }
-    }
+    private static bool GroupPauseMenu() =>
+        ClockSync.InPauseMenu || ClockSync.PauseMenuOpenNow() || (ClockSync.GroupPaused && ClockSync.PausedBy != NetSession.UnknownId);
 
     /// <summary>
-    /// D83: outro jogador segura o tempo do grupo (diálogo ou cena em dia de festival). Aqui o relógio também para, mas os
-    /// moradores seguiam andando: pausar só os moradores não segurava os visitantes do festival (medido: 7 a 10 andando,
-    /// ~1,3 m/s). Pausamos também os pausáveis do Bazaar, objeto por objeto (sem a pausa geral, que trava o jogador), e
-    /// reaplicamos se o jogo desfizer. Volta quando o tempo fica solto por 2 s (entre uma fala e outra a trava some por um
-    /// instante, e liberar na hora fazia os moradores darem uns passos e pararem de novo).
+    /// D83/D89: o tempo do grupo está parado (menu de pausa de alguém, ou cena do festival de outro jogador). No jogo
+    /// sozinho o mundo para junto; aqui seguramos cada morador do mapa pelo NpcHold (D90: a pausa por objeto sozinha não
+    /// segurava, medido). Menu de pausa congela também a animação, como o Esc do jogo. Volta quando o tempo fica solto:
+    /// na hora para o menu, depois de 2 s para o festival (entre uma fala e outra a trava some por um instante, e liberar
+    /// na hora fazia os moradores darem uns passos e pararem de novo).
     /// </summary>
     private static void HoldNpcsWhileGroupHeld()
     {
-        var held = ClockSync.HeldBy != NetSession.UnknownId && ClockSync.HeldBy != NetSession.LocalId;
-        if (held)
+        var festival = ClockSync.HeldBy != NetSession.UnknownId && ClockSync.HeldBy != NetSession.LocalId;
+        var pause = GroupPauseMenu();
+        if (pause || festival)
         {
             _heldOffSince = -1;
+            var key = pause ? NpcHold.KeyPause : NpcHold.KeyFestival;
+            if (_holdKey != null && _holdKey != key) NpcHold.ReleaseAll(_holdKey);
+            var first = _holdKey != key;
+            _holdKey = key;
             var n = 0;
             try
             {
-                foreach (var pa in GamePausables())
+                foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
                 {
-                    var po = pa?.PauseObject;
-                    if (po == null || po.IsPaused) continue;
-                    po.Pause(PauseType.Idle);
-                    if (!HoldPaused.Contains(po)) HoldPaused.Add(po);
-                    n++;
+                    if (npc == null || !npc.gameObject.activeInHierarchy || npc.CharacterId == _localTalk) continue;
+                    if (!NpcHold.IsHeldBy(npc, key)) { NpcHold.Hold(npc, key, freezeAnim: pause); n++; }
                 }
             }
             catch (Exception e) { Plugin.Logger.LogWarning($"[NpcSync] parar moradores: {e.Message}"); }
-            if (n > 0 && HoldPaused.Count == n) Plugin.Logger.LogInfo($"[NpcSync] tempo do grupo segurado por outro jogador: {n} parado(s)");
+            if (first) Plugin.Logger.LogInfo($"[NpcSync] tempo do grupo parado ({(pause ? "menu de pausa" : "festival")}): {n} morador(es) seguro(s)");
             return;
         }
-        if (HoldPaused.Count == 0) return;
-        if (_heldOffSince < 0) { _heldOffSince = Time.unscaledTime; return; }
-        if (Time.unscaledTime - _heldOffSince < 2f) return;
+        if (_holdKey == null) return;
+        if (_holdKey == NpcHold.KeyFestival)
+        {
+            if (_heldOffSince < 0) { _heldOffSince = Time.unscaledTime; return; }
+            if (Time.unscaledTime - _heldOffSince < 2f) return;
+        }
         _heldOffSince = -1;
-        // se o próprio jogo está numa tela que pausa (menu, conversa daqui), deixa: ele mesmo retoma ao fechar
-        if (!ClockSync.LocalUiPause)
-            foreach (var po in HoldPaused)
-                try { if (po != null && po.IsPaused) po.Resume(); } catch { }
-        Plugin.Logger.LogInfo($"[NpcSync] tempo do grupo voltou: {HoldPaused.Count} solto(s)");
-        HoldPaused.Clear();
+        NpcHold.ReleaseAll(_holdKey);
+        Plugin.Logger.LogInfo($"[NpcSync] tempo do grupo voltou: moradores soltos ({_holdKey})");
+        _holdKey = null;
     }
 
     private static NonPlayerCharacter Find(uint charaId)
@@ -171,8 +164,9 @@ public class NpcSync : MonoBehaviour
         }
         try
         {
-            var po = npc.PauseObject;
-            if (po != null && !po.IsPaused) po.Pause(PauseType.Idle);
+            // Só a pausa Idle não segurava: o morador ficava "tentando sair do lugar" e escorregava devagar (visto pelo
+            // usuário; medido na D90). O NpcHold desliga também o script da agenda e o agente.
+            if (!NpcHold.IsHeldBy(npc, NpcHold.KeyTalk)) NpcHold.Hold(npc, NpcHold.KeyTalk);
             npc.NPCSchedule?.SetNpcTalkStop(true);
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[NpcSync] parar {charaId}: {e.Message}"); }
@@ -185,7 +179,7 @@ public class NpcSync : MonoBehaviour
         if (Frozen.TryGetValue(charaId, out var npc) && npc != null)
         {
             try { npc.NPCSchedule?.SetNpcTalkStop(false); npc.ResetLookAt(); } catch { }
-            try { if (npc.PauseObject != null && npc.PauseObject.IsPaused) npc.PauseObject.Resume(); } catch { }
+            NpcHold.Release(npc, NpcHold.KeyTalk);
             Plugin.Logger.LogInfo($"[NpcSync] morador {charaId} liberado");
         }
         Frozen.Remove(charaId);
@@ -223,7 +217,12 @@ public class NpcSync : MonoBehaviour
         SetBusy(charaId, talker, talking);
     }
 
-    public static object Status() => new { busy = Busy, frozen = new List<uint>(Frozen.Keys), localTalk = _localTalk };
+    public static object Status() => new { busy = Busy, frozen = new List<uint>(Frozen.Keys), localTalk = _localTalk, held = NpcHold.Count, holdKey = _holdKey, positions = NpcPosSync.Status() };
+
+    /// <summary>Morador com quem ESTE jogador está conversando (0 = nenhum). A NpcPosSync o devolve ao jogo daqui (D90).</summary>
+    public static uint LocalTalk => _localTalk;
+
+
 
     [HarmonyPatch(typeof(NonPlayerCharacter), nameof(NonPlayerCharacter.TalkStart))]
     private static class TalkStartPatch
@@ -266,17 +265,22 @@ public class NpcSync : MonoBehaviour
     /// para. No multiplayer o tempo do grupo continua (D50), então os moradores de quem conversava ficavam parados e
     /// atrasados em relação aos outros jogos (visto pelo usuário). Depois da pausa do jogo, tiramos a pausa dos moradores,
     /// menos os ocupados por outro jogador; o da conversa o jogo não pausa (ele está conversando). O menu de pausa (Esc)
-    /// continua parando tudo: ele pausa o grupo inteiro.
+    /// continua parando tudo: ele pausa o grupo inteiro (D89: e os moradores ficam parados, ver GroupPauseMenu).
     /// </summary>
     private static void KeepNpcsWalking()
     {
-        if (NetSession.Current == NetSession.Mode.Offline || ClockSync.InPauseMenu) return;
+        if (NetSession.Current == NetSession.Mode.Offline) return;
+        if (GroupPauseMenu())
+        {
+            if (Plugin.DevMode) Plugin.Logger.LogInfo("[NpcSync] pausa do jogo com menu de pausa: moradores continuam parados");
+            return;
+        }
         try
         {
             var pausing = GameController.Instance.pauser?.pausingObjects;
             foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
             {
-                if (npc == null || Frozen.ContainsKey(npc.CharacterId)) continue;
+                if (npc == null || Frozen.ContainsKey(npc.CharacterId) || NpcHold.IsHeld(npc)) continue;
                 var po = npc.PauseObject;
                 if (po == null || !po.IsPaused) continue;
                 po.Resume();

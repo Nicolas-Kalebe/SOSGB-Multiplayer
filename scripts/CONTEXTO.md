@@ -76,6 +76,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `gates` | Portões e áreas de transição da cena atual (destino e posição) |
 | `bazaar [open]` | Estado do Bazaar e do relógio (aberto hoje, horário, na barraca, relógio parado...) / abre o menu da barraca (D47). Para testar: chegar ao Bazaar andando pela cidade (o `field 10001` direto pula a chegada) |
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
+| `npcs` / `npcpos` / `npchold <modo>` | Moradores do mapa (conversa, estado da NpcSync/NpcPosSync) / amostra compacta de posições / experimento de parada (`idle`, `all`, `agent`, `cmd`, `sch`, `pauser`, `list`, `info`, `off`), D90 |
 | `shared [test \| json <parte> \| poke <parte> <guid> <campo> <valor> \| reapply <parte>]` | Estado compartilhado genérico (D42): autoteste, JSON de uma parte, mudar um campo como ação local, reaplicar o próprio estado (teste de duplicação) |
 | `shared set <parte> <caminho.com.pontos> <valor>` | Muda um valor do JSON da parte (índices de lista como números) e aplica como se viesse de outro jogador; responde o valor lido de volta (prova que a mudança chega, D54) |
 | `shared roundtrip bazaar [raw]` | JSON → `BazaarSaveData` (montado à mão; `raw` = `JsonToObject` puro) → JSON, para ver o que se perde |

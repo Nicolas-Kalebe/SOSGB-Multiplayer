@@ -37,6 +37,8 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D90 | **Moradores no mesmo lugar para todos**: o jogador de menor número no mapa manda posição/animação (com a hora do relógio); os outros mostram cópias com a agenda local rodando por baixo; `NpcHold` segura um morador de verdade | ✅ Decidido |
+| D89 | **Menu de pausa para os moradores**: Esc de qualquer jogador para os moradores nos dois jogos | ✅ Decidido |
 | D88 | **Armazém mexido sem a tela aberta** (cozinhar com ingredientes de lá) manda a diferença a quem está com ele; dois consumos ao mesmo tempo valem os dois (revisão A02) | ✅ Decidido |
 | D87 | **Fechamento do dia**: antes do "dormi", o convidado manda tudo o que ainda não foi enviado (revisão A03) | ✅ Decidido |
 | D86 | **Parte com erro** na sincronização: desliga só na 3ª falha seguida, avisa na tela e volta ao reconectar (revisão A08) | ✅ Decidido |
