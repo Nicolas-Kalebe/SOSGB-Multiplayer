@@ -124,7 +124,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | # | Tarefa | Tam. | Como testar |
 |---|---|---|---|
 | 7.1 🟡 | **Bazaar** em grupo: barraca, vendas e caixa compartilhados (`BazaarManager`). Feito: deck e peças compartilhados, progresso no SharedSync (D46). Sessão de venda medida (D47): relógio normal, aviso de barraca aberta. Uma barraca por vez (trava, D51, testada). Todos veem os mesmos clientes e a barraca de quem vende (D55, testado). Ajudante dentro da barraca com os botões do jogo (D56: vender, repor, sino; testado pela IA com duas instâncias e teclas de verdade). Revisão independente e 10 correções (D60): o ajudante assume a barraca se o dono sai. Falta: vender em grupo com os amigos (P14) | GG | Teste do usuário |
-| 7.2 ✅ | **Festivais**: resultados e participação compartilhados (`FestivalExecutor` no SharedSync, D43); em dia de festival, diálogo e cena de qualquer um param o tempo do grupo; uma inscrição só (D83) | G | Teste da IA: duas instâncias, Exposição de Animais de outono (inscrição e cerimônia reais) |
+| 7.2 ✅ | **Festivais**: resultados e participação compartilhados (`FestivalExecutor` no SharedSync, D43); em dia de festival, diálogo e cena de qualquer um param o tempo do grupo; uma inscrição só (D83). Assistir junto à cerimônia (D84): experimental, desligado | G | Teste da IA: duas instâncias, Exposição de Animais de outono (inscrição e cerimônia reais) |
 | 7.3 ✅ | Tempo corre em menus (D50): só o menu de pausa pausa; quem estava numa tela é adiantado ao sair; pulos de tempo propagam | G | Teste da IA: duas instâncias |
 
 **✔ Pronto quando:** uma estação completa (Bazaars e festivais) é jogada em grupo.

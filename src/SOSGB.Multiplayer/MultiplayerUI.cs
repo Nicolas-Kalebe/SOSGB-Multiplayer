@@ -87,7 +87,7 @@ public class MultiplayerUI : MonoBehaviour
         if (ClockSync.PausedBy == NetSession.UnknownId)
         {
             // D83: dia de festival, outro jogador numa conversa/cena segurando o tempo (aqui só o relógio para)
-            if (ClockSync.HeldBy == NetSession.UnknownId || ClockSync.HeldBy == NetSession.LocalId) return;
+            if (ClockSync.HeldBy == NetSession.UnknownId || ClockSync.HeldBy == NetSession.LocalId || EventWatch.Watching) return;
             var holder = NetSession.Players.TryGetValue(ClockSync.HeldBy, out var hp) ? hp.Name : "Outro jogador";
             var hr = new Rect(Screen.width / 2f - 260, 12, 520, 64);
             Panel(hr, _panelBg);

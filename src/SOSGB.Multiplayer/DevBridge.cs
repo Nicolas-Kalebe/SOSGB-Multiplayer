@@ -1703,6 +1703,10 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.ChangeField((FieldMasterId)uint.Parse(arg), "", "", false, true, false, null, null, null, false);
                 return Json(new { ok = true, changing = uint.Parse(arg) });
 
+            case "event":
+                // event watch <id...> | event close | event state — assistir uma cena com uma instância só (D84)
+                return Json(new { ok = true, result = Net.EventWatch.Test(arg) });
+
             case "date":
             {
                 // date | date <mês 1-4> <dia> [hora] [minuto] — pula para outra data do mesmo ano (testes de festival, 7.2).
@@ -1980,5 +1984,5 @@ public class DevBridge : MonoBehaviour
     private static string Json(object o) => JsonSerializer.Serialize(o, JsonOpts);
 
     /// <summary>Estado de cada parte do mod (o "net status"); também vai no relatório de bugs (D71), mesmo com a ponte desligada.</summary>
-    public static string StatusJson() => Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status(), missions = Net.MissionSync.Status(), character = Net.CharacterCreator.Status(), map = Net.MapMarkers.Status() });
+    public static string StatusJson() => Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status(), missions = Net.MissionSync.Status(), character = Net.CharacterCreator.Status(), map = Net.MapMarkers.Status(), watch = Net.EventWatch.Status() });
 }

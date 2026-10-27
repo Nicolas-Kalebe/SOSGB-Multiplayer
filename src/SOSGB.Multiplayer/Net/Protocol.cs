@@ -31,7 +31,7 @@ public static class NetBlob
 public static class Protocol
 {
     /// <summary>Versão do protocolo. Host e convidado precisam ter a mesma.</summary>
-    public const int Version = 26;
+    public const int Version = 27;
 
     /// <summary>Mensagens de jogo abaixo deste número são repassadas pelo host a todos; a partir dele, são só entre convidado e host.</summary>
     public const byte FirstDirectMsg = 20;
@@ -160,4 +160,7 @@ public enum MsgType : byte
 
     /// <summary>Host → convidado: [uint mapa][string guid] — item do chão que outro jogador pegou primeiro; o convidado tira da mochila o que pegou junto (D70)</summary>
     ItemTakeBack = 41,
+
+    /// <summary>Qualquer → host (→ todos): [byte 1=começou 2=chegou numa espera 3=terminou][byte quem] + começou: [uint cena][string roteiro][uint mapa]; espera: [uint cena][int comando][byte 1 fala 2 tela 3 escolha] — assistir junto à cena do festival (D84)</summary>
+    EventWatch = 42,
 }

@@ -12,13 +12,14 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "com.nicolaskalebe.sosgb.multiplayer";
     public const string Name = "SOSGB Multiplayer";
-    public const string Version = "0.6.2";
+    public const string Version = "0.6.3";
 
     internal static ManualLogSource Logger;
 
     // Configuração em BepInEx/config/com.nicolaskalebe.sosgb.multiplayer.cfg
     internal static ConfigEntry<bool> KeepRunningWhenUnfocused;
     internal static ConfigEntry<bool> SkipIntroLogos;
+    internal static ConfigEntry<bool> WatchFestivalScenes;
     internal static ConfigEntry<bool> FixStartupFocus;
     internal static ConfigEntry<bool> OwnAppearance;
     internal static ConfigEntry<string> PlayerName;
@@ -63,6 +64,11 @@ public class Plugin : BasePlugin
         // D53: pula as logos de abertura (pedido do usuário, para testar e entrar mais rápido).
         SkipIntroLogos = Config.Bind("Game", "SkipIntroLogos", true,
             "Pula as logos de abertura (Marvelous, CRIWARE...) e vai direto para a tela inicial.");
+
+        // D84: quem está na praça assiste junto à cena do festival de quem se inscreveu.
+        // Desligado por padrão: a cena aberta por fora do fluxo de conversa não carrega e o personagem fica preso (D84, em aberto).
+        WatchFestivalScenes = Config.Bind("Multiplayer", "WatchFestivalScenes", false,
+            "EXPERIMENTAL (não ligar): assistir junto à cena do festival quando outro jogador começa a cerimônia no mesmo mapa.");
 
         // D25: o jogo trava na tela inicial se a janela nasce inativa (o console do BepInEx rouba o foco).
         FixStartupFocus = Config.Bind("Game", "FixStartupFocus", true,
@@ -163,6 +169,7 @@ public class Plugin : BasePlugin
         AddComponent<Net.Spectator>();
         AddComponent<Net.SleepPoseSync>();
         AddComponent<Net.CharacterCreator>();
+        AddComponent<Net.EventWatch>();
         AddComponent<MultiplayerUI>();
         // Janela de diagnóstico (dinheiro/relógio/posição) só no modo de teste (D27).
         if (DevMode) AddComponent<DebugOverlay>();

@@ -64,6 +64,7 @@ Regra de repasse: mensagens de jogo de **10 a 19** são difundidas pelo host; **
 | Versão | Mudança |
 |---|---|
 | 1 | Sessão (Hello/Welcome/Reject/Joined/Left) + `PlayerState` |
+| 27 | `EventWatch` (42), qualquer → host → todos: [byte 1 começou / 2 chegou numa espera / 3 terminou][byte quem] + começou: [uint cena][string roteiro][uint mapa]; espera: [uint cena][int comando][byte 1 fala, 2 tela, 3 escolha] (D84). Mod 0.6.3 |
 | 26 | `PauseReport` (22) leva no fim [byte segurando o tempo: 0 nada, 1 diálogo/tela, 2 cena], só em dia de festival; `ClockState` (11) leva no fim [byte quem segura][byte o quê] (D83). Mod 0.6.2 |
 | 25 | `PlayerState` (10) leva no fim [int gradeX][int gradeY] (`PlayerCharacter.GridPosition`), para o mapa (D82). `AnimalData` (32): animal novo vai com o estado completo e quem não o tem o cria; item com guid `del:<guid>` (json vazio) = animal vendido (D81). Mod 0.6.1 |
 | 24 | `ClockState` (11) leva no fim [byte quem pausou] (255 = ninguém), para o aviso de pausa (D74). Mod 0.6.0. Sobe a versão para separar dos pacotes 0.5.1 (protocolo 23) já distribuídos, cujos formatos mudaram nas D68–D74 |

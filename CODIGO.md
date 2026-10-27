@@ -261,6 +261,14 @@ Armadilhas das flags de evento:
 - Comandos de teste: `date <mês> <dia> [h] [min]` (nos dois jogos, porque o relógio do grupo só anda para frente), `fest`, `fest state <estado>`.
 - Neste mapa, "para cima" na tela é −z: para olhar o Félix vindo de z −1,4, a tecla é S.
 
+### Cenas (FieldEvent, D84)
+- Toda cena começa em `EventManager.OpenMessage(uint eventId, string scriptId, bool isEnableSkip, Action<Vector3,Quaternion> resetTransform)` (privado; o público `OpenMessage(List<EventMasterData>, ...)` é o da interface `IMessageManager`). O interop deixa chamar o privado.
+- Cada comando do roteiro é uma classe `EventExecCommandBase` (`Message`, `UI`, `Dialog`, `RewardItem`, `EventFlag`, `FestivalEnd`, `ChangeField`...) com `Execute()` e o índice `commandIndex`. O comando termina marcando `IsForceCommandNext` e `IsCommandEnd` (o `Label` faz só isso).
+- A fala (`Message.Execute`) abre a janela com `UIAccessor.RequestOpenMessage` e a cena segue quando ela fecha; texto do vencedor do festival vem de `FestivalExecutor.GetCurrentFestivalWinnerMsgId`.
+- Efeitos fora dos comandos: `EventExternal.SetHappyPoint` (Happy Energy), `ExecuteMiniGame`, `ScenarioEnd`.
+- `EventManager.ForceEventClose(callback)` encerra a cena (mas não desfaz uma cena que travou no carregamento).
+- Abrir cena por fora: `OpenMessage` público exige `EventManager.conductor` e chama `PreviousSaveData.SetData(cadastros, mapa, hora)`; o `EventReward` da abertura calcula o prêmio do festival (`ApplyFestivalExtraReward`), que quebra sem inscrição. Fluxo de conversa: `GameController.TalkEventStart` (fade, corrotina de carregamento) → `StartEvent` (câmera, objetos, `PreEventStart`) → `OpenMessage` → `EventConductor.Load` (corrotina `LoadEventCoroutine`). Por fora da conversa, essa corrotina não avançou em nenhum dos caminhos (D84).
+
 ### Mapa do jogo (D82)
 - `UIMapPage` (tela `UILoadKey.Map` = 123) → `UIMapArea.Setup/SetupPosition` → `SetPlayerPosition(curFieldData, data)` e `SetNpcPosition`. `UIMapData.FieldId` é o id do mapa da página (fazenda = 1; o id sazonal no jogo é 2), `99999999` = todos os mapas.
 - Marcador local: `UIMapArea.playerPosition` (`RectTransform`). Pontos de prédio: `anchorList` (`UIMapAnchor`, com `AnchorData`); o rosto do jogador vai para o ponto com `UIMapAnchor.AddChara(0)`.
