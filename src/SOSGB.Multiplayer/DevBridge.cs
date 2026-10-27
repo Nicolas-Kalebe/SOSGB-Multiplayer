@@ -996,6 +996,156 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true });
             }
 
+            case "renderers":
+            {
+                // renderers local | renderers <id> — cada renderer: objeto, malha, ossos e texturas dos materiais (investigação D78)
+                GameObject rgo = arg.Trim() == "local" || arg.Trim() == "" ? GameController.Instance.GetPlayer()?.Model : Net.PlayerSync.RemoteAvatar(byte.Parse(arg.Trim()));
+                if (rgo == null) return Json(new { ok = false, error = "sem modelo" });
+                var rlist = new List<string>();
+                foreach (var r in rgo.GetComponentsInChildren<Renderer>(true))
+                {
+                    var smr = r.TryCast<SkinnedMeshRenderer>();
+                    var mesh = smr != null ? smr.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+                    var texs = new List<string>();
+                    foreach (var m in r.sharedMaterials)
+                    {
+                        if (m == null) continue;
+                        foreach (var p in m.GetTexturePropertyNames()) { var t = m.GetTexture(p); if (t != null && (p == "_BaseMap" || p == "_ShadowColorTextureMap" || p == "_MainTex")) texs.Add(m.name + ":" + p + "=" + t.name); }
+                    }
+                    rlist.Add($"{r.gameObject.name} | malha {mesh?.name} | ossos {(smr != null ? smr.bones.Length : 0)} raiz {(smr != null && smr.rootBone != null ? smr.rootBone.name : "-")} | {string.Join(", ", texs)}");
+                }
+                return Json(new { ok = true, renderers = rlist });
+            }
+
+            case "loadpart":
+            {
+                // loadpart prefab|tex <categoria AvatarResourceManager.Category> <nome> | loadpart result — carrega uma peça pelo jogo (D78)
+                var lp = arg.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (lp[0] == "result") return Json(new { ok = true, result = _loadPartResult });
+                var lcat = (AvatarResourceManager.Category)int.Parse(lp[1]);
+                _loadPartResult = "carregando...";
+                if (lp[0] == "tex")
+                    AvatarMakeManager.Instance.LoadAvatarPartsTexture(lcat, lp[2], (Action<Texture, bool>)((t, ok) => _loadPartResult = $"ok={ok} textura={t?.name} {t?.width}x{t?.height}"));
+                else
+                    AvatarMakeManager.Instance.LoadAvatarPartsPrefab(lcat, lp[2], (Action<AvatarPartsModel, bool>)((pm, ok) =>
+                    {
+                        var info = new List<string>();
+                        if (pm != null && pm.SkinnedMeshRenderers != null)
+                            foreach (var sd in pm.SkinnedMeshRenderers)
+                            {
+                                var bn = new List<string>();
+                                if (sd.Bones != null) foreach (var b in sd.Bones) bn.Add(b?.Name);
+                                var mats = new List<string>();
+                                if (sd.Renderer != null) foreach (var m in sd.Renderer.sharedMaterials) if (m != null) { var t = m.GetTexture("_BaseMap"); mats.Add(m.name + "=" + t?.name); }
+                                info.Add($"{sd.Name} | malha {sd.Renderer?.sharedMesh?.name} | raiz {sd.RootBone?.Name} | ossos {bn.Count}: {string.Join(",", bn.Take(6))}... | {string.Join(", ", mats)}");
+                            }
+                        _loadPartResult = $"ok={ok} modelo={pm?.name} " + string.Join(" || ", info);
+                    }));
+                return Json(new { ok = true, started = true });
+            }
+
+            case "master":
+            {
+                // master <id>[,...] — campos da peça no AvatarMakeMaster (investigação D78)
+                var mlist = new List<string>();
+                foreach (var idt in arg.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var mm = MasterDataManager.Instance.AvatarMakeMaster.GetData(uint.Parse(idt));
+                    mlist.Add(mm == null ? idt + ": -" : $"{idt}: cat={mm.Category} parts={mm.PartsId} parts2={mm.PartsId2} color={mm.ColorId} obj={mm.ObjectId} obj2={mm.ObjectId2} hat={mm.HatRoot} motion={mm.MotionCategory}");
+                }
+                return Json(new { ok = true, master = mlist });
+            }
+
+            case "matsig":
+            {
+                // matsig local | matsig <id> — por renderer: vértices da malha, texturas e cores dos materiais (investigação D78)
+                GameObject sgo = arg.Trim() == "local" || arg.Trim() == "" ? GameController.Instance.GetPlayer()?.Model : Net.PlayerSync.RemoteAvatar(byte.Parse(arg.Trim()));
+                if (sgo == null) return Json(new { ok = false, error = "sem modelo" });
+                var slist = new List<string>();
+                foreach (var r in sgo.GetComponentsInChildren<Renderer>(true))
+                {
+                    var n = r.gameObject.name;
+                    if (n.StartsWith("itm_") || n.StartsWith("Hand") || n == "Glider") continue;
+                    var smr = r.TryCast<SkinnedMeshRenderer>();
+                    var mesh = smr != null ? smr.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+                    var sparts = new List<string> { $"{n}:v{(mesh != null ? mesh.vertexCount : 0)}:{(r.enabled && r.gameObject.activeInHierarchy ? "on" : "off")}" };
+                    var mpb = new MaterialPropertyBlock();
+                    r.GetPropertyBlock(mpb);
+                    if (!mpb.isEmpty && r.sharedMaterial != null && r.sharedMaterial.shader != null)
+                    {
+                        var bsh = r.sharedMaterial.shader;
+                        for (var i = 0; i < bsh.GetPropertyCount(); i++)
+                            if (bsh.GetPropertyType(i) == UnityEngine.Rendering.ShaderPropertyType.Color)
+                            {
+                                var bc = mpb.GetColor(bsh.GetPropertyName(i));
+                                sparts.Add($"bloco{bsh.GetPropertyName(i)}={bc.r:0.00},{bc.g:0.00},{bc.b:0.00}");
+                            }
+                    }
+                    foreach (var m in r.sharedMaterials)
+                    {
+                        if (m == null || m.shader == null) continue;
+                        var sh = m.shader;
+                        for (var i = 0; i < sh.GetPropertyCount(); i++)
+                        {
+                            var pn = sh.GetPropertyName(i);
+                            var pt = sh.GetPropertyType(i);
+                            if (pt == UnityEngine.Rendering.ShaderPropertyType.Texture) { var t = m.GetTexture(pn); if (t != null) sparts.Add($"{pn}={t.name}"); }
+                            else if (pt == UnityEngine.Rendering.ShaderPropertyType.Color) { var col = m.GetColor(pn); sparts.Add($"{pn}={col.r:0.00},{col.g:0.00},{col.b:0.00}"); }
+                            else if (pt == UnityEngine.Rendering.ShaderPropertyType.Vector) { var vv = m.GetVector(pn); sparts.Add($"{pn}=v{vv.x:0.00},{vv.y:0.00},{vv.z:0.00},{vv.w:0.00}"); }
+                            else if (pt == UnityEngine.Rendering.ShaderPropertyType.Float || pt == UnityEngine.Rendering.ShaderPropertyType.Range) sparts.Add($"{pn}={m.GetFloat(pn):0.00}");
+                        }
+                    }
+                    slist.Add(string.Join(" ", sparts));
+                }
+                return Json(new { ok = true, sig = slist });
+            }
+
+            case "appdirect":
+            {
+                // appdirect <cat>:<id>[,...] — chama direto a função interna do jogo de cada peça (SetFaceParts, SetSkinParts,
+                // SetEyeColor, SetHairColor, SetBeardParts, SetBeardColor, SetMoleParts, SetFrecklesParts) no personagem local (D78)
+                var damm = AvatarMakeManager.Instance;
+                var dres = new List<string>();
+                foreach (var kv in arg.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var dcat = int.Parse(kv.Split(':')[0]); var did = uint.Parse(kv.Split(':')[1]);
+                    var dm = did == 0 ? null : MasterDataManager.Instance.AvatarMakeMaster.GetData(did);
+                    var dinfo = dm == null ? AvatarInfo.CreateNoParts((AvatarPartsCategory)dcat) : AvatarInfo.CreateParts(dm);
+                    var tag = kv;
+                    Action dok = () => Plugin.Logger.LogInfo($"[appdirect] {tag} terminou");
+                    try
+                    {
+                        switch (dcat)
+                        {
+                            case 0: damm.SetFaceParts(dinfo, dok, false); break;
+                            case 1: damm.SetSkinParts(dinfo, dok); break;
+                            case 2: damm.SetEyeColor(dinfo, dok); break;
+                            case 4: damm.SetHairColor(dinfo, dok); damm.SetEyebrowColor(dinfo); break;
+                            case 5: damm.SetBeardParts(dinfo, dok); break;
+                            case 6: damm.SetBeardColor(dinfo, dok); break;
+                            case 7: damm.SetMoleParts(dinfo, dok); break;
+                            case 8: damm.SetFrecklesParts(dinfo, dok); break;
+                            default: damm.SetAvatarParts(dinfo, dok); break;
+                        }
+                        dres.Add(kv + "=chamado");
+                    }
+                    catch (Exception e) { dres.Add(kv + "=" + e.Message.Split((char)10)[0]); }
+                }
+                return Json(new { ok = true, done = dres });
+            }
+
+            case "locks":
+            {
+                // locks — nomes na lista de proteção do jogo e nas peças do visual atual (investigação D78)
+                var lamm = AvatarMakeManager.Instance;
+                var main = new List<string>(); var en = new List<string>(); var arm = new List<string>();
+                try { foreach (var n in lamm.avatarResourceManager.unloadBlocker.MainAvatarResources) main.Add(n); } catch (Exception e) { main.Add("erro " + e.Message); }
+                try { foreach (var n in lamm.GetEnableResourceNames()) en.Add(n); } catch (Exception e) { en.Add("erro " + e.Message); }
+                try { foreach (var n in lamm.avatarResourceManager.GetResourceNames()) arm.Add(n); } catch (Exception e) { arm.Add("erro " + e.Message); }
+                main.Sort(); en.Sort(); arm.Sort();
+                return Json(new { ok = true, main, enable = en, loaded = arm, remote = Net.AppearanceSync.LockedList() });
+            }
+
             case "fadein":
                 // fadein — clareia a tela (destravar uma tela preta de "carregando" em testes)
                 FadeManager.FadeIn(null, null, 0f, 0f);
@@ -1686,6 +1836,8 @@ public class DevBridge : MonoBehaviour
     {
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
+
+    private static string _loadPartResult = "";
 
     private static string Json(object o) => JsonSerializer.Serialize(o, JsonOpts);
 

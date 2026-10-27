@@ -114,7 +114,7 @@ public class PlayerSync : MonoBehaviour
         if (first) return;
         foreach (var rm in Remotes.Values)
         {
-            if (rm.Avatar != null) UnityEngine.Object.Destroy(rm.Avatar);
+            if (rm.Avatar != null) AppearanceSync.Release(rm.Avatar);
             rm.Avatar = null;
             rm.Animator = null;
             rm.Controller = null;
@@ -342,17 +342,17 @@ public class PlayerSync : MonoBehaviour
         var gen = rm.Gen;
         AppearanceSync.Build(app, (model, controller) =>
         {
-            if (gen != rm.Gen) { if (model != null) UnityEngine.Object.Destroy(model); return; } // de antes de recarregar
+            if (gen != rm.Gen) { if (model != null) AppearanceSync.Release(model); return; } // de antes de recarregar
             rm.Building = false;
             if (model == null) { rm.BuiltAppearance = app; return; } // não deu para montar: fica o provisório (sem tentar de novo)
-            if (!Remotes.ContainsKey(id)) { UnityEngine.Object.Destroy(model); return; }
+            if (!Remotes.ContainsKey(id)) { AppearanceSync.Release(model); return; }
             PrepareClone(model, id);
             if (rm.Avatar != null)
             {
                 model.transform.position = rm.Avatar.transform.position;
                 model.transform.rotation = rm.Avatar.transform.rotation;
                 model.SetActive(rm.Avatar.activeSelf);
-                UnityEngine.Object.Destroy(rm.Avatar);
+                AppearanceSync.Release(rm.Avatar);
             }
             rm.Avatar = model;
             rm.Animator = model.GetComponentInChildren<Animator>();
@@ -405,7 +405,7 @@ public class PlayerSync : MonoBehaviour
         rm.Meshes = 0;
         if (AppearanceSync.KnownAppearance(id) != null) { rm.BuiltAppearance = null; return; }
         // Avatar provisório (aparência ainda desconhecida): nova cópia do modelo local no lugar.
-        UnityEngine.Object.Destroy(rm.Avatar);
+        AppearanceSync.Release(rm.Avatar);
         rm.Avatar = null;
         CreateAvatar(id, rm);
     }
@@ -413,7 +413,7 @@ public class PlayerSync : MonoBehaviour
     private static void DestroyRemote(byte id)
     {
         if (!Remotes.TryGetValue(id, out var rm)) return;
-        if (rm.Avatar != null) UnityEngine.Object.Destroy(rm.Avatar);
+        if (rm.Avatar != null) AppearanceSync.Release(rm.Avatar);
         Remotes.Remove(id);
     }
 

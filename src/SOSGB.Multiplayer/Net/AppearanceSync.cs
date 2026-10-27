@@ -278,9 +278,13 @@ public class AppearanceSync : MonoBehaviour
         var probe = new CoroutineProbe.Result();
         yield return CoroutineProbe.Run(amm.ChangePlayerAvatar(AvatarMakeManager.ChangeType.Default, null), 15f, probe, "Appearance").WrapToIl2Cpp();
         if (probe.TimedOut) { res.Why = "montagem passou do tempo limite"; yield break; }
-        // D76: o jogo ainda aplica peças depois de o ChangePlayerAvatar terminar (rosto e pele são texturas carregadas em
-        // segundo plano). Copiar ou devolver antes disso deixava a textura de um jogador no personagem do outro.
+        // D76: o jogo ainda aplica peças depois de o ChangePlayerAvatar terminar. Copiar ou devolver antes disso deixava o
+        // visual de um jogador no personagem do outro.
         yield return WaitPartsSettled(amm, 6f).WrapToIl2Cpp();
+        // D78: o ChangePlayerAvatar é a troca de roupa do jogo: aplica penteado, roupa, acessórios e corpo, mas NÃO rosto, pele,
+        // cores (olhos, cabelo, sobrancelha, barba), barba, sinal e sardas. Cada um vai pela função do próprio jogo.
+        yield return ApplyAppearanceParts(amm, infos).WrapToIl2Cpp();
+        yield return WaitPartsSettled(amm, 4f).WrapToIl2Cpp();
 
         // Animações masculinas/femininas seguem o MotionType da aparência.
         var done = false;
@@ -332,6 +336,41 @@ public class AppearanceSync : MonoBehaviour
     private static class BlockPatch
     {
         private static void Postfix() => ApplyLocks();
+    }
+
+    // Categorias que a troca de roupa do jogo não aplica, na ordem certa: o rosto traz as decorações (sinal, sardas) e o
+    // material dos olhos; a pele e as cores vão por cima dele (medido com o comando matsig, D78).
+    private static readonly int[] FaceCategories = { 0 /*rosto*/, 1 /*pele*/, 2 /*cor dos olhos*/, 4 /*cor do cabelo*/,
+        5 /*barba*/, 6 /*cor da barba*/, 7 /*sinal*/, 8 /*sardas*/ };
+
+    /// <summary>Aplica rosto, pele, cores, barba, sinal e sardas no personagem local pelas funções internas do jogo.</summary>
+    private static IEnumerator ApplyAppearanceParts(AvatarMakeManager amm, AvatarInfo[] infos)
+    {
+        foreach (var cat in FaceCategories)
+        {
+            AvatarInfo info = null;
+            foreach (var i in infos) if ((int)i.Category == cat) { info = i; break; }
+            if (info == null) continue;
+            var done = false;
+            Action ok = () => done = true;
+            try
+            {
+                switch (cat)
+                {
+                    case 0: amm.SetFaceParts(info, ok, false); break;
+                    case 1: amm.SetSkinParts(info, ok); break;
+                    case 2: amm.SetEyeColor(info, ok); break;
+                    case 4: amm.SetHairColor(info, ok); amm.SetEyebrowColor(info); break;
+                    case 5: amm.SetBeardParts(info, ok); break;
+                    case 6: amm.SetBeardColor(info, ok); break;
+                    case 7: amm.SetMoleParts(info, ok); break;
+                    case 8: amm.SetFrecklesParts(info, ok); break;
+                }
+            }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[Appearance] categoria {cat}: {e.Message.Split((char)10)[0]}"); continue; }
+            var t = 0f;
+            while (!done && t < 3f) { t += Time.unscaledDeltaTime; yield return null; }
+        }
     }
 
     /// <summary>Espera o contador de peças em aplicação do jogo zerar (e a fila de peças pendentes esvaziar).</summary>
@@ -441,12 +480,13 @@ public class AppearanceSync : MonoBehaviour
         if (app == original)
         {
             // Mesma aparência do jogador local: basta copiar.
-            Finish(job, player);
+            Finish(job, player, null);
             _busy = false;
             yield break;
         }
 
         var signature = TextureSignature(player.Model);
+        var localAssets = AssetIds(player.Model);
         yield return SetWithRetry(app, original, res).WrapToIl2Cpp();
         if (GameController.Instance.GetPlayer() == null || GameController.Instance.GetPlayer().Pointer != player.Pointer)
         {
@@ -456,7 +496,7 @@ public class AppearanceSync : MonoBehaviour
             _busy = false;
             yield break;
         }
-        if (res.Ok) { RememberResources(job.Appearance); Finish(job, player); }
+        if (res.Ok) { RememberResources(job.Appearance); Finish(job, player, localAssets); }
         else
         {
             Plugin.Logger.LogWarning($"[Appearance] não deu para montar a aparência de outro jogador ({res.Why}); fica o modelo provisório");
@@ -475,13 +515,104 @@ public class AppearanceSync : MonoBehaviour
         _busy = false;
     }
 
-    private static void Finish(Job job, PlayerCharacter player)
+    private static void Finish(Job job, PlayerCharacter player, HashSet<int> localAssets)
     {
         var model = player.Model;
         var clone = Instantiate(model);
         OwnMaterials(clone);
+        if (localAssets != null) DetachRemoteAssets(clone, localAssets);
         var anim = model.GetComponentInChildren<Animator>();
         job.Done?.Invoke(clone, anim != null ? anim.runtimeAnimatorController : null);
+    }
+
+    // Cópias (materiais, malhas, texturas) criadas para cada avatar: não somem com o GameObject; liberadas em Release.
+    private static readonly Dictionary<IntPtr, List<UnityEngine.Object>> Owned = new();
+
+    private static void Own(GameObject clone, UnityEngine.Object obj)
+    {
+        if (!Owned.TryGetValue(clone.Pointer, out var list)) Owned[clone.Pointer] = list = new List<UnityEngine.Object>();
+        list.Add(obj);
+    }
+
+    /// <summary>Destrói o avatar e as cópias próprias dele (sem isso, cada remontagem deixava texturas na memória).</summary>
+    public static void Release(GameObject clone)
+    {
+        if (clone == null) return;
+        if (Owned.TryGetValue(clone.Pointer, out var list))
+        {
+            foreach (var o in list) if (o != null) Destroy(o);
+            Owned.Remove(clone.Pointer);
+        }
+        Destroy(clone);
+    }
+
+    /// <summary>Ids das malhas e texturas que o modelo usa.</summary>
+    private static HashSet<int> AssetIds(GameObject model)
+    {
+        var ids = new HashSet<int>();
+        if (model == null) return ids;
+        foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+        {
+            var smr = r.TryCast<SkinnedMeshRenderer>();
+            var mesh = smr != null ? smr.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+            if (mesh != null) ids.Add(mesh.GetInstanceID());
+            foreach (var m in r.sharedMaterials)
+            {
+                if (m == null) continue;
+                foreach (var p in m.GetTexturePropertyNames()) { var t = m.GetTexture(p); if (t != null) ids.Add(t.GetInstanceID()); }
+            }
+        }
+        return ids;
+    }
+
+    /// <summary>
+    /// Peças que são SÓ do outro jogador (o personagem local não usa) somem quando o jogo as descarrega: o jogo solta do
+    /// cache o rosto/pele/roupa do outro assim que o visual local volta e, na troca de mapa, descarrega de fato — a lista de
+    /// proteção (D77) não segura o que não está no cache (D78). A cópia ganha malhas e texturas próprias dessas peças;
+    /// cópias feitas em tempo de jogo não pertencem a nenhum pacote do jogo e não são descarregadas.
+    /// </summary>
+    private static void DetachRemoteAssets(GameObject clone, HashSet<int> localAssets)
+    {
+        var meshCopies = new Dictionary<int, Mesh>();
+        var texCopies = new Dictionary<int, Texture>();
+        int meshes = 0, textures = 0;
+        foreach (var r in clone.GetComponentsInChildren<Renderer>(true))
+        {
+            var smr = r.TryCast<SkinnedMeshRenderer>();
+            var mf = smr == null ? r.GetComponent<MeshFilter>() : null;
+            var mesh = smr != null ? smr.sharedMesh : mf?.sharedMesh;
+            if (mesh != null && !localAssets.Contains(mesh.GetInstanceID()))
+            {
+                if (!meshCopies.TryGetValue(mesh.GetInstanceID(), out var copy))
+                {
+                    copy = Instantiate(mesh);
+                    copy.name = mesh.name;
+                    Own(clone, copy);
+                    meshCopies[mesh.GetInstanceID()] = copy;
+                    meshes++;
+                }
+                if (smr != null) smr.sharedMesh = copy; else mf.sharedMesh = copy;
+            }
+            foreach (var m in r.sharedMaterials) // já são materiais próprios (OwnMaterials)
+            {
+                if (m == null) continue;
+                foreach (var p in m.GetTexturePropertyNames())
+                {
+                    var t = m.GetTexture(p);
+                    if (t == null || localAssets.Contains(t.GetInstanceID())) continue;
+                    if (!texCopies.TryGetValue(t.GetInstanceID(), out var tcopy))
+                    {
+                        tcopy = Instantiate(t);
+                        tcopy.name = t.name;
+                        Own(clone, tcopy);
+                        texCopies[t.GetInstanceID()] = tcopy;
+                        textures++;
+                    }
+                    m.SetTexture(p, tcopy);
+                }
+            }
+        }
+        if (meshes + textures > 0) Plugin.Logger.LogInfo($"[Appearance] avatar com peças próprias: {meshes} malha(s), {textures} textura(s) que o personagem local não usa");
     }
 
     /// <summary>
@@ -496,11 +627,24 @@ public class AppearanceSync : MonoBehaviour
             var shared = r.sharedMaterials;
             if (shared == null || shared.Length == 0) continue;
             var own = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Material>(shared.Length);
-            for (var i = 0; i < shared.Length; i++) own[i] = shared[i] != null ? new Material(shared[i]) : null;
+            for (var i = 0; i < shared.Length; i++)
+            {
+                own[i] = shared[i] != null ? new Material(shared[i]) : null;
+                if (own[i] != null) Own(clone, own[i]);
+            }
             r.sharedMaterials = own;
         }
     }
 
     public static object Status() => new { known = Known, queued = Jobs.Count, busy = _busy, local = Ready() ? Local() : null,
         lockedSets = RemoteResources.Count, lockedNames = RemoteResources.Values.Sum(v => v.Count) };
+
+    public static List<string> LockedList()
+    {
+        var all = new HashSet<string>();
+        foreach (var set in RemoteResources.Values) foreach (var n in set) all.Add(n);
+        var list = new List<string>(all);
+        list.Sort();
+        return list;
+    }
 }
