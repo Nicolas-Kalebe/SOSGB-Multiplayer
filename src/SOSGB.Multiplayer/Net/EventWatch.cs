@@ -68,6 +68,7 @@ public class EventWatch : MonoBehaviour
     private static bool _everInEvent;
     private static bool _starting;
     private static bool _testAuto;               // teste com uma instância: as falas passam sozinhas
+    private static string _openMode = "start";   // teste: start (StartEvent) | talk | talkfade (TalkEventStart)
     private static readonly List<Renderer> Hidden = new();
     private static UIManager _ui;
     private static bool _subscribed;
@@ -89,6 +90,23 @@ public class EventWatch : MonoBehaviour
     }
 
     private static bool InEvent => GameController.IsInstance && GameController.Instance.IsPlayingEvent;
+
+    /// <summary>Ligado na configuração, ou só nesta execução por SOSGB_WATCH_FESTIVAL=1 (testes; o .cfg fica como está).</summary>
+    private static bool Enabled => Plugin.WatchFestivalScenes.Value || System.Environment.GetEnvironmentVariable("SOSGB_WATCH_FESTIVAL") == "1";
+
+    /// <summary>
+    /// A cena da competição monta os competidores pela classificação do festival (LoadModel/GetModelParam); sem ela a
+    /// corrotina de carregamento quebra (índice fora da lista, Player.log) e a cena fica parada. A classificação sai na
+    /// inscrição e chega pela SharedSync: quem assiste espera por ela antes de abrir.
+    /// </summary>
+    private static bool RankingReady()
+    {
+        try { return FestivalExecutor.IsInstance && FestivalExecutor.Instance.GetCurrentFestivalPlayerRanking() > 0; }
+        catch { return false; }
+    }
+
+    private static StartInfo _deferred;
+    private static float _deferredSince;
     private static bool Executing => EventManager.IsInstance && EventManager.Instance.IsExecute;
 
     private static void Send(byte kind, Action<NetDataWriter> body)
@@ -198,7 +216,7 @@ public class EventWatch : MonoBehaviour
     private static bool CanWatch(uint field, StartInfo info, out string why)
     {
         why = null;
-        if (!Plugin.WatchFestivalScenes.Value) { why = "desligado na configuração"; return false; }
+        if (!Enabled) { why = "desligado na configuração"; return false; }
         if (info.Masters.Count == 0) { why = "sem os dados de abertura da cena"; return false; }
         if (!FieldManager.IsInstance || FieldManager.Instance.CurrentFieldId != field) { why = "em outro mapa"; return false; }
         if (InEvent) { why = "já está numa cena"; return false; }
@@ -220,7 +238,9 @@ public class EventWatch : MonoBehaviour
         var name = NetSession.Players.TryGetValue(who, out var p) ? p.Name : "outro jogador";
         Last = $"assistindo a cena {info.Event} de {name}";
         Plugin.Logger.LogInfo($"[EventWatch] {Last}");
-        StartLocal(info);
+        _deferred = info;                       // abre quando a classificação do festival estiver aqui (Update)
+        _deferredSince = Time.unscaledTime;
+        _startedAt = Time.unscaledTime;
     }
 
     /// <summary>
@@ -239,7 +259,19 @@ public class EventWatch : MonoBehaviour
             if (md != null && info.Masters.Contains(md.Id)) list.Add(md);
         if (list.Count == 0) { StopWatch($"cadastro da cena {info.Event} não encontrado"); return false; }
         _starting = true;
-        try { GameController.Instance.StartEvent(list, info.NextField, info.Spawn, ""); }
+        try
+        {
+            // mapa de destino 0 = "nenhum": usa o mapa atual (testes com uma instância mandavam 0)
+            var next = info.NextField != 0 ? info.NextField : (FieldManager.IsInstance ? FieldManager.Instance.CurrentFieldId : 0);
+            var gc = GameController.Instance;
+            switch (_openMode)
+            {
+                case "talk": gc.TalkEventStart(list, next, info.Spawn, "", false, false, null, null, null, null); break;
+                case "talkfade": gc.TalkEventStart(list, next, info.Spawn, "", true, false, null, null, null, null); break;
+                default: gc.StartEvent(list, next, info.Spawn, ""); break;
+            }
+            Plugin.Logger.LogInfo($"[EventWatch] abrindo a cena {info.Event} ({_openMode}, mapa {next}, ponto '{info.Spawn}')");
+        }
         catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] abrir a cena {info.Event}: {e.Message}"); Recover("erro ao abrir"); return false; }
         finally { _starting = false; }
         return true;
@@ -249,6 +281,7 @@ public class EventWatch : MonoBehaviour
     {
         Watching = false;
         _testAuto = false;
+        _deferred = null;
         _watchedId = NetSession.UnknownId;
         _curEvent = 0;
         _myWait = -1;
@@ -263,6 +296,12 @@ public class EventWatch : MonoBehaviour
     private static void Recover(string why)
     {
         try { if (EventManager.IsInstance) EventManager.Instance.ForceEventClose(null); } catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] encerrar: {e.Message}"); }
+        // ainda em cena: o fim normal de cena do jogo (o que o OnFinishEventEnd chama), com os prêmios ainda bloqueados
+        if (InEvent && _curEvent != 0)
+        {
+            try { GameController.Instance.TalkEventEnd(_curEvent, "", null, false, false, false); Plugin.Logger.LogInfo($"[EventWatch] fim de cena forçado ({_curEvent})"); }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] fim de cena: {e.Message}"); }
+        }
         try { FadeManager.FadeIn(null, null, 0f, 0f); } catch { /* segue */ }
         StopWatch(why);
     }
@@ -304,6 +343,12 @@ public class EventWatch : MonoBehaviour
             }
 
             if (!Watching) return;
+            if (_deferred != null)
+            {
+                if (RankingReady() || _testAuto) { var d = _deferred; _deferred = null; StartLocal(d); }
+                else if (Time.unscaledTime - _deferredSince > 8f) { _deferred = null; StopWatch("a classificação do festival não chegou: cena não aberta"); }
+                return;
+            }
             if (!_testAuto) HideLocalPlayer();
 
             if (InEvent || Executing) _everInEvent = true;
@@ -357,6 +402,7 @@ public class EventWatch : MonoBehaviour
     public static string Test(string arg)
     {
         var a = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (a.Length >= 2 && a[0] == "mode") { _openMode = a[1]; return "modo " + _openMode; }
         if (a.Length >= 2 && a[0] == "watch")
         {
             var info = new StartInfo { Event = uint.Parse(a[1]) };
@@ -431,6 +477,18 @@ public class EventWatch : MonoBehaviour
         }
     }
 
+    /// <summary>Diagnóstico (só com a ponte de teste): cada comando executado em quem assiste e em quem está na cena.</summary>
+    [HarmonyPatch(typeof(EventExecCommandBase), nameof(EventExecCommandBase.Execute))]
+    private static class TraceCommandsPatch
+    {
+        private static void Postfix(EventExecCommandBase __instance)
+        {
+            if (!Plugin.DevMode || (!Watching && !_broadcasting) || __instance == null) return;
+            try { Plugin.Logger.LogInfo($"[EventWatch] {(Watching ? "assiste" : "cena")} cmd {__instance.commandIndex} {__instance.Type} {__instance.GetIl2CppType().Name}"); }
+            catch { /* diagnóstico */ }
+        }
+    }
+
     [HarmonyPatch(typeof(Message), nameof(Message.Execute))]
     private static class MessagePatch
     {
@@ -455,7 +513,8 @@ public class EventWatch : MonoBehaviour
     {
         private static IEnumerable<MethodBase> TargetMethods()
         {
-            foreach (var t in new[] { typeof(RewardItem), typeof(EventFlag), typeof(FestivalEnd), typeof(ChangeField), typeof(ExecludeHappyEnergy),
+            // FestivalEnd NÃO entra: a mudança de estado dele é o que encerra a cerimônia (sem ela a cena de quem assiste não acabava)
+            foreach (var t in new[] { typeof(RewardItem), typeof(EventFlag), typeof(ChangeField), typeof(ExecludeHappyEnergy),
                                       typeof(KagetsuBuff), typeof(PlayableTutorialStart), typeof(BazaarResultSkip) })
             {
                 // só o Execute da própria classe: o da base valeria para todos os comandos
@@ -473,8 +532,36 @@ public class EventWatch : MonoBehaviour
         }
     }
 
+    /// <summary>Em quem assiste: fades da cena feitos na hora (ver o comentário dentro).</summary>
+    [HarmonyPatch]
+    private static class FadePatch
+    {
+        // Em quem assiste, os fades da cena são feitos na hora e o comando é dado como terminado: na convidada o FadeIn do
+        // meio da cerimônia (comando 285) nunca terminava a espera dele e a cena parava ali (teste com duas instâncias).
+        private static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return AccessTools.DeclaredMethod(typeof(BokuMono.FieldEvent.FadeIn), "Execute");
+            yield return AccessTools.DeclaredMethod(typeof(BokuMono.FieldEvent.FadeOut), "Execute");
+        }
+
+        private static bool Prefix(EventExecCommandBase __instance)
+        {
+            if (!Watching) return true;
+            try
+            {
+                if (__instance.TryCast<BokuMono.FieldEvent.FadeIn>() != null) FadeManager.FadeIn(null, null, 0.3f, 0f);
+                else FadeManager.FadeOut(FadeType.Black, null, null, 0.3f);
+            }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[EventWatch] fade: {e.Message}"); }
+            __instance.IsForceCommandNext = true;
+            __instance.IsCommandEnd = true;
+            return false;
+        }
+    }
+
     /// <summary>
-    /// Em quem assiste: sem Happy Energy, minigame, mudança de estado do festival nem prêmio. O cálculo do prêmio do festival
+    /// Em quem assiste: sem Happy Energy, minigame nem prêmio (a mudança de estado do festival roda: é o mesmo estado que vem do
+    /// host e é ela que encerra a cerimônia). O cálculo do prêmio do festival
     /// (ApplyFestivalExtraReward, já na abertura da cena) quebrava sem inscrição e impedia a cena de abrir (visto no teste).
     /// </summary>
     [HarmonyPatch]
@@ -484,7 +571,6 @@ public class EventWatch : MonoBehaviour
         {
             yield return AccessTools.Method(typeof(EventExternal), "SetHappyPoint");
             yield return AccessTools.Method(typeof(EventExternal), "ExecuteMiniGame");
-            yield return AccessTools.Method(typeof(FestivalExecutor), "SetCurrentFestivalState");
             yield return AccessTools.Method(typeof(EventReward), "ApplyFestivalExtraReward");
             yield return AccessTools.Method(typeof(EventReward), "ReciveReward");
         }
