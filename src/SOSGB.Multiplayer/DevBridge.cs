@@ -1146,6 +1146,11 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, main, enable = en, loaded = arm, remote = Net.AppearanceSync.LockedList() });
             }
 
+            case "rebuild":
+                // rebuild <id> — remonta o avatar de um jogador (testes da D79)
+                Net.PlayerSync.InvalidateAvatar(byte.Parse(arg.Trim()));
+                return Json(new { ok = true });
+
             case "fadein":
                 // fadein — clareia a tela (destravar uma tela preta de "carregando" em testes)
                 FadeManager.FadeIn(null, null, 0f, 0f);

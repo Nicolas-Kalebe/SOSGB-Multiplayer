@@ -45,6 +45,42 @@ public class AppearanceSync : MonoBehaviour
     // ficava sem corpo e era preciso remontar, com segundos de "rosto flutuante").
     private static readonly Dictionary<string, HashSet<string>> RemoteResources = new();
     private float _nextLock;
+
+    // D79: tela de aparência (guarda-roupa, criação) pedida no meio de uma montagem: o jogo e o mod mexeriam no mesmo
+    // personagem ao mesmo tempo (a troca do mod travava e o guarda-roupa ficava em "carregando" para sempre). O pedido
+    // espera a montagem terminar e é repetido.
+    private static bool _replayingOpen;
+    private static AvatarMakeCategory _deferredCategory;
+    private static Il2CppSystem.Action<Il2CppSystem.Object> _deferredAction;
+    private static bool _deferredOpen;
+
+    [HarmonyPatch(typeof(UIAccessor), nameof(UIAccessor.RequestOpenAvatarMakeup))]
+    private static class DeferAvatarMakePatch
+    {
+        private static bool Prefix(AvatarMakeCategory category, Il2CppSystem.Action<Il2CppSystem.Object> reservAction)
+        {
+            if (!_busy || _replayingOpen)
+            {
+                Plugin.Logger.LogInfo($"[Appearance] tela de aparência aberta ({category})");
+                return true;
+            }
+            Plugin.Logger.LogInfo($"[Appearance] tela de aparência ({category}) pedida no meio da montagem de um avatar: abre ao terminar");
+            _deferredCategory = category;
+            _deferredAction = reservAction;
+            _deferredOpen = true;
+            return false;
+        }
+    }
+
+    private static void ReplayDeferredOpen()
+    {
+        if (!_deferredOpen || _busy) return;
+        _deferredOpen = false;
+        _replayingOpen = true;
+        try { UIAccessor.Instance.RequestOpenAvatarMakeup(_deferredCategory, _deferredAction); }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[Appearance] reabrir tela de aparência: {e.Message}"); }
+        finally { _replayingOpen = false; }
+    }
     private static readonly Queue<Job> Jobs = new();
     private static bool _busy;
     private static bool _subscribed;
@@ -83,6 +119,7 @@ public class AppearanceSync : MonoBehaviour
     private void Update()
     {
         if (Time.unscaledTime >= _nextLock) { _nextLock = Time.unscaledTime + 0.5f; ApplyLocks(); }
+        ReplayDeferredOpen();
         if (!Plugin.OwnAppearance.Value) { Jobs.Clear(); return; }
         if (_busy || Jobs.Count == 0) return;
         if (!Ready()) return;
@@ -96,6 +133,7 @@ public class AppearanceSync : MonoBehaviour
         SceneManager.IsInstance && SceneManager.Instance.CurrentSceneMode == SceneMode.Game
         && AvatarMakeManager.IsInstance && GameController.IsInstance && GameController.Instance.GetPlayer() != null
         && !GameController.Instance.IsPlayingEvent && !DaySync.InDayChange && !CharacterCreator.AvatarMakeBusy // D72/D75: criação/guarda-roupa mexem no modelo local
+        && !_deferredOpen // D79: tela de aparência esperando para abrir
         && HasRealController(GameController.Instance.GetPlayer());
 
     private static bool HasRealController(PlayerCharacter p)

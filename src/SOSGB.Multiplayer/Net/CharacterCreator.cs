@@ -68,7 +68,9 @@ public class CharacterCreator : MonoBehaviour
     private static bool AvatarMakeOnScreen()
     {
         if (CurrentUi() == UILoadKey.AvatarMake) return true;
-        try { return _ui != null && _ui.IsMenu && _ui.UIMenuKey == UILoadKey.AvatarMake; } catch { return false; }
+        // Com um diálogo por cima (ex.: "sair sem salvar?"), a tela atual é a do diálogo e IsMenu fica falso, mas o menu de
+        // fundo continua sendo a tela de aparência: ainda está aberta (D79).
+        try { return _ui != null && _ui.UIMenuKey == UILoadKey.AvatarMake; } catch { return false; }
     }
 
     private static UILoadKey CurrentUi()
