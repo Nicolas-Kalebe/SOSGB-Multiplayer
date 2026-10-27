@@ -94,7 +94,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 |---|---|---|---|
 | 5.1 ✅ | Interações com o mapa (arar, plantar, regar, colher...) sincronizadas por **diferença de estado** (D40) em vez de ação por ação | G | Teste da IA: duas instâncias, arar e colher de verdade |
 | 5.2 ✅ | Plantações, solo, árvores, pedras/galhos e sprinklers em todos os mapas: ao vivo entre quem está no mesmo mapa; mapa inteiro ao sair de um não residente (D40) | G | Teste da IA: duas instâncias (fazenda e montanhas) |
-| 5.3 ✅ | **Animais e celeiro** (`AnimalManager`, D41): cuidados de cada animal, ovos e ração do celeiro; falta pets e cavalo ao vivo | G | Teste da IA: duas instâncias, coleta real de ovo |
+| 5.3 ✅ | **Animais e celeiro** (`AnimalManager`, D41): cuidados de cada animal, ovos e ração do celeiro; pets e cavalo pela D42/D52. Carinho do dia compartilhado: quem faz depois do outro não ganha afeição de novo (conferido em 2026-10-26). Compra e venda de animal ao vivo (D81) | G | Teste da IA: duas instâncias, coleta real de ovo, carinho nos dois sentidos |
 | 5.4 ✅ | **Moinhos**, apicultura e cogumelos (+ vasos de flor, pets e cavalo), D42 | M | Teste da IA: autoteste das 6 partes; pets em rede |
 | 5.5 ✅ | Casa única compartilhada (D11): ampliações (`ExpansionManager`) na parte `expansion` da D42; o jogo não tem móveis soltos | M | Teste da IA: autoteste |
 | 5.6 | **Primeira sessão longa** com amigos (1 semana do jogo) e lista de bugs | — | Teste do usuário |
@@ -138,7 +138,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 8.1 ✅ (IMGUI, D27) | Menu no jogo para **Hospedar / Entrar** (talvez reaproveitando a UI de rede que sobrou: `NetworkMenuCategory`) | G |
 | 8.2 🟡 | Nomes dos jogadores, indicadores na tela, lista de quem está online (✅ lista com localização e ping; ✅ nome acima do avatar; ✅ aviso de pausa D74) | M |
 | 8.9 ✅ | **Entrar sem save e criar o personagem** (D72): "Entrar agora" na tela inicial, criação completa do jogo novo na primeira vez, F9 → "Mudar visual"; **"Gerar log"** (D71) | M |
-| 8.8 | **Mapa do jogo (M) com a localização dos outros jogadores** (pedido do usuário, 2026-10-26: "quero o mapa com localização do outro player"). Caminho: a página do mapa já tem o marcador do jogador local (`UIMapArea.playerPosition`, posto por `SetPlayerPosition`); clonar um marcador por jogador remoto, com nome/cor, usando o mapa e a posição que o `PlayerSync` já recebe. Quem está dentro de um prédio fica no ponto do prédio, como os moradores (`AddCharaToAnchor`) | M |
+| 8.8 ✅ | **Mapa do jogo (M) com a localização dos outros jogadores** (D82, testado com duas instâncias) (pedido do usuário, 2026-10-26: "quero o mapa com localização do outro player"). Caminho: a página do mapa já tem o marcador do jogador local (`UIMapArea.playerPosition`, posto por `SetPlayerPosition`); clonar um marcador por jogador remoto, com nome/cor, usando o mapa e a posição que o `PlayerSync` já recebe. Quem está dentro de um prédio fica no ponto do prédio, como os moradores (`AddCharaToAnchor`) | M |
 | 8.7 ✅ | **Aparência própria de cada jogador (D28/D32)**, inclusive gênero diferente. ⏳ falta teste em rede | G |
 | 8.3 | Reativar para convidados: eventos de casado, cerimônia, filhos, ajuda na fazenda (D12a) | GG |
 | 8.4c ✅ | Esconder/desabilitar a opção "Salvar" no multiplayer: "Salvar" e "Carregar" mostram aviso (D48) | P |

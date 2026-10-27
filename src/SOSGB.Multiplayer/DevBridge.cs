@@ -861,7 +861,64 @@ public class DevBridge : MonoBehaviour
                     }
                     return Json(new { ok = true, count = list.Count, animals = list });
                 }
+                if (aa[0] == "room")
+                {
+                    // animal room — tipos de animal (FieldAnimalMasterId) com vaga em algum celeiro (sem vaga, AddAnimal não registra)
+                    var room = new List<string>();
+                    var kinds = new List<string>();
+                    foreach (var fam in MasterDataManager.Instance.FarmAnimalMasterData)
+                    {
+                        if (fam == null) continue;
+                        kinds.Add($"{fam.Id}/t{fam.TypeId}");
+                        BokuMono.Animal.FarmAnimalBarn rb = null;
+                        try { rb = AnimalManager.Instance.GetBelongableBarn(fam.Id); } catch { /* sem celeiro */ }
+                        if (rb != null) room.Add($"{fam.Id}→{System.Text.Json.Nodes.JsonNode.Parse(Net.AnimalSync.BarnJson(rb))!["Guid"]}");
+                    }
+                    return Json(new { ok = true, room, kinds });
+                }
+                if (aa[0] == "buy" && aa.Length >= 2)
+                {
+                    // animal buy <FieldAnimalMasterId> [nome] — como a compra na loja (AddAnimal), para testar a D81
+                    var bought = AnimalManager.Instance.AddAnimal(uint.Parse(aa[1]), aa.Length >= 3 ? aa[2] : "Teste", 0);
+                    return Json(new { ok = bought != null, guid = bought?.Guid, count = Net.AnimalSync.FarmAnimals().Count() });
+                }
+                if (aa[0] == "sell" && aa.Length >= 2)
+                {
+                    // animal sell <guid> — como a venda (Leave), para testar a D81
+                    var sa = Net.AnimalSync.FarmAnimals().FirstOrDefault(x => x.Guid == aa[1]);
+                    if (sa == null) return Json(new { ok = false, error = "animal não encontrado" });
+                    sa.Leave();
+                    return Json(new { ok = true, count = Net.AnimalSync.FarmAnimals().Count(), still = Net.AnimalSync.FarmAnimals().Any(x => x.Guid == aa[1]) });
+                }
+                if (aa[0] == "chars")
+                {
+                    // animal chars — personagens de animais da fazenda na cena (para ver se criar/remover deixa sobra)
+                    var cn = new List<string>();
+                    foreach (var fc in UnityEngine.Object.FindObjectsOfType<FarmAnimalCharacter>()) cn.Add(fc.name);
+                    return Json(new { ok = true, count = cn.Count, chars = cn });
+                }
+                if (aa[0] == "stroke" && aa.Length >= 2 && aa[1] == "pet")
+                {
+                    // animal stroke pet — carinho no 1º pet pela rotina do jogo (afeição e contador do dia antes/depois)
+                    var pcs = AnimalManager.Instance.PetAnimalController;
+                    var pj = System.Text.Json.Nodes.JsonNode.Parse(StringExtensions.ToJson(pcs.ToSaveData()))!["PetParams"]!.AsArray();
+                    if (pj.Count == 0) return Json(new { ok = false, error = "sem pets" });
+                    var pg = pj[0]!["Guid"]!.GetValue<string>();
+                    var pp = pcs.FindParameter(pg);
+                    string PetState() { var n = System.Text.Json.Nodes.JsonNode.Parse(StringExtensions.ToJson(pp.ToSaveData<BokuMono.Animal.PetAnimalParameter.SaveData>()))!; return $"afeição={n["FriendPoint"]} carinho={n["DailyStrokeCount"]}"; }
+                    var pBefore = PetState();
+                    var pr = pp.OnStroke<BokuMono.Animal.PetAnimalActionResult>(null);
+                    return Json(new { ok = true, guid = pg, before = pBefore, after = PetState(), result = pr == null ? "nulo" : "ok" });
+                }
                 var target = Net.AnimalSync.FarmAnimals().FirstOrDefault(x => x.Guid == aa[1]);
+                if (target != null && aa[0] == "stroke")
+                {
+                    // animal stroke <guid> — carinho pela rotina do jogo (OnStroke): afeição e contador do dia antes/depois
+                    string FarmState() { var n = System.Text.Json.Nodes.JsonNode.Parse(Net.AnimalSync.Json(target))!; return $"afeição={n["FriendPoint"]} alegria={n["HappyPoint"]} carinho={n["DailyStokeCount"]} alegriaPorCarinho={n["DailyHappyUpWithStrokeCount"]}"; }
+                    var fBefore = FarmState();
+                    var r = target.OnStroke();
+                    return Json(new { ok = true, before = fBefore, after = FarmState(), result = r == null ? "nulo" : $"afeição+{r.FriendPoint} alegria+{r.HappyPoint} exp+{r.Exp}" });
+                }
                 if (target == null) return Json(new { ok = false, error = "animal não encontrado" });
                 if (aa[0] == "get") return Json(new { ok = true, json = Net.AnimalSync.Json(target) });
                 if ((aa[0] == "set" || aa[0] == "poke") && aa.Length >= 4)
@@ -1646,6 +1703,36 @@ public class DevBridge : MonoBehaviour
                 GameController.Instance.ChangeField((FieldMasterId)uint.Parse(arg), "", "", false, true, false, null, null, null, false);
                 return Json(new { ok = true, changing = uint.Parse(arg) });
 
+            case "date":
+            {
+                // date | date <mês 1-4> <dia> [hora] [minuto] — pula para outra data do mesmo ano (testes de festival, 7.2).
+                // Mês: 1 primavera, 2 verão, 3 outono, 4 inverno. Use no host antes de dormir: a virada leva todos ao dia seguinte.
+                var dm = DateManager.Instance;
+                var dn = dm.Now;
+                var da = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (da.Length >= 2)
+                    dm.SetDate(new BokuMonoDateTime(dn.Year, int.Parse(da[0]), int.Parse(da[1]), da.Length >= 3 ? int.Parse(da[2]) : dn.Hour, da.Length >= 4 ? int.Parse(da[3]) : 0), true);
+                dn = dm.Now;
+                return Json(new { ok = true, year = dn.Year, month = dn.Month, day = dn.Day, hour = dn.Hour, minute = dn.Minute });
+            }
+
+            case "fest":
+            {
+                // fest | fest state <None|Unjoining|Joining|JoinAfter> — festival de hoje (FestivalExecutor, 7.2/P13)
+                var fe = FestivalExecutor.Instance;
+                var festArgs = arg.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+                if (festArgs.Length >= 2 && festArgs[0] == "state")
+                    fe.SetCurrentFestivalState(Enum.Parse<FestivalExecutor.FestivalState>(festArgs[1]));
+                var open = fe.IsAnyFestivalOpen(DateManager.Instance.Now, out var fm);
+                return Json(new
+                {
+                    ok = true, festivalId = fe.FestivalId, category = fe.GetCurrentFestivalCategory().ToString(), state = fe.State.ToString(),
+                    inSession = fe.IsInSession, finished = fe.IsFinished, closeReception = fe.IsCloseReception(),
+                    openToday = open, master = fm == null ? null : $"id={fm.Id} estação={fm.Season} dias={fm.DaysNum} anfitrião={fm.HostCharaId} prefab={fm.AddPrefabName}",
+                    score = fe.GetCurrentFestivalScore(), ranking = fe.GetCurrentFestivalPlayerRanking(),
+                });
+            }
+
             case "world":
                 // world capture | world load — tarefa 1.5 (ver WorldSnapshot). Slot de teste = 2.
                 if (arg.StartsWith("capture"))
@@ -1893,5 +1980,5 @@ public class DevBridge : MonoBehaviour
     private static string Json(object o) => JsonSerializer.Serialize(o, JsonOpts);
 
     /// <summary>Estado de cada parte do mod (o "net status"); também vai no relatório de bugs (D71), mesmo com a ponte desligada.</summary>
-    public static string StatusJson() => Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status(), missions = Net.MissionSync.Status(), character = Net.CharacterCreator.Status() });
+    public static string StatusJson() => Json(new { ok = true, net = Net.NetSession.Status(), remotes = Net.PlayerSync.Status(), clock = Net.ClockSync.Status(), day = Net.DaySync.Status(), profiles = Net.PlayerProfiles.Status(), appearance = Net.AppearanceSync.Status(), money = Net.MoneySync.Status(), storage = Net.StorageSync.Status(), mail = Net.LetterSync.Status(), farm = Net.FarmSync.Status(), animals = Net.AnimalSync.Status(), shared = Net.SharedSync.Status(), romance = Net.RomanceSync.Status(), bazaarView = Net.BazaarViewSync.Status(), bazaarHelp = Net.BazaarHelpSync.Status(), missions = Net.MissionSync.Status(), character = Net.CharacterCreator.Status(), map = Net.MapMarkers.Status() });
 }

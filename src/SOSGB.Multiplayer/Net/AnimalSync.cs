@@ -22,7 +22,10 @@ namespace SOSGB.Multiplayer.Net;
 ///    pula de lugar), e aplica com FromSaveData do próprio animal.
 ///  - CELEIROS (FarmAnimalBarn) também: ovos produzidos (ProductEggContainers — é daqui que o jogo recria os ovos
 ///    ao entrar no celeiro), cochos de ração e alimentação do dia. Mesmo esquema, com o GUID do celeiro.
-/// Animais novos/vendidos não são criados/removidos ao vivo: chegam na virada do dia (mundo novo do host).
+///  - COMPRA E VENDA ao vivo (D81): animal que aparece depois da linha de base (comprado: AddAnimal) vai com o estado
+///    completo e quem recebe o cria com a mesma rotina da compra; animal que some da lista por 3 s seguidos (vendido:
+///    Leave) vira um aviso "del:" e quem recebe o remove. Sem isso, o animal comprado pelo convidado sumia na virada
+///    do dia (o mundo do host não o tinha), com o dinheiro já gasto da carteira do grupo.
 /// </summary>
 public class AnimalSync : MonoBehaviour
 {
@@ -37,6 +40,8 @@ public class AnimalSync : MonoBehaviour
 
     private static readonly Dictionary<string, string> Baseline = new(); // guid → assinatura de cuidados
     private static readonly Dictionary<string, string> BarnBaseline = new(); // guid do celeiro → JSON
+    private static readonly Dictionary<string, float> Missing = new(); // guid → desde quando sumiu da lista (D81)
+    private const float RemovedAfter = 3f;
 
     /// <summary>Campos do celeiro que não sincronizamos (hora da última entrada pelo portão é de cada jogo).</summary>
     private static readonly string[] BarnVolatile = { "LastEnterGateTicks" };
@@ -56,7 +61,7 @@ public class AnimalSync : MonoBehaviour
         NetSession.OnJoined += Reset;
     }
 
-    private static void Reset() { Baseline.Clear(); BarnBaseline.Clear(); _hasBaseline = false; }
+    private static void Reset() { Baseline.Clear(); BarnBaseline.Clear(); Missing.Clear(); _hasBaseline = false; }
 
     public static IEnumerable<FarmAnimalBarn> Barns()
     {
@@ -122,16 +127,33 @@ public class AnimalSync : MonoBehaviour
             if (Time.unscaledTime < _nextTick) return;
             _nextTick = Time.unscaledTime + 1f;
             var changed = new List<(string guid, string json)>();
+            var present = new HashSet<string>();
             foreach (var a in FarmAnimals())
             {
+                present.Add(a.Guid);
+                Missing.Remove(a.Guid);
                 var json = Json(a);
                 var sig = CareSignature(json);
                 if (Baseline.TryGetValue(a.Guid, out var old) && old == sig) continue;
                 var isNew = !Baseline.ContainsKey(a.Guid);
                 if (!isNew && Plugin.DevMode) LogDiff(a.Guid, old, sig);
                 Baseline[a.Guid] = sig;
-                if (_hasBaseline && !isNew) changed.Add((a.Guid, json));
+                if (!_hasBaseline) continue;
+                changed.Add((a.Guid, json)); // novo depois da linha de base = comprado aqui (D81): vai completo
+                if (isNew) Plugin.Logger.LogInfo($"[AnimalSync] animal novo neste jogo (compra): {a.Guid}");
             }
+            // D81: animal que saiu da lista (vendido). A lista não muda na troca de mapa (medido), mas só vale
+            // depois de 3 s seguidos e com outros animais presentes, para nunca apagar animais por uma lista vazia.
+            if (_hasBaseline && present.Count > 0)
+                foreach (var guid in Baseline.Keys.Where(g => !present.Contains(g)).ToList())
+                {
+                    if (!Missing.TryGetValue(guid, out var since)) { Missing[guid] = Time.unscaledTime; continue; }
+                    if (Time.unscaledTime - since < RemovedAfter) continue;
+                    Missing.Remove(guid);
+                    Baseline.Remove(guid);
+                    changed.Add(("del:" + guid, ""));
+                    Plugin.Logger.LogInfo($"[AnimalSync] animal saiu deste jogo (venda): {guid}");
+                }
             foreach (var b in Barns())
             {
                 var json = BarnJson(b);
@@ -201,11 +223,18 @@ public class AnimalSync : MonoBehaviour
     public static string Apply(string guid, string incoming, bool markSynced)
     {
         if (guid.StartsWith("barn:")) return ApplyBarn(guid.Substring(5), incoming, markSynced);
+        if (guid.StartsWith("del:")) return Remove(guid.Substring(4));
         var a = FarmAnimals().FirstOrDefault(x => x.Guid == guid);
-        if (a == null) return "animal não existe aqui";
+        var created = false;
+        if (a == null)
+        {
+            a = Create(guid, incoming, out var why);
+            if (a == null) return why;
+            created = true;
+        }
         var local = JsonNode.Parse(Json(a))!.AsObject();
         var merged = JsonNode.Parse(incoming)!.AsObject();
-        foreach (var k in Volatile)
+        foreach (var k in created ? Volatile.Concat(BelongFields) : Volatile)
         {
             merged.Remove(k);
             if (local[k] != null) merged[k] = JsonNode.Parse(local[k]!.ToJsonString()); // cópia (net6 não tem JsonNode.DeepClone)
@@ -214,7 +243,53 @@ public class AnimalSync : MonoBehaviour
         if (sd == null) return "JsonToObject devolveu nulo";
         a.FromSaveData(sd);
         if (markSynced) Baseline[guid] = CareSignature(Json(a));
+        Missing.Remove(guid);
+        if (created)
+        {
+            if (a.Guid != guid) Plugin.Logger.LogWarning($"[AnimalSync] animal criado ficou com outro Guid: {a.Guid} (esperado {guid})");
+            Plugin.Logger.LogInfo($"[AnimalSync] animal comprado por outro jogador criado aqui: {guid} ({merged["Name"]})");
+            DevBridge.PushEvent("animais:criado");
+        }
         return "ok";
+    }
+
+    /// <summary>Num animal recém-criado, o celeiro é o que o próprio jogo escolheu (o personagem já está no curral dele).</summary>
+    private static readonly string[] BelongFields = { "BelongedBarn", "BelongStatus" };
+
+    /// <summary>D81: cria o animal comprado no jogo de outro jogador, com a mesma rotina da compra.</summary>
+    private static FarmAnimalParameter Create(string guid, string incoming, out string why)
+    {
+        why = null;
+        try
+        {
+            var n = JsonNode.Parse(incoming)!;
+            var id = n["FieldAnimalMasterId"]!.GetValue<uint>();
+            var name = n["Name"]?.GetValue<string>() ?? "";
+            var pattern = n["PatternId"]?.GetValue<uint>() ?? 0;
+            var a = AnimalManager.Instance.AddAnimal(id, name, pattern);
+            if (a == null) { why = "AddAnimal devolveu nulo (celeiro cheio?)"; Plugin.Logger.LogWarning($"[AnimalSync] não deu para criar o animal {guid}: {why}"); return null; }
+            var inBarn = n["BelongedBarn"]?.GetValue<string>();
+            var localBarn = a.ToSaveData().BelongedBarn;
+            if (!string.IsNullOrEmpty(inBarn) && localBarn != inBarn)
+                Plugin.Logger.LogInfo($"[AnimalSync] animal {guid}: o jogo pôs em outro celeiro ({localBarn} × {inBarn})");
+            return a;
+        }
+        catch (Exception e) { why = "criar: " + e.Message; Plugin.Logger.LogWarning($"[AnimalSync] {why}"); return null; }
+    }
+
+    /// <summary>D81: remove o animal vendido no jogo de outro jogador (mesma rotina da venda).</summary>
+    private static string Remove(string guid)
+    {
+        Baseline.Remove(guid);
+        Missing.Remove(guid);
+        var a = FarmAnimals().FirstOrDefault(x => x.Guid == guid);
+        if (a == null) return "ok"; // já não existe aqui
+        try { a.Leave(); }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[AnimalSync] remover {guid}: {e.Message}"); return "remover: " + e.Message; }
+        var still = FarmAnimals().Any(x => x.Guid == guid);
+        Plugin.Logger.LogInfo($"[AnimalSync] animal vendido por outro jogador removido aqui: {guid}{(still ? " (AINDA NA LISTA)" : "")}");
+        DevBridge.PushEvent("animais:removido");
+        return still ? "ainda na lista" : "ok";
     }
 
     private static string ApplyBarn(string guid, string incoming, bool markSynced)

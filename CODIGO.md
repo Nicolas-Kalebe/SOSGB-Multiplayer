@@ -243,6 +243,22 @@ Armadilhas das flags de evento:
 - O desmaio (sono às 5h; cansaço) passa por `GameController.StartNextDay`, igual à cama. A pilha de chamadas não aparece no log (`StackTraceUtility` vem vazio no IL2CPP).
 - Para segurar a virada no multiplayer, um prefix em `StartNextDay` retorna `false` com `__result = default(UniTask)` (tarefa já concluída).
 
+### Animais: carinho, compra e venda (2026-10-26)
+- **Carinho:** `FarmAnimalParameter.OnStroke()` (privado; o Il2CppInterop expõe) é a rotina do carinho. Devolve `FarmAnimalActionResult` (`FriendPoint`, `HappyPoint`, `Exp`) no **primeiro** carinho do dia (+2 de afeição no teste) e `null` nos seguintes; o contador é `DailyStokeCount` (sic) no save. No pet: `PetAnimalParameter.OnStroke<PetAnimalActionResult>(null)` (genérico no interop), contador `DailyStrokeCount`; o efeito chega com atraso (há animação).
+- Métodos genéricos do interop pedem o tipo explícito: `pet.ToSaveData<PetAnimalParameter.SaveData>()`.
+- **Compra:** `AnimalManager.AddAnimal(id, nome, padrão)` → `AddAnimalParam` registra o animal (`RegisterAnimal`) **só se `GetBelongableBarn` achar vaga**; sem vaga devolve um `FarmAnimalParameter` com Guid que não entra em lugar nenhum. `GetBelongableBarn` aceita o celeiro "atual" (`FindCurrentBarnByFieldObjectGuid`) ou celeiros com a ampliação concluída (`ExpansionManager.IsCompleted`). Tipos de animal: `MasterDataManager.FarmAnimalMasterData` (ids 1000–2401).
+- **Venda:** `FarmAnimalParameter.Leave()` (privado) / `ILeave.Leave()`; a tela de venda é `ShopAccessActOpenSellAnimal`.
+- `AnimalManager.AllAnimalParams` **não muda** na troca de mapa (medido: 8 animais em 175 leituras durante duas trocas).
+
+### Dump com corpo dos métodos (ISIL)
+- `tools/Cpp2IL.exe --game-path ... --exe-name SOSGrandBazaar --output-as isil --output-to <pasta fora do repo>` gera, por classe, o assembly e o **ISIL** de cada método (chamadas por nome, comparações, saltos). ~5 min e ~480 MB: gerar fora do repositório (pasta temporária). Bom para saber **o que um método chama** (ex.: `AddAnimalParam`, `UIMapArea.SetPlayerPosition`).
+- Deslocamentos de campo no ISIL (`[rax+1068]`) batem com os `Field offset` do dump diffable-cs (0x42C = `PlayerCharacter.GridPosition`).
+
+### Mapa do jogo (D82)
+- `UIMapPage` (tela `UILoadKey.Map` = 123) → `UIMapArea.Setup/SetupPosition` → `SetPlayerPosition(curFieldData, data)` e `SetNpcPosition`. `UIMapData.FieldId` é o id do mapa da página (fazenda = 1; o id sazonal no jogo é 2), `99999999` = todos os mapas.
+- Marcador local: `UIMapArea.playerPosition` (`RectTransform`). Pontos de prédio: `anchorList` (`UIMapAnchor`, com `AnchorData`); o rosto do jogador vai para o ponto com `UIMapAnchor.AddChara(0)`.
+- Ids de mapa: casa 100010, celeiro 100100 (não é a fazenda!), fazenda 1 (sazonal 2). `field 1` leva à fazenda.
+
 ### Animação do personagem (bugs do 1º teste real)
 - O `Animator` do player tem **12 camadas**: `Move Layer` (0), `MoveTool`, `MoveWind`, `MoveToolWind`, `MovePickup`, `Move Carry`, `Move Carry Piggyback`, `Base Layer` (7: ações/emoções), `Mask`, `Body`, `LeftArm`, `RightArm`.
 - A `Move Layer` é um **blend tree**: parado/andar/correr dependem de **parâmetros** (`Speed`, `Walk`, `Run`...), e o hash do estado não muda ao andar. O controller tem ~250 parâmetros, a maioria triggers.

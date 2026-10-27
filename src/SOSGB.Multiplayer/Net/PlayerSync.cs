@@ -44,6 +44,8 @@ public class PlayerSync : MonoBehaviour
         public float NextHealthCheck;
         public float LastRepair = -999f;
         public float RepairBackoff = 5f;
+        public Vector2Int Grid;                      // posição em grade (PlayerCharacter.GridPosition), para o mapa (D82)
+        public bool HasGrid;
     }
 
     private static readonly Dictionary<byte, Remote> Remotes = new();
@@ -182,6 +184,7 @@ public class PlayerSync : MonoBehaviour
         var id = NetSession.LocalId;
         var pos = t.position;
         var rotY = t.eulerAngles.y;
+        var grid = GameController.Instance.GetPlayer()?.GridPosition ?? default;
         NetSession.SendGame(MsgType.PlayerState, w =>
         {
             w.Put(id);
@@ -192,6 +195,7 @@ public class PlayerSync : MonoBehaviour
             for (var i = 0; i < layers; i++) { w.Put(hashes[i]); w.Put(norms[i]); w.Put(weights[i]); }
             w.Put((byte)Math.Min(paramHashes.Count, 255));
             for (var i = 0; i < Math.Min(paramHashes.Count, 255); i++) { w.Put(paramHashes[i]); w.Put(paramTypes[i]); w.Put(paramValues[i]); }
+            w.Put(grid.x); w.Put(grid.y); // D82: no fim (quem não lê ignora)
         }, DeliveryMethod.Sequenced);
     }
 
@@ -234,6 +238,7 @@ public class PlayerSync : MonoBehaviour
             else if (pt == 1) rm.Animator.SetInteger(ph, (int)pv);
             else rm.Animator.SetBool(ph, pv > 0.5f);
         }
+        if (r.AvailableBytes >= 8) { rm.Grid = new Vector2Int(r.GetInt(), r.GetInt()); rm.HasGrid = true; }
         rm.AnimHash = layers > 0 ? rm.Hashes[0] : 0;
         rm.HasState = true;
     }
@@ -514,6 +519,15 @@ public class PlayerSync : MonoBehaviour
 
     /// <summary>Mapa atual de um jogador remoto (0 = desconhecido). Usado pela lista de jogadores.</summary>
     public static uint RemoteField(byte id) => Remotes.TryGetValue(id, out var rm) && rm.HasState ? rm.Field : 0;
+
+    /// <summary>Mapa e posição em grade de cada jogador remoto, para o mapa do jogo (D82).</summary>
+    public static List<(byte id, uint field, Vector2Int grid)> RemoteMapInfos()
+    {
+        var list = new List<(byte, uint, Vector2Int)>();
+        foreach (var kv in Remotes)
+            if (kv.Value.HasState && kv.Value.HasGrid && NetSession.Players.ContainsKey(kv.Key)) list.Add((kv.Key, kv.Value.Field, kv.Value.Grid));
+        return list;
+    }
 
     /// <summary>Para a ponte de teste: posição dos avatares remotos.</summary>
     public static object Status()

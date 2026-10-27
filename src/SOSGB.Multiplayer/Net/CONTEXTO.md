@@ -24,7 +24,8 @@ Camada de rede do mod (Fase 2 do [`ROTEIRO.md`](../../../ROTEIRO.md)). Protocolo
 | `MissionSync.cs` | D57: pedidos dos moradores compartilhados (contadores somados, pedidos por valor ficam com o maior, estado mais avançado; host manda a lista oficial). D60 |
 | `RomanceSync.cs` | 6.4/D44: romance exclusivo (registro NPC → jogador no host; patches em `CheckMarryable`/`SetFiance`) |
 | `SharedSync.cs` | 5.4/D42/D43: estado compartilhado genérico (lista de partes com capturar/aplicar, em rodízio): moinho, apicultura, cogumelos, vasos, ampliações, pets, cavalo, prêmios, adega, banho, receitas, missões, peixes, reforços, lojas, Bazaar, festivais, informações gerais, histórico de itens e flags de evento (união); tutoriais e BRAND (união, D57); Happy Bingo por mescla (D61) |
-| `AnimalSync.cs` | 5.3/D41: animais da fazenda (cuidados) e celeiros (ovos, ração), mesclando sem mexer na posição |
+| `AnimalSync.cs` | 5.3/D41: animais da fazenda (cuidados) e celeiros (ovos, ração), mesclando sem mexer na posição; animal comprado/vendido aparece/some ao vivo (D81) |
+| `MapMarkers.cs` | 8.8/D82: no mapa do jogo (M), um marcador colorido para cada outro jogador (lugar calculado pelo próprio jogo com a grade dele, ou ponto do prédio) |
 | `FarmSync.cs` | Fase 5/D40: fazenda ao vivo nos mapas residentes (mapa 1); diferenças a cada 0,5 s viram operações por objeto, aplicadas por todos no cache do mapa. Itens largados no chão: o host desempata quem pegou primeiro e o outro devolve (`ItemTakeBack`, D70) |
 | `FieldState.cs` | Fase 5 (alicerce, D40): estado dos objetos de um mapa (captura pelo serializador oficial, aplicar só as diferenças no mapa atual ou num mapa residente, instalar no save de mapas). Inclui itens largados no chão, menos os de coleta automática (D70) |
 | `LetterSync.cs` | 4.6/D39: correio compartilhado; estado do `LetterManager` sincronizado (montado à mão a partir do JSON) |
