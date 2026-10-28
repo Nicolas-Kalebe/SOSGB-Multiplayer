@@ -226,6 +226,7 @@ Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
 
 ## 7. Próximos passos
 
+- [ ] **Agora (2026-10-28):** ver [`docs/REVISAO-EXTERNA.md`](docs/REVISAO-EXTERNA.md): pacote 0.6.5 → A04 + A12 (perdas/duplicações de item) → A07 e A06 → A10 (depois da P19) → teste com a amiga
 - [x] Gerar as classes do jogo (Cpp2IL → `dump/`, sem tocar na pasta do jogo)
 - [x] Mapear classes: save, armazém, amizade, fazenda, relógio, dinheiro, player (→ `CODIGO.md`)
 - [x] Revisar o plano com base no código
