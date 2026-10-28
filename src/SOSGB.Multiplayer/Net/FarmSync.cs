@@ -49,7 +49,10 @@ public class FarmSync : MonoBehaviour
     public static int SentOps, ReceivedOps;
     private static readonly HeldMessages Held = new("FarmSync");
     private static readonly HashSet<string> TakenItems = new();                          // host: itens do chão já pegos (D70)
-    private static readonly Dictionary<string, (string json, float at)> MyPickups = new(); // convidado: itens que peguei há pouco
+    private static readonly Dictionary<string, (string json, float at, FieldState.Kind kind)> MyPickups = new(); // convidado: itens/ovos que peguei há pouco
+
+    /// <summary>D70/D92: o que vira item na mochila ao sair do mapa: item largado no chão e ovo (A04: dois pegando o mesmo ovo).</summary>
+    private static bool Pickable(FieldState.Kind k) => k == FieldState.Kind.Item || k == FieldState.Kind.Egg;
     public static int TakeBacks;
 
     private void Awake()
@@ -138,9 +141,9 @@ public class FarmSync : MonoBehaviour
     {
         foreach (var o in ops)
         {
-            if (o.op != OpRemove || o.e.Type != FieldState.Kind.Item) continue;
+            if (o.op != OpRemove || !Pickable(o.e.Type)) continue;
             if (NetSession.Current == NetSession.Mode.Host) TakenItems.Add(o.guid);
-            else MyPickups[o.guid] = (o.e.Json, Time.unscaledTime);
+            else MyPickups[o.guid] = (o.e.Json, Time.unscaledTime, o.e.Type);
         }
         if (MyPickups.Count > 50)
             foreach (var g in MyPickups.Where(kv => Time.unscaledTime - kv.Value.at > 60f).Select(kv => kv.Key).ToList()) MyPickups.Remove(g);
@@ -153,9 +156,9 @@ public class FarmSync : MonoBehaviour
     /// </summary>
     private static List<(byte op, FieldState.Entry e, string guid)> RefuseLatePickups(byte from, uint root, List<(byte op, FieldState.Entry e, string guid)> ops)
     {
-        if (!ops.Any(o => o.op == OpRemove && o.e.Type == FieldState.Kind.Item)) return ops;
+        if (!ops.Any(o => o.op == OpRemove && Pickable(o.e.Type))) return ops;
         if (FieldState.Root(FieldState.CurrentField) == root) Flush();
-        var late = ops.Where(o => o.op == OpRemove && o.e.Type == FieldState.Kind.Item && !TakenItems.Add(o.guid)).Select(o => o.guid).ToHashSet();
+        var late = ops.Where(o => o.op == OpRemove && Pickable(o.e.Type) && !TakenItems.Add(o.guid)).Select(o => o.guid).ToHashSet();
         if (late.Count == 0) return ops;
         foreach (var g in late)
         {
@@ -174,25 +177,74 @@ public class FarmSync : MonoBehaviour
         var guid = r.GetString();
         if (!MyPickups.TryGetValue(guid, out var p)) { Plugin.Logger.LogWarning($"[FarmSync] devolver item {guid}: não sei o que era"); return; }
         MyPickups.Remove(guid);
-        var item = StringExtensions.JsonToObject<FieldItemEntityData>(p.json)?.ItemDataInField;
-        if (item == null) return;
-        var bag = InventoryManager.Instance.BagItemStorage;
-        var datas = bag.ItemDatas;
-        var slot = -1;
-        for (var i = 0; i < datas.Count; i++)
+        BokuMono.Data.ItemData item;
+        if (p.kind == FieldState.Kind.Egg)
         {
-            var d = datas[i];
-            if (d == null || d.ItemId != item.ItemId) continue;
-            if (slot < 0) slot = i;
-            if (d.QualityValue == item.QualityValue) { slot = i; break; }
+            // Ovo: vira o item ItemId (Count unidades, qualidade Quality) na mochila de quem pegou.
+            var egg = StringExtensions.JsonToObject<FieldEggEntityData>(p.json);
+            if (egg == null) return;
+            item = new BokuMono.Data.ItemData { ItemId = egg.ItemId, Stack = Math.Max(1, egg.Count), QualityValue = egg.Quality };
         }
-        var n = Math.Max(1, item.Stack);
-        if (slot >= 0) bag.Use(slot, Math.Min(n, datas[slot].Stack));
-        else Plugin.Logger.LogWarning($"[FarmSync] devolver item {item.ItemId}: não está na mochila");
+        else item = StringExtensions.JsonToObject<FieldItemEntityData>(p.json)?.ItemDataInField;
+        if (item == null) return;
+        GiveBack(item, Math.Max(1, item.Stack), $"mapa {root}");
+    }
+
+    /// <summary>Devolve n unidades de um item pego em disputa (D92). Público para o teste da ponte (takeback).</summary>
+    public static string GiveBack(BokuMono.Data.ItemData item, int n, string where)
+    {
+        // D92 (revisão A12): antes só tirava de UM espaço da mochila com o mesmo item; se o item já tinha sido guardado,
+        // dividido em pilhas, comido ou vendido nesse meio segundo, nada saía e ele ficava duplicado. Agora, em cadeia:
+        // mochila (mesma qualidade, depois qualquer qualidade, em quantos espaços precisar) → armazém (compartilhado; a
+        // D88 manda a diferença) → o que ainda faltar sai do dinheiro do grupo pelo preço de venda.
+        var left = TakeFrom(InventoryManager.Instance.BagItemStorage, item, n);
+        var fromBag = n - left;
+        var fromHouse = 0;
+        if (left > 0)
+        {
+            var before = left;
+            try { left = TakeFrom(InventoryManager.Instance.HouseStorage, item, left); } catch { }
+            fromHouse = before - left;
+        }
+        uint charged = 0;
+        if (left > 0)
+        {
+            try
+            {
+                var price = (long)Math.Max(0, item.SellPrice) * left;
+                var money = (long)GameController.Instance.PlayerMoney;
+                charged = (uint)Math.Min(price, money);
+                if (charged > 0) GameController.Instance.SpendMoney(charged, true, null);
+            }
+            catch (Exception e) { Plugin.Logger.LogWarning($"[FarmSync] devolver item {item.ItemId}: cobrar {left}: {e.Message}"); }
+        }
         TakeBacks++;
-        Plugin.Logger.LogInfo($"[FarmSync] item {item.ItemId} x{n} devolvido (outro jogador pegou primeiro, mapa {root})");
-        GameNotify.Show("Outro jogador pegou esse item primeiro.");
-        DevBridge.PushEvent($"item:devolvido:{item.ItemId}");
+        var msg = $"item {item.ItemId} x{n} devolvido (outro jogador pegou primeiro, {where}): mochila {fromBag}, armazém {fromHouse}, cobrado {charged} G por {left}";
+        Plugin.Logger.LogInfo($"[FarmSync] {msg}");
+        GameNotify.Show(charged > 0
+            ? $"Outro jogador pegou esse item primeiro. Ele já tinha sido usado: {charged} G descontados."
+            : "Outro jogador pegou esse item primeiro.");
+        DevBridge.PushEvent($"item:devolvido:{item.ItemId}:{fromBag}:{fromHouse}:{charged}");
+        return msg;
+    }
+
+    /// <summary>Tira até n unidades do item: primeiro os espaços de mesma qualidade, depois qualquer qualidade. Devolve o que faltou.</summary>
+    private static int TakeFrom(StorageManager st, BokuMono.Data.ItemData item, int n)
+    {
+        if (st == null || n <= 0) return n;
+        var datas = st.ItemDatas;
+        if (datas == null) return n;
+        for (var pass = 0; pass < 2 && n > 0; pass++)
+            for (var i = 0; i < datas.Length && n > 0; i++)
+            {
+                var d = datas[i];
+                if (d == null || d.ItemId != item.ItemId || d.Stack <= 0) continue;
+                if (pass == 0 && d.QualityValue != item.QualityValue) continue;
+                var k = Math.Min(n, d.Stack);
+                st.Use(i, k);
+                n -= k;
+            }
+        return n;
     }
 
     private static void SendToClients(byte[] packed, byte except)

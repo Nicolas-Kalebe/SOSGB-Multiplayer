@@ -38,7 +38,10 @@ public class AnimalSync : MonoBehaviour
         "Order", "MoveInfos", "LocationData", "BarnLosePos", "ProbabilityOfFinestUpNow",
     };
 
-    private static readonly Dictionary<string, string> Baseline = new(); // guid → assinatura de cuidados
+    private static readonly HashSet<string> VolatileSet = new(Volatile);
+    private static readonly Dictionary<string, string> Baseline = new(); // guid → assinatura de cuidados (último enviado/recebido)
+    // D91: guid → assinatura de cuidados do último estado CONFIRMADO (o canônico do host). Cada mudança vai com ele como base.
+    private static readonly Dictionary<string, string> Known = new();
     private static readonly Dictionary<string, string> BarnBaseline = new(); // guid do celeiro → JSON
     private static readonly Dictionary<string, float> Missing = new(); // guid → desde quando sumiu da lista (D81)
     private const float RemovedAfter = 3f;
@@ -61,7 +64,7 @@ public class AnimalSync : MonoBehaviour
         NetSession.OnJoined += Reset;
     }
 
-    private static void Reset() { Baseline.Clear(); BarnBaseline.Clear(); Missing.Clear(); _hasBaseline = false; }
+    private static void Reset() { Baseline.Clear(); Known.Clear(); BarnBaseline.Clear(); Missing.Clear(); _hasBaseline = false; }
 
     public static IEnumerable<FarmAnimalBarn> Barns()
     {
@@ -138,6 +141,7 @@ public class AnimalSync : MonoBehaviour
                 var isNew = !Baseline.ContainsKey(a.Guid);
                 if (!isNew && Plugin.DevMode) LogDiff(a.Guid, old, sig);
                 Baseline[a.Guid] = sig;
+                if (!Known.ContainsKey(a.Guid)) Known[a.Guid] = isNew ? sig : old; // 1º estado visto = 1ª base
                 if (!_hasBaseline) continue;
                 changed.Add((a.Guid, json)); // novo depois da linha de base = comprado aqui (D81): vai completo
                 if (isNew) Plugin.Logger.LogInfo($"[AnimalSync] animal novo neste jogo (compra): {a.Guid}");
@@ -167,7 +171,10 @@ public class AnimalSync : MonoBehaviour
             }
             _hasBaseline = true;
             if (changed.Count == 0) return;
-            var packed = Pack(changed);
+            // D91: cada animal leva a base (último confirmado que este jogo tinha); o host mescla com ela.
+            var packed = Pack(changed.Select(c => (c.guid, c.json, Known.TryGetValue(c.guid, out var kb) ? kb : "")).ToList());
+            if (NetSession.Current == NetSession.Mode.Host)
+                foreach (var c in changed) if (!c.guid.Contains(':')) Known[c.guid] = CareSignature(c.json); // o do host é o canônico
             if (NetSession.Current == NetSession.Mode.Host) SendToClients(packed, except: NetSession.LocalId);
             else NetSession.SendGame(MsgType.AnimalData, w => w.PutBlob(packed), DeliveryMethod.ReliableOrdered);
             Sent += changed.Count;
@@ -207,9 +214,30 @@ public class AnimalSync : MonoBehaviour
         {
             var list = Unpack(packed);
             var applied = 0;
-            foreach (var (guid, json) in list) if (Apply(guid, json) == "ok") applied++;
+            var host = NetSession.Current == NetSession.Mode.Host;
+            foreach (var (guid, json, baseSig) in list)
+            {
+                // Host: base = a que o convidado mandou. Convidado: o que chega do host é o canônico; base = o último
+                // confirmado daqui (mudanças daqui ainda não enviadas ficam e saem no próximo tick).
+                var b = host ? baseSig : Known.TryGetValue(guid, out var kb) ? kb : null;
+                var res = Apply(guid, json, markSynced: true, baseSig: string.IsNullOrEmpty(b) ? null : b);
+                if (res == "ok" || res == "ok-mesclado") applied++;
+            }
             Received += applied;
-            if (NetSession.Current == NetSession.Mode.Host) SendToClients(packed, except: from);
+            if (host)
+            {
+                // D91: o resultado de cada animal (canônico) vai a TODOS, inclusive a quem mandou. Celeiros e vendas, como
+                // antes, só repassados.
+                var animals = list.Where(x => !x.guid.Contains(':')).Select(x => x.guid).ToHashSet();
+                var canon = FarmAnimals().Where(x => animals.Contains(x.Guid)).Select(x => (x.Guid, Json(x), "")).ToList();
+                var others = list.Where(x => x.guid.Contains(':')).Select(x => (x.guid, x.json, "")).ToList();
+                if (others.Count > 0) SendToClients(Pack(others), except: from);
+                if (canon.Count > 0)
+                {
+                    foreach (var c in canon) Known[c.Item1] = CareSignature(c.Item2);
+                    SendToClients(Pack(canon), except: NetSession.UnknownId);
+                }
+            }
             Plugin.Logger.LogInfo($"[AnimalSync] {applied}/{list.Count} animal(is) atualizado(s) por #{from}");
             DevBridge.PushEvent($"animais:recebido:{applied}");
         }
@@ -220,7 +248,9 @@ public class AnimalSync : MonoBehaviour
     public static string Apply(string guid, string incoming) => Apply(guid, incoming, markSynced: true);
 
     /// <summary>markSynced=false simula uma ação LOCAL (testes): a mudança será enviada no próximo tick.</summary>
-    public static string Apply(string guid, string incoming, bool markSynced)
+    public static string Apply(string guid, string incoming, bool markSynced) => Apply(guid, incoming, markSynced, null);
+
+    public static string Apply(string guid, string incoming, bool markSynced, string baseSig)
     {
         if (guid.StartsWith("barn:")) return ApplyBarn(guid.Substring(5), incoming, markSynced);
         if (guid.StartsWith("del:")) return Remove(guid.Substring(4));
@@ -232,8 +262,24 @@ public class AnimalSync : MonoBehaviour
             if (a == null) return why;
             created = true;
         }
-        var local = JsonNode.Parse(Json(a))!.AsObject();
+        var localJson = Json(a);
+        var local = JsonNode.Parse(localJson)!.AsObject();
         var merged = JsonNode.Parse(incoming)!.AsObject();
+        // D91 (revisão A04): cuidados de dois jogadores no mesmo animal ao mesmo tempo (um escova, outro alimenta): mescla
+        // em três vias dos campos de cuidado, com a base = o último estado CONFIRMADO de onde a mudança partiu (vem junto
+        // na mensagem). Antes o recebido sobrescrevia tudo e um dos cuidados sumia (medido: os dois trocavam os cuidados).
+        // Listas de tamanho diferente não somam (duplicaria).
+        var mergedByUs = false;
+        if (!created && baseSig != null)
+        {
+            var localSig = CareSignature(localJson);
+            var incSig = CareSignature(incoming);
+            if (localSig != baseSig && localSig != incSig)
+            {
+                merged = JsonNode.Parse(JsonMerge3.Merge(baseSig, localSig, incSig, VolatileSet, multisetLists: false))!.AsObject();
+                mergedByUs = true;
+            }
+        }
         foreach (var k in created ? Volatile.Concat(BelongFields) : Volatile)
         {
             merged.Remove(k);
@@ -243,7 +289,15 @@ public class AnimalSync : MonoBehaviour
         if (sd == null) return "JsonToObject devolveu nulo";
         a.FromSaveData(sd);
         if (markSynced) Baseline[guid] = CareSignature(Json(a));
+        // Convidado: o que chegou do host é o confirmado. Se ele juntou uma mudança daqui ainda não enviada, a comparação
+        // fica com o que CHEGOU, para o próximo tick mandar a parte daqui (senão ela nunca sairia).
+        if (markSynced && NetSession.Current == NetSession.Mode.Client)
+        {
+            Known[guid] = CareSignature(incoming);
+            if (mergedByUs) Baseline[guid] = Known[guid];
+        }
         Missing.Remove(guid);
+        if (mergedByUs) { Plugin.Logger.LogInfo($"[AnimalSync] animal {guid}: cuidados dos dois jogadores juntados"); return "ok-mesclado"; }
         if (created)
         {
             if (a.Guid != guid) Plugin.Logger.LogWarning($"[AnimalSync] animal criado ficou com outro Guid: {a.Guid} (esperado {guid})");
@@ -310,22 +364,22 @@ public class AnimalSync : MonoBehaviour
         return "ok";
     }
 
-    // ---------- formato: gzip de [int n]{[string guid][string json]} ----------
+    // ---------- formato: gzip de [int n]{[string guid][string json][string base]} (base: D91, "" = sem base) ----------
 
-    private static byte[] Pack(List<(string guid, string json)> items)
+    private static byte[] Pack(List<(string guid, string json, string baseSig)> items)
     {
         var w = new NetDataWriter();
         w.Put(items.Count);
-        foreach (var (g, j) in items) { w.Put(g); w.Put(j); }
+        foreach (var (g, j, b) in items) { w.Put(g); w.Put(j); w.Put(b ?? ""); }
         return LetterSync.Pack(Convert.ToBase64String(w.Data, 0, w.Length));
     }
 
-    private static List<(string, string)> Unpack(byte[] packed)
+    private static List<(string guid, string json, string baseSig)> Unpack(byte[] packed)
     {
         var r = new NetDataReader(Convert.FromBase64String(LetterSync.Unpack(packed)));
         var n = r.GetInt();
-        var list = new List<(string, string)>(n);
-        for (var i = 0; i < n; i++) list.Add((r.GetString(), r.GetString()));
+        var list = new List<(string, string, string)>(n);
+        for (var i = 0; i < n; i++) list.Add((r.GetString(), r.GetString(), r.GetString()));
         return list;
     }
 

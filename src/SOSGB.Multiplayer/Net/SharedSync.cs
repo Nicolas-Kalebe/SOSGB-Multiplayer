@@ -19,6 +19,10 @@ namespace SOSGB.Multiplayer.Net;
 ///    sincronizada. Mudou → o JSON completo vai ao host, que aplica e repassa.
 ///  - Quem recebe mescla: objetos com "Guid" mantêm os campos de movimento LOCAIS (pets não pulam de lugar).
 ///  - Uma parte que falhar (tipo que o JsonToObject do jogo não monta, etc.) é desligada sozinha e registrada.
+///  - D91 (revisão A04): versões e mescla em três vias. O host numera cada estado canônico e guarda os últimos; o
+///    convidado manda junto a versão de onde partiu. O host junta só o que CADA UM mudou desde essa base (JsonMerge3),
+///    aplica e devolve o resultado canônico a TODOS, inclusive a quem mandou. Antes, quem recebia aplicava o estado
+///    inteiro por cima e duas mudanças ao mesmo tempo (ex.: os dois pondo receitas no moinho) apagavam uma à outra.
 /// </summary>
 public class SharedSync : MonoBehaviour
 {
@@ -33,7 +37,18 @@ public class SharedSync : MonoBehaviour
         public bool Disabled;
         public bool CaptureFailLogged;
         public int Failures; // falhas SEGUIDAS ao aplicar (A08): desliga só na 3ª; um sucesso zera
+        // D91 (A04): versão canônica. Host: a atual (e as últimas em History). Convidado: a última recebida do host.
+        // KnownJson (convidado) = BASE da próxima mescla: o último estado que ele mandou ou aplicou. -1 = ainda não sabe.
+        public int Version = -1;
+        public string KnownJson;
+        // Convidado: um envio esperando a confirmação do host. Enquanto isso não manda outro (a base do segundo seria um
+        // estado que o host ainda não tem, e a mudança contaria duas vezes: medido, item duplicado no moinho).
+        public bool InFlight;
+        public float InFlightAt;
+        public readonly Dictionary<int, string> History = new();
     }
+
+    private const int HistoryKeep = 64;
 
     /// <summary>Campos de movimento/IA (em qualquer nível do JSON): fora da comparação, mantidos locais ao mesclar.</summary>
     private static readonly HashSet<string> Volatile = new()
@@ -650,6 +665,12 @@ public class SharedSync : MonoBehaviour
     {
         if (p.Disabled || !p.Available() || TestDisabled(p.Name)) return false;
         if (p.Name == "festival" && EventWatch.HoldFestivalSync) return false; // D84: quem assiste não manda o festival dele
+        if (p.InFlight)
+        {
+            if (Time.unscaledTime - p.InFlightAt < 5f) return false;
+            p.InFlight = false; // a confirmação não veio (parte desligada no host?): não trava para sempre
+            Plugin.Logger.LogWarning($"[SharedSync] '{p.Name}': sem confirmação do host em 5 s; enviando de novo");
+        }
         string json;
         try { json = p.Capture(); }
         catch (Exception e)
@@ -659,15 +680,35 @@ public class SharedSync : MonoBehaviour
             return false;
         }
         var sig = Signature(json);
-        if (!Baseline.TryGetValue(p.Name, out var old)) { Baseline[p.Name] = sig; return false; }
+        var host = NetSession.Current == NetSession.Mode.Host;
+        if (!Baseline.TryGetValue(p.Name, out var old))
+        {
+            Baseline[p.Name] = sig;
+            // D91: o primeiro estado é a base. No host, a versão 0; no convidado, o mundo que veio do host (versão ainda
+            // desconhecida: a primeira mescla no host cai na de duas vias, como antes).
+            if (host) Remember(p, json);
+            else { p.KnownJson = json; p.Version = -1; }
+            return false;
+        }
         if (old == sig) return false;
         Baseline[p.Name] = sig;
         // Ajudante do Bazaar (D56): o jogo dele abre e fecha uma loja "de mentira"; o progresso do Bazaar é só do dono.
         if (p.Name.StartsWith("bazaar") && BazaarHelpSync.SuppressWrites) return false;
         var packed = LetterSync.Pack(json);
         var name = p.Name;
-        if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: NetSession.LocalId);
-        else NetSession.SendGame(MsgType.SharedState, w => { w.Put(name); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
+        if (host)
+        {
+            var v = Remember(p, json);
+            SendToClients(name, v, packed, except: NetSession.LocalId, ackFor: NetSession.UnknownId);
+        }
+        else
+        {
+            var baseV = p.Version;
+            NetSession.SendGame(MsgType.SharedState, w => { w.Put(name); w.Put(baseV); w.Put(false); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
+            p.KnownJson = json; // a confirmação do host já traz esta mudança: é a base dela
+            p.InFlight = true;
+            p.InFlightAt = Time.unscaledTime;
+        }
         Sent++;
         Plugin.Logger.LogInfo($"[SharedSync] {name} mudou: enviado ({packed.Length} bytes)");
         DevBridge.PushEvent($"compartilhado:enviado:{name}");
@@ -691,12 +732,17 @@ public class SharedSync : MonoBehaviour
     private static void ResetSession()
     {
         Baseline.Clear();
+        JoinVersions.Clear();
         foreach (var p in Parts)
         {
             if (p.Disabled) Plugin.Logger.LogInfo($"[SharedSync] parte '{p.Name}' religada (sessão nova)");
             p.Disabled = false;
             p.Failures = 0;
             p.CaptureFailLogged = false;
+            p.Version = -1;
+            p.KnownJson = null;
+            p.History.Clear();
+            p.InFlight = false;
         }
     }
 
@@ -720,11 +766,42 @@ public class SharedSync : MonoBehaviour
         catch { /* aviso é só ajuda */ }
     }
 
-    private static void SendToClients(string name, byte[] packed, byte except)
+    /// <summary>Host → convidados. ackFor: quem mandou a mudança que este canônico incorpora (para ele, é a confirmação).</summary>
+    private static void SendToClients(string name, int version, byte[] packed, byte except, byte ackFor)
     {
         foreach (var id in NetSession.Players.Keys)
             if (id != NetSession.LocalId && id != except)
-                NetSession.SendTo(id, MsgType.SharedState, w => { w.Put(name); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
+            {
+                var ack = id == ackFor;
+                NetSession.SendTo(id, MsgType.SharedState, w => { w.Put(name); w.Put(version); w.Put(ack); w.PutBlob(packed); }, DeliveryMethod.ReliableOrdered);
+            }
+    }
+
+    // D91: versão de cada parte na foto do mundo que cada convidado recebeu (base da 1ª mudança dele, que chega com v-1).
+    private static readonly Dictionary<byte, Dictionary<string, int>> JoinVersions = new();
+
+    /// <summary>Host, antes de fotografar o mundo: manda o que estiver pendente e devolve a versão de cada parte.</summary>
+    public static Dictionary<string, int> VersionsForSnapshot()
+    {
+        var d = new Dictionary<string, int>();
+        if (NetSession.Current != NetSession.Mode.Host) return d;
+        foreach (var p in Parts)
+        {
+            try { if (Ready()) TrySend(p); } catch { }
+            if (p.Version >= 0) d[p.Name] = p.Version;
+        }
+        return d;
+    }
+
+    public static void SetJoinVersions(byte id, Dictionary<string, int> versions) => JoinVersions[id] = versions;
+
+    /// <summary>Host: registra um novo estado canônico (versão nova) e devolve o número.</summary>
+    private static int Remember(Part p, string json)
+    {
+        p.Version++;
+        p.History[p.Version] = json;
+        p.History.Remove(p.Version - HistoryKeep);
+        return p.Version;
     }
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
@@ -732,6 +809,8 @@ public class SharedSync : MonoBehaviour
         if (type != MsgType.SharedState) return;
         if (!Ready()) { Held.HoldIfAllowed(type, from, r); return; } // D63: guarda em vez de descartar
         var name = r.GetString();
+        var version = r.GetInt();
+        var ack = r.GetBool();
         var packed = r.GetBlob();
         if (NetSession.Current == NetSession.Mode.Client && from != Protocol.HostPlayerId) return;
         if (name == "festival" && EventWatch.HoldFestivalSync)
@@ -740,27 +819,30 @@ public class SharedSync : MonoBehaviour
             // (FestivalEnd: inscrito → terminado); se o estado "terminado" do outro chegasse antes, a cena daqui nunca acabava
             // (P2 presa no fim). Guarda a versão mais recente e aplica quando a cena daqui terminar.
             _heldFestival = packed;
-            if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, packed, except: from);
+            if (NetSession.Current == NetSession.Mode.Host) SendToClients(name, version, packed, except: from, ackFor: NetSession.UnknownId);
             Plugin.Logger.LogInfo($"[SharedSync] festival de #{from} guardado até a cena daqui terminar");
             return;
         }
         _applyingFromGuest = NetSession.Current == NetSession.Mode.Host;
         _filtered = false;
         string res;
-        try { res = ApplyPart(name, LetterSync.Unpack(packed)); }
+        try { res = ApplyVersioned(name, version, LetterSync.Unpack(packed), from, ack); }
         finally { _applyingFromGuest = false; }
-        if (res == "ok") Received++;
-        if (NetSession.Current == NetSession.Mode.Host)
+        if (res == "ok" || res == "igual") Received++;
+        if (NetSession.Current == NetSession.Mode.Host && res == "ok")
         {
-            if (_filtered)
+            // D91: o resultado da mescla é o novo estado canônico; vai para TODOS, inclusive quem mandou (antes o host
+            // repassava o pacote recebido, e cada jogo ficava com uma versão diferente quando havia mescla ou filtro).
+            var own = Parts.FirstOrDefault(x => x.Name == name);
+            if (own != null)
             {
-                // Recusou parte do que veio: todos (inclusive quem mandou) recebem o estado do host.
-                var own = Parts.FirstOrDefault(x => x.Name == name);
-                if (own != null) SendToClients(name, LetterSync.Pack(own.Capture()), except: NetSession.UnknownId);
+                var canon = own.Capture();
+                Baseline[name] = Signature(canon);
+                var v = Remember(own, canon);
+                SendToClients(name, v, LetterSync.Pack(canon), except: NetSession.UnknownId, ackFor: from);
             }
-            else SendToClients(name, packed, except: from);
         }
-        Plugin.Logger.LogInfo($"[SharedSync] {name} de #{from}: {res}");
+        Plugin.Logger.LogInfo($"[SharedSync] {name} de #{from} (v{version}): {res}{(JsonMerge3.Conflicts > 0 ? $" (conflitos resolvidos até agora: {JsonMerge3.Conflicts})" : "")}");
         DevBridge.PushEvent($"compartilhado:recebido:{name}:{res}");
     }
 
@@ -776,6 +858,50 @@ public class SharedSync : MonoBehaviour
         try { res = ApplyPart("festival", LetterSync.Unpack(packed)); }
         catch (Exception e) { res = "erro: " + e.Message; }
         Plugin.Logger.LogInfo($"[SharedSync] festival guardado aplicado: {res}");
+    }
+
+    /// <summary>
+    /// D91: aplica o que chegou com a mescla em três vias.
+    ///  - Host (veio de um convidado): base = a versão de onde o convidado partiu (History). Sem ela (convidado recém-chegado,
+    ///    versão antiga demais), cai na mescla de duas vias de antes.
+    ///  - Convidado (veio do host, canônico): base = o último canônico que ele tinha; as mudanças daqui ainda não enviadas
+    ///    ficam, e o rodízio as manda em seguida a partir da versão nova.
+    /// </summary>
+    private static string ApplyVersioned(string name, int version, string json, byte from, bool ack)
+    {
+        var p = Parts.FirstOrDefault(x => x.Name == name);
+        if (p == null) return "parte desconhecida";
+        if (p.Disabled) return "parte desligada";
+        if (!p.Available()) return "indisponível agora";
+        var host = NetSession.Current == NetSession.Mode.Host;
+        if (!host && ack) p.InFlight = false;
+        string localJson;
+        try { localJson = p.Capture(); }
+        catch { return "indisponível agora (não deu para ler o estado local)"; }
+        try
+        {
+            string baseJson = null;
+            if (host)
+            {
+                // v-1 = o convidado ainda não recebeu nenhum canônico: a base é a foto do mundo que ele recebeu.
+                if (version < 0 && JoinVersions.TryGetValue(from, out var jv) && jv.TryGetValue(name, out var j)) version = j;
+                p.History.TryGetValue(version, out baseJson);
+            }
+            else baseJson = p.KnownJson;
+            if (!host && Signature(json) == Signature(localJson))
+            {
+                // O canônico é o que já temos (o eco da nossa própria mudança): não reaplica.
+                p.Version = version; p.KnownJson = json; Baseline[name] = Signature(json);
+                return "igual";
+            }
+            var merged = baseJson != null ? JsonMerge3.Merge(baseJson, localJson, json, Volatile) : Merge(json, localJson);
+            p.Apply(merged);
+            p.Failures = 0;
+            if (host) Baseline[name] = Signature(p.Capture());
+            else { p.Version = version; p.KnownJson = json; Baseline[name] = Signature(json); }
+            return "ok";
+        }
+        catch (Exception e) { Disable(p, "aplicar", e); return "erro: " + e.Message; }
     }
 
     /// <summary>Aplica uma parte (mesclando com o estado local). Também usado nos testes (ponte).</summary>
@@ -818,12 +944,21 @@ public class SharedSync : MonoBehaviour
         return report;
     }
 
+    /// <summary>Ponte (D91): aplica um estado como AÇÃO LOCAL (sem mexer na base): o rodízio vê a mudança e manda.</summary>
+    public static string ApplyLocal(string name, string json)
+    {
+        var p = Parts.FirstOrDefault(x => x.Name == name);
+        if (p == null) return "parte desconhecida";
+        try { p.Apply(json); return "ok"; }
+        catch (Exception e) { return "erro: " + e.Message; }
+    }
+
     public static string CaptureJson(string name) => Parts.FirstOrDefault(x => x.Name == name)?.Capture();
 
     public static object Status()
     {
         var parts = new Dictionary<string, string>();
-        foreach (var p in Parts) parts[p.Name] = p.Disabled ? "desligada" : Baseline.ContainsKey(p.Name) ? "ok" : "-";
-        return new { parts, sent = Sent, received = Received };
+        foreach (var p in Parts) parts[p.Name] = p.Disabled ? "desligada" : Baseline.ContainsKey(p.Name) ? $"ok v{p.Version}" : "-";
+        return new { parts, sent = Sent, received = Received, conflicts = JsonMerge3.Conflicts };
     }
 }

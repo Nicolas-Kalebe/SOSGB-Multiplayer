@@ -378,6 +378,29 @@ public class DevBridge : MonoBehaviour
                     for (var i = 0; i < keysS.Length; i++) backS = Step(backS, keysS[i]);
                     return Json(new { ok = true, result = resS, agora = backS.ToJsonString() });
                 }
+                // D91: casos do mesclador em três vias / "add" = põe um item numa lista como AÇÃO LOCAL (o rodízio manda
+                // depois, como se o jogador tivesse feito): shared add windmill WindmillTotalDataList.1.takeOutItemList {json}
+                if (sa2.Length >= 3 && sa2[0] == "get")
+                {
+                    System.Text.Json.Nodes.JsonNode nodeG = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;
+                    foreach (var k in sa2[2].Split('.')) nodeG = nodeG is System.Text.Json.Nodes.JsonArray arG ? arG[int.Parse(k)]! : nodeG[k]!;
+                    return Json(new { ok = true, value = nodeG.ToJsonString() });
+                }
+                if (sa2.Length >= 1 && sa2[0] == "merge3") return Json(new { ok = true, result = Net.JsonMerge3.SelfTest() });
+                if (sa2.Length >= 4 && sa2[0] == "add")
+                {
+                    var rootA = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;
+                    System.Text.Json.Nodes.JsonNode StepA(System.Text.Json.Nodes.JsonNode n, string k) =>
+                        n is System.Text.Json.Nodes.JsonArray ar ? ar[int.Parse(k)]! : n[k]!;
+                    var listA = rootA;
+                    foreach (var k in sa2[2].Split('.')) listA = StepA(listA, k);
+                    var itemJson = string.Join(" ", sa2.Skip(3));
+                    listA.AsArray().Add(System.Text.Json.Nodes.JsonNode.Parse(itemJson));
+                    var resA = Net.SharedSync.ApplyLocal(sa2[1], rootA.ToJsonString());
+                    var backA = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;
+                    foreach (var k in sa2[2].Split('.')) backA = StepA(backA, k);
+                    return Json(new { ok = true, result = resA, agora = backA.ToJsonString() });
+                }
                 // shared roundtrip bazaar [raw] — JSON → SaveData (montado à mão; "raw" = JsonToObject puro do jogo) → JSON: o que se perde
                 if (sa2.Length >= 2 && sa2[0] == "roundtrip" && sa2[1] == "bazaar")
                 {
@@ -1426,6 +1449,16 @@ public class DevBridge : MonoBehaviour
                     pz.SetIgnorePause(PauseTarget.Bgm, false);
                 }
                 return Json(new { ok = true, pausingAny = pz.IsPausingAny, pausingAll = pz.IsPausingAll });
+            }
+
+            case "takeback":
+            {
+                // takeback <item> <qtd> <qualidade> — D92: roda a devolução da coleta disputada (mochila → armazém → dinheiro)
+                var tb = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var it = new BokuMono.Data.ItemData { ItemId = uint.Parse(tb[0]), Stack = int.Parse(tb[1]), QualityValue = tb.Length > 2 ? int.Parse(tb[2]) : 0 };
+                var moneyB = GameController.Instance.PlayerMoney;
+                var res = Net.FarmSync.GiveBack(it, it.Stack, "teste da ponte");
+                return Json(new { ok = true, result = res, moneyBefore = moneyB, moneyAfter = GameController.Instance.PlayerMoney, sellPrice = it.SellPrice });
             }
 
             case "npchold":

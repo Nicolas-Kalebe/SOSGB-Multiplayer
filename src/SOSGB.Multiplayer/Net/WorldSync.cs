@@ -92,6 +92,8 @@ public static class WorldSync
     private static void CaptureNext()
     {
         if (Pending.Count == 0) return;
+        // D91: a versão de cada parte compartilhada no momento da foto do mundo: é a base da 1ª mudança de quem recebe.
+        var versions = SharedSync.VersionsForSnapshot();
         WorldSnapshot.Capture(GuestLoadSlot, ok =>
         {
             var data = WorldSnapshot.Captured;
@@ -111,6 +113,7 @@ public static class WorldSync
                 if (!NetSession.Players.ContainsKey(id)) continue; // saiu enquanto capturava
                 NetSession.SendTo(id, MsgType.WorldData, w => { w.Put(data.Length); w.Put(data); }, DeliveryMethod.ReliableOrdered);
                 Plugin.Logger.LogInfo($"[WorldSync] mundo enviado para #{id} ({data.Length} bytes)");
+                SharedSync.SetJoinVersions(id, versions);
                 if (Joining.Remove(id)) { PlayerProfiles.SendStoredProfile(id); WindmillToolGuard.SendList(id); }
                 DevBridge.PushEvent($"world-enviado:{id}:{data.Length}");
             }

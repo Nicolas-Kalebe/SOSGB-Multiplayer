@@ -14,8 +14,8 @@ Legenda: ✅ corrigido e testado com duas instâncias · ⏳ falta fazer · 🟨
 | A02 | Consumo do armazém sem a tela aberta (cozinhar) era descartado | ✅ manda só a diferença; a tela de cozinhar também trava o armazém | [D88](../DECISOES.md#d88--armazém-mexido-sem-a-tela-aberta-manda-a-diferença-revisão-a02) |
 | A03 | Sem fechamento antes de virar o dia: mudança recente do convidado podia sumir | ✅ o convidado manda tudo o que falta antes do "dormi" | [D87](../DECISOES.md#d87--fechamento-do-dia-antes-de-dormir-revisão-a03) |
 | A08 | Parte da SharedSync desligada em silêncio depois de um erro | ✅ tenta de novo, avisa na tela e volta ao reconectar | [D86](../DECISOES.md#d86--parte-da-sharedsync-com-erro-tenta-de-novo-avisa-e-volta-na-sessão-seguinte-revisão-a08) |
-| A04 | Capturas completas (moinho, mel, cogumelos, animais/celeiros) podem apagar ações feitas ao mesmo tempo por dois jogadores | ⏳ **maior risco restante** de perder itens | `SharedSync`, `AnimalSync` |
-| A12 | Coleta disputada: a devolução só funciona se o item ainda estiver na mochila (procura por tipo e qualidade); vendido ou consumido antes → fica duplicado | ⏳ | `FarmSync.OnTakeBack` |
+| A04 | Capturas completas (moinho, mel, cogumelos, animais/celeiros) podem apagar ações feitas ao mesmo tempo por dois jogadores | ✅ versões + mescla em três vias no SharedSync e nos animais (celeiros como antes). Falta: reserva de item único (dois retirando o mesmo produto pronto ficam os dois com ele) | [D91](../DECISOES.md#d91--mudanças-ao-mesmo-tempo-não-se-apagam-versões-e-mescla-em-três-vias-revisão-a04) |
+| A12 | Coleta disputada: a devolução só funciona se o item ainda estiver na mochila (procura por tipo e qualidade); vendido ou consumido antes → fica duplicado | ✅ devolução em cadeia (mochila → armazém → dinheiro); ovos também protegidos. Falta o teste real de dois pegando o mesmo ovo | [D92](../DECISOES.md#d92--devolução-da-coleta-disputada-em-cadeia-ovos-também-revisão-a12) |
 | A06 | Happy Bingo: o progresso fica com o maior (não soma); cartela que só o convidado tem não chega ao host; a seleção de cartela não é transmitida; prêmios resgatados por um valem para todos, mas sem conceder o item a cada um | ⏳ (a regra "compartilhado" já foi escolhida: P17/D61) | `SharedSync.CaptureBingo/MergeBingo` |
 | A07 | Títulos (AwardDatas) substituídos inteiros: se cada um concluir um título diferente ao mesmo tempo, um pode sumir; títulos dão recompensa pelo correio | ⏳ | `SharedSync.ApplyAwards` |
 | A11 | Conversa/noivado ao mesmo tempo: o aviso de "morador ocupado" sai depois que a conversa começou (postfix de `TalkStart`), não é uma permissão do host | ⏳ | `NpcSync` (D68), `RomanceSync` |
@@ -27,8 +27,8 @@ Legenda: ✅ corrigido e testado com duas instâncias · ⏳ falta fazer · 🟨
 
 ## Ordem sugerida (2026-10-28)
 
-1. Montar o pacote 0.6.5 para a amiga (o protocolo mudou; o 0.6.4 não conecta mais).
-2. A04 + A12 juntos: perdas e duplicações de item (operações por recurso autorizadas pelo host em vez de capturas completas onde houver estoque ou fila).
+1. ~~Montar o pacote 0.6.5~~ ✅ (2026-10-28). Com a D91 o protocolo mudou de novo (30): montar o 0.6.6 antes do próximo teste com a amiga.
+2. ~~A04 + A12~~ ✅ (D91, D92; 2026-10-28).
 3. A07 e A06 (títulos e bingo).
 4. A10, depois da resposta do usuário (P19).
 5. O resto conforme aparecer no teste com a amiga.
