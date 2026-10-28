@@ -24,17 +24,28 @@ public static class JsonMerge3
 
     /// <summary>multisetLists = false: listas de tamanhos diferentes não somam acréscimos (fica a do lado que mudou; nos
     /// dois, a remota). Para estados em que somar duplicaria (animais), D91.</summary>
-    public static string Merge(string baseJson, string localJson, string remoteJson, ISet<string> volatileKeys, bool multisetLists = true)
+    public static string Merge(string baseJson, string localJson, string remoteJson, ISet<string> volatileKeys, bool multisetLists = true, ISet<string> additiveKeys = null)
     {
         var b = JsonNode.Parse(baseJson);
         var l = JsonNode.Parse(localJson);
         var r = JsonNode.Parse(remoteJson);
         _multiset = multisetLists;
+        _additive = additiveKeys;
         try { return Node(b, l, r, volatileKeys)?.ToJsonString() ?? "null"; }
-        finally { _multiset = true; }
+        finally { _multiset = true; _additive = null; }
     }
 
     [ThreadStatic] private static bool _multiset;
+    [ThreadStatic] private static ISet<string> _additive;
+
+    /// <summary>
+    /// Contadores de progresso (D93, revisão A07/A06): os dois avançaram o mesmo contador → soma as duas contribuições
+    /// (base + o que cada um fez). Ex.: título em 5, um faz +1 e o outro +2 → 8 (sem isto, vencia o remoto: 7).
+    /// </summary>
+    public static readonly HashSet<string> ProgressKeys = new() { "ProgressNumber", "progress", "easy", "hard" };
+
+    /// <summary>Chaves que identificam um objeto numa lista (casam por elas, como o Guid): títulos, cartelas.</summary>
+    private static readonly string[] IdKeys = { "Guid", "CardId", "AwardId" };
 
     private static string S(JsonNode n) => n?.ToJsonString() ?? "null";
     private static bool Eq(JsonNode a, JsonNode b) => S(a) == S(b);
@@ -63,13 +74,35 @@ public static class JsonMerge3
             var rv = r.ContainsKey(k) ? r[k] : null;
             if (vol.Contains(k)) { res[k] = Clone(l.ContainsKey(k) ? lv : rv); continue; }
             var bv = b != null && b.ContainsKey(k) ? b[k] : null;
+            if (_additive != null && _additive.Contains(k) && Num(bv, out var bn) && Num(lv, out var ln) && Num(rv, out var rn)
+                && ln != bn && rn != bn && ln != rn)
+            {
+                res[k] = JsonValue.Create(bn + (ln - bn) + (rn - bn));
+                continue;
+            }
             res[k] = Node(bv, lv, rv, vol);
         }
         return res;
     }
 
-    private static string GuidOf(JsonNode n) =>
-        n is JsonObject o && o["Guid"] is JsonValue v && v.TryGetValue<string>(out var g) && !string.IsNullOrEmpty(g) ? g : null;
+    private static bool Num(JsonNode n, out long v)
+    {
+        v = 0;
+        return n is JsonValue jv && jv.TryGetValue<long>(out v);
+    }
+
+    /// <summary>Identidade de um objeto de lista: Guid, CardId ou AwardId (o primeiro que tiver).</summary>
+    private static string GuidOf(JsonNode n)
+    {
+        if (n is not JsonObject o) return null;
+        foreach (var k in IdKeys)
+            if (o[k] is JsonValue v)
+            {
+                var s = v.ToJsonString().Trim('"');
+                if (!string.IsNullOrEmpty(s)) return k + ":" + s;
+            }
+        return null;
+    }
 
     private static JsonArray Arr(JsonArray b, JsonArray l, JsonArray r, ISet<string> vol)
     {
@@ -154,11 +187,21 @@ public static class JsonMerge3
              "{\"p\":[{\"Guid\":\"x\",\"Position\":9,\"f\":2},{\"Guid\":\"y\",\"Position\":1,\"f\":0}]}"),
             // Guid tirado de lá (vendido) → sai daqui também
             ("{\"p\":[{\"Guid\":\"x\"},{\"Guid\":\"y\"}]}", "{\"p\":[{\"Guid\":\"x\"},{\"Guid\":\"y\"}]}", "{\"p\":[{\"Guid\":\"x\"}]}", "{\"p\":[{\"Guid\":\"x\"}]}"),
+            // D93: título em 5, um faz +1 e o outro +2 → 8; cada um conclui um título diferente → os dois
+            ("{\"A\":[{\"AwardId\":1,\"ProgressNumber\":5},{\"AwardId\":2,\"IsComplete\":false},{\"AwardId\":3,\"IsComplete\":false}]}",
+             "{\"A\":[{\"AwardId\":1,\"ProgressNumber\":6},{\"AwardId\":2,\"IsComplete\":true},{\"AwardId\":3,\"IsComplete\":false}]}",
+             "{\"A\":[{\"AwardId\":1,\"ProgressNumber\":7},{\"AwardId\":2,\"IsComplete\":false},{\"AwardId\":3,\"IsComplete\":true}]}",
+             "{\"A\":[{\"AwardId\":1,\"ProgressNumber\":8},{\"AwardId\":2,\"IsComplete\":true},{\"AwardId\":3,\"IsComplete\":true}]}"),
+            // D93: cartela nova só de um lado + progresso do outro numa cartela existente
+            ("{\"cards\":[{\"CardId\":1,\"sq\":[{\"slot\":0,\"progress\":1}]}]}",
+             "{\"cards\":[{\"CardId\":1,\"sq\":[{\"slot\":0,\"progress\":2}]}]}",
+             "{\"cards\":[{\"CardId\":1,\"sq\":[{\"slot\":0,\"progress\":1}]},{\"CardId\":9,\"sq\":[]}]}",
+             "{\"cards\":[{\"CardId\":1,\"sq\":[{\"slot\":0,\"progress\":2}]},{\"CardId\":9,\"sq\":[]}]}"),
         };
         for (var i = 0; i < cases.Length; i++)
         {
             var c = cases[i];
-            var got = Merge(c.b, c.l, c.r, vol);
+            var got = Merge(c.b, c.l, c.r, vol, additiveKeys: ProgressKeys);
             if (got != JsonNode.Parse(c.want)!.ToJsonString()) return $"caso {i + 1}: esperado {c.want}, veio {got}";
         }
         return "ok";

@@ -16,8 +16,8 @@ Legenda: ✅ corrigido e testado com duas instâncias · ⏳ falta fazer · 🟨
 | A08 | Parte da SharedSync desligada em silêncio depois de um erro | ✅ tenta de novo, avisa na tela e volta ao reconectar | [D86](../DECISOES.md#d86--parte-da-sharedsync-com-erro-tenta-de-novo-avisa-e-volta-na-sessão-seguinte-revisão-a08) |
 | A04 | Capturas completas (moinho, mel, cogumelos, animais/celeiros) podem apagar ações feitas ao mesmo tempo por dois jogadores | ✅ versões + mescla em três vias no SharedSync e nos animais (celeiros como antes). Falta: reserva de item único (dois retirando o mesmo produto pronto ficam os dois com ele) | [D91](../DECISOES.md#d91--mudanças-ao-mesmo-tempo-não-se-apagam-versões-e-mescla-em-três-vias-revisão-a04) |
 | A12 | Coleta disputada: a devolução só funciona se o item ainda estiver na mochila (procura por tipo e qualidade); vendido ou consumido antes → fica duplicado | ✅ devolução em cadeia (mochila → armazém → dinheiro); ovos também protegidos. Falta o teste real de dois pegando o mesmo ovo | [D92](../DECISOES.md#d92--devolução-da-coleta-disputada-em-cadeia-ovos-também-revisão-a12) |
-| A06 | Happy Bingo: o progresso fica com o maior (não soma); cartela que só o convidado tem não chega ao host; a seleção de cartela não é transmitida; prêmios resgatados por um valem para todos, mas sem conceder o item a cada um | ⏳ (a regra "compartilhado" já foi escolhida: P17/D61) | `SharedSync.CaptureBingo/MergeBingo` |
-| A07 | Títulos (AwardDatas) substituídos inteiros: se cada um concluir um título diferente ao mesmo tempo, um pode sumir; títulos dão recompensa pelo correio | ⏳ | `SharedSync.ApplyAwards` |
+| A06 | Happy Bingo: o progresso fica com o maior (não soma); cartela que só o convidado tem não chega ao host; a seleção de cartela não é transmitida; prêmios resgatados por um valem para todos, mas sem conceder o item a cada um | ✅ progresso soma, seleção e contadores compartilhados, cartela nova criada. Limites: dois +1 iguais ao mesmo tempo contam 1; cartela só de um lado não reproduzida ao vivo; prêmio segue a P17 | [D93](../DECISOES.md#d93--títulos-e-happy-bingo-progresso-soma-cartelas-por-número-seleção-e-contadores-compartilhados-revisão-a07a06) |
+| A07 | Títulos (AwardDatas) substituídos inteiros: se cada um concluir um título diferente ao mesmo tempo, um pode sumir; títulos dão recompensa pelo correio | ✅ títulos diferentes ao mesmo tempo ficam os dois; progresso soma | [D93](../DECISOES.md#d93--títulos-e-happy-bingo-progresso-soma-cartelas-por-número-seleção-e-contadores-compartilhados-revisão-a07a06) |
 | A11 | Conversa/noivado ao mesmo tempo: o aviso de "morador ocupado" sai depois que a conversa começou (postfix de `TalkStart`), não é uma permissão do host | ⏳ | `NpcSync` (D68), `RomanceSync` |
 | A05 | Família do convidado: casamento é individual, mas filho, cônjuge em casa e encontros (`FamilyData`, `DateEventSaveData`) ficam no mundo do host | 🟨 casamento em espera no roteiro (D45) | `PlayerContext` |
 | A09 | Duas compras simultâneas acima do saldo podem sair parcialmente de graça (dinheiro e Happy Energy) | 🟨 limitação conhecida, aceitável entre amigos | `MoneySync` |
@@ -29,7 +29,7 @@ Legenda: ✅ corrigido e testado com duas instâncias · ⏳ falta fazer · 🟨
 
 1. ~~Montar o pacote 0.6.5~~ ✅ (2026-10-28). Com a D91 o protocolo mudou de novo (30): montar o 0.6.6 antes do próximo teste com a amiga.
 2. ~~A04 + A12~~ ✅ (D91, D92; 2026-10-28).
-3. A07 e A06 (títulos e bingo).
+3. ~~A07 e A06~~ ✅ (D93; 2026-10-28).
 4. A10, depois da resposta do usuário (P19).
 5. O resto conforme aparecer no teste com a amiga.
 

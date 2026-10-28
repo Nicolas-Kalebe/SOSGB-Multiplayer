@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D93 | **Títulos e Happy Bingo**: progresso soma as contribuições; cartelas e títulos casam pelo número; seleção, contadores de completas e cartela nova compartilhados (revisão A07/A06) | ✅ Decidido |
 | D92 | **Coleta disputada**: devolução em cadeia (mochila → armazém → dinheiro) e ovos protegidos como itens do chão (revisão A12) | ✅ Decidido |
 | D91 | **Mudanças ao mesmo tempo não se apagam**: versões + mescla em três vias no SharedSync e nos animais; host devolve o canônico a todos (revisão A04) | ✅ Decidido |
 | D90 | **Moradores no mesmo lugar para todos**: o jogador de menor número no mapa manda posição/animação (com a hora do relógio); os outros mostram cópias com a agenda local rodando por baixo; `NpcHold` segura um morador de verdade | ✅ Decidido |
@@ -228,7 +229,7 @@ Instalação: `L:\Games\STORY OF SEASONS Grand Bazaar`
 
 ## 7. Próximos passos
 
-- [ ] **Agora (2026-10-28):** ver [`docs/REVISAO-EXTERNA.md`](docs/REVISAO-EXTERNA.md): ~~pacote 0.6.5~~ ✅ → ~~A04 + A12~~ ✅ (D91, D92) → A07 e A06 → A10 (depois da P19) → teste com a amiga
+- [ ] **Agora (2026-10-28):** ver [`docs/REVISAO-EXTERNA.md`](docs/REVISAO-EXTERNA.md): ~~pacote 0.6.5~~ ✅ → ~~A04 + A12~~ ✅ (D91, D92) → ~~A07 e A06~~ ✅ (D93) → A10 (depois da P19) → teste com a amiga
 - [x] Gerar as classes do jogo (Cpp2IL → `dump/`, sem tocar na pasta do jogo)
 - [x] Mapear classes: save, armazém, amizade, fazenda, relógio, dinheiro, player (→ `CODIGO.md`)
 - [x] Revisar o plano com base no código

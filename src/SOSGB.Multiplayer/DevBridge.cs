@@ -380,6 +380,23 @@ public class DevBridge : MonoBehaviour
                 }
                 // D91: casos do mesclador em três vias / "add" = põe um item numa lista como AÇÃO LOCAL (o rodízio manda
                 // depois, como se o jogador tivesse feito): shared add windmill WindmillTotalDataList.1.takeOutItemList {json}
+                if (sa2.Length >= 4 && sa2[0] == "lset")
+                {
+                    // D93: muda um valor como AÇÃO LOCAL (o rodízio manda): shared lset awards AwardDatas.3.ProgressNumber 7
+                    var rootL = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;
+                    var keysL = sa2[2].Split('.');
+                    var parL = rootL;
+                    for (var i = 0; i < keysL.Length - 1; i++) parL = parL is System.Text.Json.Nodes.JsonArray arL ? arL[int.Parse(keysL[i])]! : parL[keysL[i]]!;
+                    System.Text.Json.Nodes.JsonNode valL = long.TryParse(sa2[3], out var lvL) ? lvL : bool.TryParse(sa2[3], out var bvL) ? bvL : sa2[3];
+                    if (parL is System.Text.Json.Nodes.JsonArray paL) paL[int.Parse(keysL[^1])] = valL; else parL[keysL[^1]] = valL;
+                    return Json(new { ok = true, result = Net.SharedSync.ApplyLocal(sa2[1], rootL.ToJsonString()) });
+                }
+                if (sa2.Length >= 2 && sa2[0] == "bingocreate")
+                {
+                    // D93: cria uma cartela só neste jogo (como comprada aqui): shared bingocreate <id> [dificuldade]
+                    BokuMono.Bingo.BingoManager.Instance.CreateCard(uint.Parse(sa2[1]), (BokuMono.Bingo.BingoDifficulty)(sa2.Length > 2 ? int.Parse(sa2[2]) : 0), 0);
+                    return Json(new { ok = true, cards = BokuMono.Bingo.BingoManager.Instance.GetAllBingoCard().Count });
+                }
                 if (sa2.Length >= 3 && sa2[0] == "get")
                 {
                     System.Text.Json.Nodes.JsonNode nodeG = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;

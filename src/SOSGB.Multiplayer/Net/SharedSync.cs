@@ -168,16 +168,22 @@ public class SharedSync : MonoBehaviour
         _ => c.CompleteLine,
     };
 
+    /// <summary>
+    /// D93 (revisão A06): cartelas (por CardId), quadrados com nome nos campos (o progresso SOMA as contribuições na
+    /// mescla em três vias, D91), prêmios resgatados, a cartela selecionada (compartilhada, P17: bingo do grupo) e os
+    /// contadores de cartelas completas (antes não iam e se perdiam na virada).
+    /// </summary>
     private static string CaptureBingo()
     {
+        var bmg = BokuMono.Bingo.BingoManager.Instance;
         var cards = new JsonArray();
-        foreach (var c in BokuMono.Bingo.BingoManager.Instance.GetAllBingoCard())
+        foreach (var c in bmg.GetAllBingoCard())
         {
             if (c == null) continue;
             var sq = new JsonArray();
             if (c.Squares != null)
                 foreach (var s in c.Squares)
-                    if (s != null) sq.Add(new JsonArray(s.Slot, s.Id, s.State, s.Progress));
+                    if (s != null) sq.Add(new JsonObject { ["slot"] = s.Slot, ["id"] = s.Id, ["state"] = s.State, ["progress"] = s.Progress });
             var ln = new JsonArray();
             for (var i = 0; i < 4; i++)
             {
@@ -186,26 +192,56 @@ public class SharedSync : MonoBehaviour
                 if (l?.IsReceived != null) foreach (var b in l.IsReceived) got.Add(b);
                 ln.Add(got);
             }
-            cards.Add(new JsonObject { ["id"] = c.CardId, ["sq"] = sq, ["ln"] = ln });
+            uint cid = 0;
+            try { cid = c.CompleteId; } catch { }
+            cards.Add(new JsonObject { ["CardId"] = c.CardId, ["dif"] = (int)c.Difficulty, ["cid"] = cid, ["sq"] = sq, ["ln"] = ln });
         }
-        return new JsonObject { ["cards"] = cards }.ToJsonString();
+        var special = new JsonArray();
+        try { foreach (var id in bmg.clearSpecialBingoCardIds) special.Add(id); } catch { }
+        var o = new JsonObject { ["cards"] = cards, ["valid"] = bmg.ValidCradId, ["special"] = special };
+        try { o["easy"] = bmg.clearEasyBingoCardCount; o["hard"] = bmg.clearHardBingoCardCount; } catch { }
+        return o.ToJsonString();
     }
 
     private static void MergeBingo(string json)
     {
-        if (JsonNode.Parse(json)?["cards"] is not JsonArray cards) return;
+        var root = JsonNode.Parse(json);
+        if (root?["cards"] is not JsonArray cards) return;
         var bmg = BokuMono.Bingo.BingoManager.Instance;
         foreach (var cn in cards)
         {
-            if (cn is not JsonObject co || co["id"] == null) continue;
-            var card = bmg.GetBingoCard(co["id"]!.GetValue<uint>());
-            if (card == null) continue; // cartela que este jogo não tem: chega com o mundo, na virada
+            if (cn is not JsonObject co || co["CardId"] == null) continue;
+            var cardId = co["CardId"]!.GetValue<uint>();
+            var card = bmg.GetBingoCard(cardId);
+            if (card == null)
+            {
+                // D93: cartela que só o outro jogador tem (comprada/ganha no jogo dele): cria aqui, com as mesmas missões.
+                // Antes era ignorada e, no host, se perdia na virada (a manhã usa o mundo do host).
+                try
+                {
+                    bmg.CreateCard(cardId, (BokuMono.Bingo.BingoDifficulty)(co["dif"]?.GetValue<int>() ?? 0), co["cid"]?.GetValue<uint>() ?? 0);
+                    card = bmg.GetBingoCard(cardId);
+                    if (card != null && co["sq"] is JsonArray nsq)
+                        foreach (var sn in nsq)
+                        {
+                            if (sn is not JsonObject so) continue;
+                            int slot = so["slot"]!.GetValue<int>();
+                            var id = so["id"]!.GetValue<uint>();
+                            foreach (var s in card.Squares)
+                                if (s != null && s.Slot == slot && s.Id != id) card.ChangeMission(slot, id);
+                        }
+                    if (card != null) Plugin.Logger.LogInfo($"[SharedSync] cartela de bingo {cardId} criada aqui (veio de outro jogador)");
+                    else Plugin.Logger.LogWarning($"[SharedSync] cartela de bingo {cardId} de outro jogador: o jogo daqui não a criou");
+                }
+                catch (Exception e) { Plugin.Logger.LogWarning($"[SharedSync] criar cartela {cardId}: {e.Message}"); }
+                if (card == null) continue;
+            }
             if (co["sq"] is JsonArray sq && card.Squares != null)
                 foreach (var sn in sq)
                 {
-                    if (sn is not JsonArray a || a.Count < 4) continue;
-                    int slot = a[0]!.GetValue<int>(), state = a[2]!.GetValue<int>(), progress = a[3]!.GetValue<int>();
-                    var id = a[1]!.GetValue<uint>();
+                    if (sn is not JsonObject so) continue;
+                    int slot = so["slot"]!.GetValue<int>(), state = so["state"]!.GetValue<int>(), progress = so["progress"]!.GetValue<int>();
+                    var id = so["id"]!.GetValue<uint>();
                     foreach (var s in card.Squares)
                     {
                         // Missão trocada (redesenho da cartela) num dos jogos: não mistura progresso de missões diferentes.
@@ -223,6 +259,21 @@ public class SharedSync : MonoBehaviour
                         if (got[k]?.ToString() == "true" && !l.IsReceived[k]) l.IsReceived[k] = true;
                 }
         }
+        try
+        {
+            // Cartela selecionada: a do grupo (P17). Contadores de completas: o maior (a mescla já somou as contribuições).
+            var valid = root["valid"]?.GetValue<uint>() ?? 0;
+            if (valid != 0 && valid != bmg.ValidCradId && bmg.GetBingoCard(valid) != null) bmg.ChangeBingoCard(valid);
+            if (root["easy"] is JsonValue ev && ev.GetValue<int>() > bmg.clearEasyBingoCardCount) bmg.clearEasyBingoCardCount = ev.GetValue<int>();
+            if (root["hard"] is JsonValue hv && hv.GetValue<int>() > bmg.clearHardBingoCardCount) bmg.clearHardBingoCardCount = hv.GetValue<int>();
+            if (root["special"] is JsonArray sp)
+                foreach (var x in sp)
+                {
+                    var id = x!.GetValue<uint>();
+                    if (!bmg.clearSpecialBingoCardIds.Contains(id)) bmg.clearSpecialBingoCardIds.Add(id);
+                }
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[SharedSync] bingo (seleção/contadores): {e.Message}"); }
     }
 
     // ----- Pets e cavalo: animal por animal -----
@@ -894,7 +945,7 @@ public class SharedSync : MonoBehaviour
                 p.Version = version; p.KnownJson = json; Baseline[name] = Signature(json);
                 return "igual";
             }
-            var merged = baseJson != null ? JsonMerge3.Merge(baseJson, localJson, json, Volatile) : Merge(json, localJson);
+            var merged = baseJson != null ? JsonMerge3.Merge(baseJson, localJson, json, Volatile, additiveKeys: JsonMerge3.ProgressKeys) : Merge(json, localJson);
             p.Apply(merged);
             p.Failures = 0;
             if (host) Baseline[name] = Signature(p.Capture());
