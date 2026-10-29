@@ -1011,3 +1011,11 @@ Regras deste arquivo:
 - **Decisão:** (b). O host, ao receber um gasto que passaria do saldo, deixa a carteira em 0 e soma o que faltou na dívida da carteira (dinheiro ou Happy Energy); ganhos seguintes (do host ou de convidados) pagam a dívida primeiro. A dívida vai junto com o total (`MoneyState`/`HappyState` + [long dívida]) e todos veem o aviso "Compras ao mesmo tempo passaram do saldo: faltaram X G...". Só na memória da sessão (fechar o mundo zera).
 - **Testado (duas instâncias, `spendmoney`/`addmoney` da ponte):** saldo 69.365; os dois gastaram 68.365 ao mesmo tempo → carteira 0 nos dois e dívida 67.365 (exatamente o que faltou); a convidada ganhou 5.000 → carteira 0, dívida 62.365; o host ganhou 136.730 → carteira 74.365 nos dois, dívida 0.
 
+### D97 — Só o host noiva e casa; convidados namoram (revisão A05)
+- **Status:** ✅ Decidido · **Data:** 2026-10-29 · **Decidido por:** usuário ("Só o host casa"; uma segunda casa "parece megalomaníaco demais")
+- **Contexto:** a D45 deixou o casamento do convidado pela metade: o status ficava no perfil dele, mas a vida de casado (cerimônia, cônjuge em casa, filho, encontros: `FamilyManager`, `DateEventSaveData`) é do mundo do host e podia se perder na virada; a rotina de casado do cônjuge não é interceptável.
+- **Alternativas (perguntadas ao usuário):** casamento "simples" do convidado (sem vida de casado), só o host casa, deixar como estava. Uma casa por jogador (como no Stardew) foi descartada pelo tamanho.
+- **Decisão:** convidados namoram normalmente, mas o pedido (o item de compromisso → noivado → casamento) é recusado com o aviso "No multiplayer, só o host pode noivar e casar. Namorar continua liberado." (`CheckMarryable`/`SetFiance` na RomanceSync). O bloqueio é no pedido e não na cerimônia: bloquear depois do noivado deixaria a pessoa noiva para sempre, com o evento do casamento pela metade. Quem já era noivo/casado num save antigo não é afetado.
+- **Testado (duas instâncias, `romance fiance` da ponte):** a convidada pediu o morador 105 → recusado, com o aviso; o host pediu o mesmo → noivou.
+- **Substitui:** o "Plano B" da D45 para convidados (ROTEIRO 6.5).
+

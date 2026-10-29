@@ -123,6 +123,27 @@ public class RomanceSync : MonoBehaviour
 
     private static float _lastNotice;
 
+    /// <summary>
+    /// D97 (revisão A05, escolha do usuário: "só o host casa"): a vida de casado (cerimônia, cônjuge em casa, filho) é do
+    /// mundo do host; no convidado ela ficava pela metade e podia se perder na virada. O convidado namora normalmente, mas
+    /// o pedido (item de compromisso → noivado → casamento) é só do host. Bloquear depois do noivado deixaria a pessoa
+    /// noiva para sempre, com o evento do casamento pela metade.
+    /// </summary>
+    private static bool GuestMayNotMarry(uint charaId)
+    {
+        if (NetSession.Current != NetSession.Mode.Client) return false;
+        var lm = LikeabilityManager.IsInstance ? LikeabilityManager.Instance : null;
+        if (lm != null && (lm.FianceCharaId == charaId || lm.PartnerCharaId == charaId)) return false; // já era (save antigo)
+        if (Time.unscaledTime - _lastNotice >= 5f)
+        {
+            _lastNotice = Time.unscaledTime;
+            GameNotify.Show("No multiplayer, só o host pode noivar e casar. Namorar continua liberado.");
+            Plugin.Logger.LogInfo($"[Romance] pedido do convidado ao NPC {charaId} bloqueado (só o host casa, D97)");
+            DevBridge.PushEvent($"romance:convidado-bloqueado:{charaId}");
+        }
+        return true;
+    }
+
     private static void Notice(uint charaId, string who)
     {
         if (Time.unscaledTime - _lastNotice < 5f) return;
@@ -138,6 +159,7 @@ public class RomanceSync : MonoBehaviour
         private static void Postfix(uint charaId, ref bool __result)
         {
             if (!__result) return;
+            if (GuestMayNotMarry(charaId)) { __result = false; return; }
             var who = ClaimedByOther(charaId);
             if (who == null) return;
             __result = false;
@@ -150,6 +172,7 @@ public class RomanceSync : MonoBehaviour
     {
         private static bool Prefix(uint charaId)
         {
+            if (GuestMayNotMarry(charaId)) return false;
             var who = ClaimedByOther(charaId);
             if (who == null) return true;
             Notice(charaId, who);
