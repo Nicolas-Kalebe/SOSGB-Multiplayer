@@ -112,7 +112,7 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 | 6.2b ✅ | **Eventos vistos e progresso do mundo** sincronizados (D43): flags de evento em união, missões, lojas, receitas, peixes... | G | Teste da IA: autoteste + flag em rede |
 | 6.3 ✅ | **Cutscenes pessoais**: só quem disparou vê, o mundo segue para os outros. Cena usa a mesma regra de relógio das telas (o outro segue; quem sai é adiantado à maior hora, D83), exceto em dia de festival (o tempo do grupo para, D83); o morador fica ocupado só na conversa (D68). Assistir junto: D84 (experimental, desligado) | GG | Teste da IA: regras do relógio (regressão) e cerimônia do festival com duas instâncias |
 | 6.4 ✅ | **Romance exclusivo (D5, D44)** | M | Teste da IA: duas instâncias, bloqueio nos dois sentidos |
-| 6.5 ⏸ | **Casamento (D12a, D45)**: cônjuges na casa única (patch em `Married`/`PartnerCharaId`); eventos de casado e filhos só para o host; Plano B como reserva. A escolha de rotina não é interceptável; vale o Plano B por ora | GG | Teste do usuário |
+| 6.5 ✅ | **Casamento (D12a, D45, D97)**: só o host noiva e casa; convidados namoram (D97, escolha do usuário). Antes: cônjuges na casa única (patch em `Married`/`PartnerCharaId`); eventos de casado e filhos só para o host; Plano B como reserva. A escolha de rotina não é interceptável; vale o Plano B por ora | GG | Teste do usuário |
 | 6.6 | Verificar a sobreposição de cônjuges na casa (`ScheduleBed/ChairChecker`) | M | Screenshot |
 
 **✔ Pronto quando:** cada jogador namora e casa com quem quiser, sem afetar os corações dos outros.
