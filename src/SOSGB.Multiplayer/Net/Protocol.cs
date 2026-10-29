@@ -172,4 +172,7 @@ public enum MsgType : byte
 
     /// <summary>Referência do mapa → host (→ quem está no mesmo mapa): [byte quem][uint mapa][long hora do relógio dela][byte n] + n × [ushort morador][short x,y,z cm][byte giro][int estado do Animator][byte tempo][byte velocidade] — moradores no mesmo lugar para todos (D90)</summary>
     NpcPositions = 45,
+
+    /// <summary>Host → convidado: [uint morador][byte quem conversa] — você começou a conversar com um morador que outro jogador já tinha começado (chegou depois); a conversa segue, mas sem romance com ele (D94)</summary>
+    NpcTalkDenied = 46,
 }

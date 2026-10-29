@@ -50,7 +50,8 @@ public class RomanceSync : MonoBehaviour
         try
         {
             if (!Ready() || Time.unscaledTime < _next) return;
-            _next = Time.unscaledTime + 2f;
+            // D94: de 2 s para 0,5 s (o registro de compromissos chega mais rápido); o noivado também avisa na hora (abaixo).
+            _next = Time.unscaledTime + 0.5f;
             var lm = LikeabilityManager.Instance;
             var local = (lm.FianceCharaId, lm.PartnerCharaId);
             if (local != _lastLocal)
@@ -111,7 +112,10 @@ public class RomanceSync : MonoBehaviour
     /// <summary>Nome de OUTRO jogador comprometido com o NPC (null = livre ou comprometido comigo).</summary>
     public static string ClaimedByOther(uint charaId)
     {
-        if (NetSession.Current == NetSession.Mode.Offline || !Claims.TryGetValue(charaId, out var who)) return null;
+        if (NetSession.Current == NetSession.Mode.Offline) return null;
+        // D94: esta conversa começou junto com a de outro jogador, que chegou primeiro: sem romance com o morador agora.
+        if (NpcSync.DeniedTalk == charaId) return "outro jogador (que conversava com ele primeiro)";
+        if (!Claims.TryGetValue(charaId, out var who)) return null;
         var lm = LikeabilityManager.IsInstance ? LikeabilityManager.Instance : null;
         if (lm != null && (lm.FianceCharaId == charaId || lm.PartnerCharaId == charaId)) return null; // é comigo
         return who;
@@ -151,6 +155,28 @@ public class RomanceSync : MonoBehaviour
             Notice(charaId, who);
             return false;
         }
+
+        // D94: noivado feito → o registro é atualizado NA HORA (antes, até ~2 s + o envio do perfil: outro jogador podia
+        // pedir o mesmo morador nesse meio tempo e os dois ficavam noivos dele).
+        private static void Postfix() => ClaimNow();
+    }
+
+    [HarmonyPatch(typeof(LikeabilityManager), nameof(LikeabilityManager.SetPartner))]
+    private static class SetPartnerPatch
+    {
+        private static void Postfix() => ClaimNow();
+    }
+
+    private static void ClaimNow()
+    {
+        try
+        {
+            if (!Ready()) return;
+            if (NetSession.Current == NetSession.Mode.Client) PlayerProfiles.Upload();
+            else HostRebuild();
+            _lastLocal = (LikeabilityManager.Instance.FianceCharaId, LikeabilityManager.Instance.PartnerCharaId);
+        }
+        catch (Exception e) { Plugin.Logger.LogWarning($"[Romance] avisar o noivado: {e.Message}"); }
     }
 
     public static object Status()

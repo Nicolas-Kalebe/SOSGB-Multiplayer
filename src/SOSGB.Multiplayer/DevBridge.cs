@@ -1468,6 +1468,14 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, pausingAny = pz.IsPausingAny, pausingAll = pz.IsPausingAll });
             }
 
+            case "talksim":
+            {
+                // talksim <morador> | talksim end — D94: o caminho do mod no início/fim da conversa (sem a conversa do jogo)
+                if (arg.Trim() == "end") Net.NpcSync.SimulateTalk(0, false);
+                else Net.NpcSync.SimulateTalk(uint.Parse(arg.Trim()), true);
+                return Json(new { ok = true, sync = Net.NpcSync.Status(), denied = Net.NpcSync.DeniedTalk, romanceBlockedBy = Net.RomanceSync.ClaimedByOther(Net.NpcSync.DeniedTalk) });
+            }
+
             case "takeback":
             {
                 // takeback <item> <qtd> <qualidade> — D92: roda a devolução da coleta disputada (mochila → armazém → dinheiro)

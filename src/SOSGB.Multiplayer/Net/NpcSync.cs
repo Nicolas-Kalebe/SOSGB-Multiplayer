@@ -26,6 +26,19 @@ public class NpcSync : MonoBehaviour
     private static readonly Dictionary<uint, byte> Busy = new();            // morador → quem está conversando (outro jogador)
     private static readonly Dictionary<uint, NonPlayerCharacter> Frozen = new(); // cópias paradas neste jogo
     private static uint _localTalk;
+    // D94 (revisão A11): morador da conversa daqui que o host disse ser de OUTRO jogador (os dois começaram ao mesmo tempo
+    // e o outro chegou primeiro). A conversa segue (corações e conversa do dia são de cada um), mas sem romance com ele.
+    private static uint _deniedTalk;
+
+    /// <summary>Ponte (D94): simula o início/fim de conversa como o TalkStart/TalkEnd (sem abrir a conversa do jogo).</summary>
+    public static void SimulateTalk(uint charaId, bool start)
+    {
+        if (start) { if (_localTalk != 0) Send(_localTalk, false); _localTalk = charaId; _deniedTalk = 0; _talkIdleSince = -1; Send(charaId, true); }
+        else if (_localTalk != 0) { Send(_localTalk, false); _localTalk = 0; _deniedTalk = 0; }
+    }
+
+    /// <summary>Morador desta conversa que outro jogador começou primeiro (0 = nenhum). A RomanceSync recusa o noivado.</summary>
+    public static uint DeniedTalk => _deniedTalk;
     private static float _talkIdleSince = -1;                                 // quem conversa: tela normal desde (fim garantido)
     private static readonly Dictionary<uint, float> BusySince = new();       // quem recebe: libera sozinho depois de 90 s
     private static UIManager _ui;
@@ -73,7 +86,7 @@ public class NpcSync : MonoBehaviour
                 var normal = _ui != null && _ui.CurrentUIType.ToString() == "Main" && !_ui.IsMenu;
                 if (!normal) _talkIdleSince = -1;
                 else if (_talkIdleSince < 0) _talkIdleSince = Time.unscaledTime;
-                else if (Time.unscaledTime - _talkIdleSince > 3f) { Send(_localTalk, false); _localTalk = 0; _talkIdleSince = -1; }
+                else if (Time.unscaledTime - _talkIdleSince > 3f) { Send(_localTalk, false); _localTalk = 0; _deniedTalk = 0; _talkIdleSince = -1; }
             }
             foreach (var n in new List<uint>(BusySince.Keys))
                 if (Time.unscaledTime - BusySince[n] > 90f && Busy.TryGetValue(n, out var who)) SetBusy(n, who, false);
@@ -201,6 +214,19 @@ public class NpcSync : MonoBehaviour
 
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
+        if (type == MsgType.NpcTalkDenied)
+        {
+            if (NetSession.Current != NetSession.Mode.Client || from != Protocol.HostPlayerId) return;
+            var npcId = r.GetUInt();
+            var owner = r.GetByte();
+            if (npcId != _localTalk) return;
+            _deniedTalk = npcId;
+            var who = NetSession.Players.TryGetValue(owner, out var op) ? op.Name : "Outro jogador";
+            GameNotify.Show($"{who} já estava conversando com esse morador.");
+            Plugin.Logger.LogInfo($"[NpcSync] conversa com {npcId}: #{owner} chegou primeiro (sem romance nesta conversa)");
+            DevBridge.PushEvent($"conversa:negada:{npcId}");
+            return;
+        }
         if (type != MsgType.NpcTalk) return;
         var talker = r.GetByte();
         var charaId = r.GetUInt();
@@ -208,6 +234,20 @@ public class NpcSync : MonoBehaviour
         if (NetSession.Current == NetSession.Mode.Host)
         {
             if (talker != from) return;
+            // D94: começou ao mesmo tempo que outro (o aviso dele chegou primeiro, ou o host já estava conversando):
+            // o primeiro fica com o morador; quem chegou depois é avisado e não vira "dono" da conversa nos outros jogos.
+            if (talking)
+            {
+                byte owner = NetSession.UnknownId;
+                if (_localTalk == charaId) owner = NetSession.LocalId;
+                else if (Busy.TryGetValue(charaId, out var other) && other != talker) owner = other;
+                if (owner != NetSession.UnknownId)
+                {
+                    NetSession.SendTo(from, MsgType.NpcTalkDenied, w => { w.Put(charaId); w.Put(owner); }, DeliveryMethod.ReliableOrdered);
+                    Plugin.Logger.LogInfo($"[NpcSync] #{talker} começou a conversar com {charaId} depois de #{owner}: avisado");
+                    return;
+                }
+            }
             // As mensagens 20+ só chegam ao host: ele repassa aos outros convidados.
             foreach (var id in NetSession.Players.Keys)
                 if (id != NetSession.LocalId && id != from)
@@ -217,7 +257,7 @@ public class NpcSync : MonoBehaviour
         SetBusy(charaId, talker, talking);
     }
 
-    public static object Status() => new { busy = Busy, frozen = new List<uint>(Frozen.Keys), localTalk = _localTalk, held = NpcHold.Count, holdKey = _holdKey, positions = NpcPosSync.Status() };
+    public static object Status() => new { busy = Busy, frozen = new List<uint>(Frozen.Keys), localTalk = _localTalk, deniedTalk = _deniedTalk, romanceBlocked = _deniedTalk != 0 && RomanceSync.ClaimedByOther(_deniedTalk) != null, held = NpcHold.Count, holdKey = _holdKey, positions = NpcPosSync.Status() };
 
     /// <summary>Morador com quem ESTE jogador está conversando (0 = nenhum). A NpcPosSync o devolve ao jogo daqui (D90).</summary>
     public static uint LocalTalk => _localTalk;
@@ -236,6 +276,7 @@ public class NpcSync : MonoBehaviour
                 if (id == 0 || id == _localTalk) return;
                 if (_localTalk != 0) Send(_localTalk, false);
                 _localTalk = id;
+                _deniedTalk = 0;
                 _talkIdleSince = -1;
                 Send(id, true);
             }
@@ -254,6 +295,7 @@ public class NpcSync : MonoBehaviour
                 var id = __instance != null ? __instance.CharacterId : _localTalk;
                 if (id != _localTalk) return;
                 _localTalk = 0;
+                _deniedTalk = 0;
                 Send(id, false);
             }
             catch (Exception e) { Plugin.Logger.LogWarning($"[NpcSync] fim da conversa: {e.Message}"); }
