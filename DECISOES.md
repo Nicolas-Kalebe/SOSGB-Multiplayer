@@ -996,3 +996,11 @@ Regras deste arquivo:
 - **Decisão:** o host, ao receber o início de conversa de um convidado com um morador que ele mesmo ou outro convidado já tinha começado, não o repassa e manda `NpcTalkDenied` (46) a quem chegou depois: ele vê "Fulano já estava conversando com esse morador" e, até o fim dessa conversa, `CheckMarryable`/`SetFiance` recusam esse morador. O registro de compromissos passa a ser atualizado na hora do noivado/casamento (`SetFiance`/`SetPartner` → envio do perfil ou recálculo no host) e conferido a cada 0,5 s.
 - **Testado (duas instâncias, ponte `talksim`, que roda o mesmo caminho do mod no início/fim da conversa):** os dois começando juntos com o mesmo morador, 2 rodadas → o host fica com ele; na convidada a conversa segue com o romance bloqueado; ao terminar, a marca some; conversa sozinha continua normal (o morador fica ocupado para o outro, D68). A disputa com o Enter de verdade no mesmo instante não dá para reproduzir por automação.
 - **Consequências:** nova mensagem 46 (dentro do protocolo 30, ainda não distribuído).
+
+### D95 — Quem volta depois de dias fora encontra a mochila como deixou (revisão A10, P19)
+- **Status:** ✅ Decidido · **Data:** 2026-10-29 · **Decidido por:** usuário (P19: "manter frescor")
+- **Contexto:** quando o convidado fica fora vários dias do jogo, ao voltar o mod rodava UMA virada pessoal (D63): zerava presente e conversa do dia com os moradores e gastava um dia de frescor da mochila, qualquer que fosse o número de dias fora.
+- **Alternativas (P19):** (a) a mochila congela enquanto ele está fora; (b) acompanha o calendário (um dia de frescor por dia ausente, o que exigiria simular estação e clima de cada dia).
+- **Decisão:** (a). Na volta, só a parte dos moradores da virada pessoal roda (`LikeabilityManager.OnChangeDate`, `TalkManager.OnChangeDate`: sem isso o jogo diria "já deu presente hoje"); o frescor da mochila (`BagItemStorage.OnChangeDate`) só anda nas viradas em que o jogador está no mundo.
+- **Testado:** compilado; não testado no jogo (exige sair, o host virar dias sozinho e voltar).
+

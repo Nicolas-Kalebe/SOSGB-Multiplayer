@@ -21,7 +21,7 @@ Legenda: ✅ corrigido e testado com duas instâncias · ⏳ falta fazer · 🟨
 | A11 | Conversa/noivado ao mesmo tempo: o aviso de "morador ocupado" sai depois que a conversa começou (postfix de `TalkStart`), não é uma permissão do host | ✅ o host decide quem chegou primeiro; o outro segue sem romance; registro de compromissos na hora | [D94](../DECISOES.md#d94--conversa-e-noivado-ao-mesmo-tempo-o-host-decide-quem-chegou-primeiro-revisão-a11) |
 | A05 | Família do convidado: casamento é individual, mas filho, cônjuge em casa e encontros (`FamilyData`, `DateEventSaveData`) ficam no mundo do host | 🟨 casamento em espera no roteiro (D45) | `PlayerContext` |
 | A09 | Duas compras simultâneas acima do saldo podem sair parcialmente de graça (dinheiro e Happy Energy) | 🟨 limitação conhecida, aceitável entre amigos | `MoneySync` |
-| A10 | Convidado que volta depois de vários dias: só uma virada de frescor é aplicada | 🟨 **depende de uma regra do usuário** (P19) | `PlayerProfiles.ApplyPending` |
+| A10 | Convidado que volta depois de vários dias: só uma virada de frescor é aplicada | ✅ regra do usuário (P19): a mochila congela enquanto ele está fora | [D95](../DECISOES.md#d95--quem-volta-depois-de-dias-fora-encontra-a-mochila-como-deixou-revisão-a10-p19) |
 
 **Coberturas ainda não testadas** (a revisão não achou falta de código, só não há teste): fundo de apoio do Bazaar, porão (Cellar) e virada de estação, Nature Sprites (contribuições de jogadores diferentes), concursos com item (suco, culinária), saída do vendedor do Bazaar com ajudante (P14), queda do host e consistência entre o mundo salvo e os perfis.
 

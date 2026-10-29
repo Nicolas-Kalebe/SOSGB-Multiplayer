@@ -237,7 +237,9 @@ public class PlayerProfiles : MonoBehaviour
             // O host processou o dia com os dados DELE; aqui processamos a virada nos nossos.
             LikeabilityManager.Instance.OnChangeDate();
             TalkManager.Instance.OnChangeDate(DateManager.Instance.Now.Year);
-            InventoryManager.Instance.BagItemStorage.OnChangeDate();
+            // D95 (revisão A10, P19: "manter frescor"): quem volta depois de dias fora encontra a mochila como deixou; o
+            // frescor só anda nas viradas em que o jogador estava no mundo (antes a volta gastava um dia de frescor).
+            if (_pendingIsNewDay) InventoryManager.Instance.BagItemStorage.OnChangeDate();
         }
         Plugin.Logger.LogInfo($"[Profiles] perfil aplicado ({(_pendingIsNewDay ? "dia novo" : "entrada")}): {string.Join(", ", report.Select(kv => $"{kv.Key}={kv.Value}"))}");
         DevBridge.PushEvent(_pendingIsNewDay ? "perfil-aplicado:dia-novo" : "perfil-aplicado:entrada");

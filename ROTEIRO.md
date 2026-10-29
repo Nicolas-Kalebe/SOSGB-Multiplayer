@@ -176,4 +176,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **2026-10-28:** pacote 0.6.5 montado; A04 (D91: versões + mescla em três vias no SharedSync e nos animais) e A12 (D92: devolução em cadeia, ovos protegidos) feitos e testados com duas instâncias. Mod 0.6.6, protocolo 30 (pacote 0.6.6 ainda não montado). Próximo: A07 e A06.
 - **2026-10-28 (tarde):** A07 e A06 (D93): progresso de títulos e bingo soma as contribuições; títulos e cartelas casam pelo número; seleção de cartela, contadores de completas e cartela nova compartilhados. Testado com duas instâncias. Da revisão sobram A11, A05/A09/A10 (limitação ou regra: P19) e as coberturas. Pacote 0.6.6 ainda não montado.
 - **2026-10-29:** A11 (D94): conversa/noivado ao mesmo tempo, o host decide quem chegou primeiro. Pacote 0.6.6 (protocolo 30) montado para o teste com a amiga. Da revisão sobram A05/A09 (limitação aceita), A10 (depende da P19) e as coberturas (testes de jogo).
-- **Última atualização:** 2026-10-29 (D94, pacote 0.6.6)
+- **2026-10-29:** A10 (D95, P19 "manter frescor"): a mochila de quem volta depois de dias fora não perde frescor. Pacote 0.6.6 remontado.
+- **Última atualização:** 2026-10-29 (D94, D95, pacote 0.6.6)
