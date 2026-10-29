@@ -1004,3 +1004,10 @@ Regras deste arquivo:
 - **Decisão:** (a). Na volta, só a parte dos moradores da virada pessoal roda (`LikeabilityManager.OnChangeDate`, `TalkManager.OnChangeDate`: sem isso o jogo diria "já deu presente hoje"); o frescor da mochila (`BagItemStorage.OnChangeDate`) só anda nas viradas em que o jogador está no mundo.
 - **Testado:** compilado; não testado no jogo (exige sair, o host virar dias sozinho e voltar).
 
+### D96 — Gastos ao mesmo tempo acima do saldo viram dívida do grupo (revisão A09)
+- **Status:** ✅ Decidido · **Data:** 2026-10-29 · **Decidido por:** usuário ("A09, pode ser isso da espera"); forma escolhida pela IA
+- **Contexto:** a carteira é compartilhada (D36) e cada jogo gasta na hora; o host soma as diferenças e cortava o total em 0. Dois comprando ao mesmo tempo mais do que existia → uma das compras saía de graça (vale também para a Happy Energy).
+- **Alternativas:** (a) esperar a confirmação do host antes de cada compra (o pedido do usuário): a loja do jogo decide na hora se há dinheiro e não aguarda a rede; travaria a tela a cada compra; (b) **dívida**: o que faltou fica devendo e sai dos próximos ganhos. Nada sai de graça e a loja continua instantânea.
+- **Decisão:** (b). O host, ao receber um gasto que passaria do saldo, deixa a carteira em 0 e soma o que faltou na dívida da carteira (dinheiro ou Happy Energy); ganhos seguintes (do host ou de convidados) pagam a dívida primeiro. A dívida vai junto com o total (`MoneyState`/`HappyState` + [long dívida]) e todos veem o aviso "Compras ao mesmo tempo passaram do saldo: faltaram X G...". Só na memória da sessão (fechar o mundo zera).
+- **Testado (duas instâncias, `spendmoney`/`addmoney` da ponte):** saldo 69.365; os dois gastaram 68.365 ao mesmo tempo → carteira 0 nos dois e dívida 67.365 (exatamente o que faltou); a convidada ganhou 5.000 → carteira 0, dívida 62.365; o host ganhou 136.730 → carteira 74.365 nos dois, dívida 0.
+
