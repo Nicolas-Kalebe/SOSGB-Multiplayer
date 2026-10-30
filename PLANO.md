@@ -37,8 +37,9 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D98 | **Gasto ao mesmo tempo sem saldo**: o host recusa o gasto de quem chegou depois e a compra é desfeita (substitui a dívida da D96; revisão A09) | ✅ Decidido |
 | D97 | **Só o host noiva e casa**; convidados namoram (revisão A05, escolha do usuário) | ✅ Decidido |
-| D96 | **Gastos ao mesmo tempo acima do saldo** viram dívida do grupo, paga pelos próximos ganhos (revisão A09) | ✅ Decidido |
+| D96 | **Gastos ao mesmo tempo acima do saldo** viram dívida do grupo (revisão A09) | 🔁 Substituída por D98 |
 | D95 | **Volta depois de dias fora**: a mochila do convidado não perde frescor enquanto ele está fora (revisão A10, P19) | ✅ Decidido |
 | D94 | **Conversa/noivado ao mesmo tempo**: o host decide quem chegou primeiro; o outro segue a conversa sem romance; registro de compromissos na hora (revisão A11) | ✅ Decidido |
 | D93 | **Títulos e Happy Bingo**: progresso soma as contribuições; cartelas e títulos casam pelo número; seleção, contadores de completas e cartela nova compartilhados (revisão A07/A06) | ✅ Decidido |

@@ -229,7 +229,7 @@ public class FarmSync : MonoBehaviour
     }
 
     /// <summary>Tira até n unidades do item: primeiro os espaços de mesma qualidade, depois qualquer qualidade. Devolve o que faltou.</summary>
-    private static int TakeFrom(StorageManager st, BokuMono.Data.ItemData item, int n)
+    internal static int TakeFrom(StorageManager st, BokuMono.Data.ItemData item, int n)
     {
         if (st == null || n <= 0) return n;
         var datas = st.ItemDatas;

@@ -178,4 +178,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **2026-10-29:** A11 (D94): conversa/noivado ao mesmo tempo, o host decide quem chegou primeiro. Pacote 0.6.6 (protocolo 30) montado para o teste com a amiga. Da revisão sobram A05/A09 (limitação aceita), A10 (depende da P19) e as coberturas (testes de jogo).
 - **2026-10-29:** A10 (D95, P19 "manter frescor"): a mochila de quem volta depois de dias fora não perde frescor. Pacote 0.6.6 remontado.
 - **2026-10-29:** A09 (D96): gastos ao mesmo tempo acima do saldo viram dívida do grupo. A05 (D97): só o host noiva e casa. **Todos os achados da revisão externa resolvidos**; sobram só as coberturas (testes de jogo).
-- **Última atualização:** 2026-10-29 (D94–D97, pacote 0.6.6)
+- **2026-10-30:** A09 refeito (D98, escolha do usuário): gasto ao mesmo tempo sem saldo é recusado e a compra de quem chegou depois é desfeita (a dívida da D96 saiu). Pacote 0.6.6 remontado.
+- **Última atualização:** 2026-10-30 (D98, pacote 0.6.6)

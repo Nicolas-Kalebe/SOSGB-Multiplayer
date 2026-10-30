@@ -175,4 +175,7 @@ public enum MsgType : byte
 
     /// <summary>Host → convidado: [uint morador][byte quem conversa] — você começou a conversar com um morador que outro jogador já tinha começado (chegou depois); a conversa segue, mas sem romance com ele (D94)</summary>
     NpcTalkDenied = 46,
+
+    /// <summary>Host → convidado: [byte carteira 0 dinheiro / 1 Happy Energy][int número do gasto] — o saldo não cobria esse gasto (outro jogador gastou junto); o host não o aplicou e o convidado desfaz a compra (D98)</summary>
+    MoneyRefused = 47,
 }

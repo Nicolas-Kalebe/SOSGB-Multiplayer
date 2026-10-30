@@ -1,5 +1,7 @@
 // 🤖 AUTODOCUMENTAÇÃO: ver src/SOSGB.Multiplayer/Net/CONTEXTO.md, DECISOES.md#d4, #d36 e #d57.
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using BokuMono;
 using LiteNetLib;
 using LiteNetLib.Utils;
@@ -22,9 +24,10 @@ namespace SOSGB.Multiplayer.Net;
 /// Carteiras: dinheiro (UserInfo.PlayerMoney) e Happy Energy (UserInfo.PlayerHappyPoint, a moeda dos Nature
 /// Sprites / Happy Shoppe). A Happy Energy não era sincronizada: o que um convidado ganhava sumia na virada do dia.
 ///
-/// D96 (revisão A09): se dois jogadores gastam ao mesmo tempo mais do que existe, a carteira vai a 0 e o que faltou
-/// vira DÍVIDA do grupo, descontada dos próximos ganhos (antes uma das compras saía "de graça"). Esperar a confirmação
-/// do host antes de cada compra não dá: a loja do jogo decide na hora e não aguarda a rede. Todos veem o aviso.
+/// D98 (revisão A09, escolha do usuário): se dois jogadores gastam ao mesmo tempo mais do que existe, o gasto que chegou
+/// depois é RECUSADO pelo host (a carteira não muda) e quem gastou desfaz a compra: os itens que entraram na mochila ou no
+/// armazém naquele instante saem, e o dinheiro volta sozinho com o total do host. Compra que não vira item (ampliação,
+/// animal) não tem o que desfazer: aí vale a regra antiga (o host corta em 0). Antes (D96) o que faltava virava dívida.
 /// </summary>
 public class MoneySync : MonoBehaviour
 {
@@ -37,16 +40,15 @@ public class MoneySync : MonoBehaviour
         public Func<UserInfo, long> Get;
         public Action<UserInfo, uint> Set;
         public long Baseline = -1;   // último valor conhecido e já sincronizado
-        public long Debt;            // D96: host: o que faltou em gastos ao mesmo tempo (descontado dos próximos ganhos)
-        public long KnownDebt;       // convidado: última dívida avisada
+        public byte Index;           // D98: número da carteira na mensagem de recusa
         public bool ForceSend;
         public float NextHeartbeat;
     }
 
     private static readonly Wallet[] Wallets =
     {
-        new() { Name = "dinheiro", Unit = "G", DeltaMsg = MsgType.MoneyDelta, StateMsg = MsgType.MoneyState, Get = u => u.PlayerMoney, Set = (u, v) => u.PlayerMoney = v },
-        new() { Name = "happy", Unit = "HE", DeltaMsg = MsgType.HappyDelta, StateMsg = MsgType.HappyState, Get = u => u.PlayerHappyPoint, Set = (u, v) => u.PlayerHappyPoint = v },
+        new() { Name = "dinheiro", Unit = "G", Index = 0, DeltaMsg = MsgType.MoneyDelta, StateMsg = MsgType.MoneyState, Get = u => u.PlayerMoney, Set = (u, v) => u.PlayerMoney = v },
+        new() { Name = "happy", Unit = "HE", Index = 1, DeltaMsg = MsgType.HappyDelta, StateMsg = MsgType.HappyState, Get = u => u.PlayerHappyPoint, Set = (u, v) => u.PlayerHappyPoint = v },
     };
 
     private static bool _subscribed;
@@ -58,7 +60,7 @@ public class MoneySync : MonoBehaviour
         NetSession.OnGameMessage += OnMessage;
         // O mundo novo traz o próprio valor.
         WorldSync.OnWorldReceived += () => { foreach (var w in Wallets) w.Baseline = -1; };
-        NetSession.OnHosting += () => { foreach (var w in Wallets) { w.Baseline = -1; w.Debt = 0; } };
+        NetSession.OnHosting += () => { foreach (var w in Wallets) w.Baseline = -1; };
         NetSession.OnJoined += () => { foreach (var w in Wallets) w.Baseline = -1; };
         NetSession.OnPlayerJoinedNamed += (id, name) =>
         {
@@ -82,6 +84,7 @@ public class MoneySync : MonoBehaviour
             if (!Ready()) return;
             if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
             var ui = ExternalData.Instance.UserInfo;
+            if (NetSession.Current == NetSession.Mode.Client) TrackStock();
             foreach (var w in Wallets) Tick(w, ui);
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[MoneySync] {e.Message}"); }
@@ -104,15 +107,6 @@ public class MoneySync : MonoBehaviour
 
         if (NetSession.Current == NetSession.Mode.Host)
         {
-            // D96: ganho com dívida pendente → paga a dívida primeiro.
-            if (now > w.Baseline && w.Debt > 0)
-            {
-                var pay = Math.Min(w.Debt, now - w.Baseline);
-                w.Debt -= pay;
-                now -= pay;
-                w.Set(ui, (uint)now);
-                Plugin.Logger.LogInfo($"[MoneySync] {w.Name}: {pay} {w.Unit} do ganho pagaram a dívida (resta {w.Debt})");
-            }
             // Host: o valor dele é o oficial. Mudou (ou alguém entrou)? Manda o total. E um "lembrete" a cada 5 s.
             if (now != w.Baseline || w.ForceSend || Time.unscaledTime >= w.NextHeartbeat)
             {
@@ -124,30 +118,116 @@ public class MoneySync : MonoBehaviour
             return;
         }
 
-        // Convidado: diferença feita aqui → host.
+        // Convidado: diferença feita aqui → host. Gasto leva um número (D98: o host pode recusar e mandar desfazer).
         if (now != w.Baseline)
         {
             var delta = now - w.Baseline;
             w.Baseline = now;
-            NetSession.SendGame(w.DeltaMsg, x => x.Put(delta), DeliveryMethod.ReliableOrdered);
+            var seq = 0;
+            if (delta < 0)
+            {
+                seq = ++_spendSeq;
+                Spends[seq] = (w, delta, Time.unscaledTime);
+                if (Spends.Count > 50) Spends.Remove(Spends.Keys.Min());
+            }
+            NetSession.SendGame(w.DeltaMsg, x => { x.Put(delta); x.Put(seq); }, DeliveryMethod.ReliableOrdered);
             Plugin.Logger.LogInfo($"[MoneySync] {w.Name}: mudança local de {delta:+#;-#;0} {w.Unit} enviada ao host");
         }
     }
 
-    private static void Broadcast(Wallet w, long total)
-    {
-        var debt = w.Debt;
-        NetSession.SendGame(w.StateMsg, x => { x.Put(total); x.Put(debt); }, DeliveryMethod.ReliableOrdered);
-    }
-
-    /// <summary>D96: aviso na tela quando a dívida do grupo aumenta (host e convidados).</summary>
-    private static void DebtNotice(Wallet w, long shortfall, long debt) =>
-        GameNotify.Show($"Compras ao mesmo tempo passaram do saldo: faltaram {shortfall} {w.Unit}. Sai dos próximos ganhos (dívida: {debt} {w.Unit}).");
+    private static void Broadcast(Wallet w, long total) =>
+        NetSession.SendGame(w.StateMsg, x => x.Put(total), DeliveryMethod.ReliableOrdered);
 
     private static readonly HeldMessages Held = new("MoneySync");
 
+    // ---------- D98: desfazer a compra recusada ----------
+
+    private static int _spendSeq;
+    private static readonly Dictionary<int, (Wallet w, long delta, float at)> Spends = new();
+    // Itens que entraram na mochila/armazém, com o instante (a compra põe o item no mesmo quadro ou logo depois do gasto).
+    private static readonly List<(float at, bool house, uint item, int quality, int n)> Arrivals = new();
+    private static Dictionary<(uint, int), int> _bagPrev, _housePrev;
+    private const float ArrivalWindow = 1.5f;
+
+    private static Dictionary<(uint, int), int> Count(StorageManager st)
+    {
+        var d = new Dictionary<(uint, int), int>();
+        var datas = st?.ItemDatas;
+        if (datas == null) return d;
+        foreach (var x in datas)
+        {
+            if (x == null || x.ItemId == 0 || x.Stack <= 0) continue;
+            var k = (x.ItemId, x.QualityValue);
+            d[k] = d.GetValueOrDefault(k) + x.Stack;
+        }
+        return d;
+    }
+
+    private static void TrackStock()
+    {
+        try
+        {
+            var inv = InventoryManager.Instance;
+            var bag = Count(inv.BagItemStorage);
+            var house = Count(inv.HouseStorage);
+            var t = Time.unscaledTime;
+            void Diff(Dictionary<(uint, int), int> prev, Dictionary<(uint, int), int> cur, bool isHouse)
+            {
+                if (prev == null) return;
+                foreach (var kv in cur)
+                {
+                    var more = kv.Value - prev.GetValueOrDefault(kv.Key);
+                    if (more > 0) Arrivals.Add((t, isHouse, kv.Key.Item1, kv.Key.Item2, more));
+                }
+            }
+            Diff(_bagPrev, bag, false);
+            Diff(_housePrev, house, true);
+            _bagPrev = bag;
+            _housePrev = house;
+            Arrivals.RemoveAll(a => t - a.at > 10f);
+        }
+        catch { /* inventário indisponível agora */ }
+    }
+
+    /// <summary>Convidado: o host recusou o gasto. Tira o que entrou com ele; sem item para tirar, manda o gasto de novo
+    /// como "sem recusa" (a regra antiga: o host corta em 0).</summary>
+    private static void OnRefused(byte walletIndex, int seq)
+    {
+        if (!Spends.TryGetValue(seq, out var sp)) return;
+        Spends.Remove(seq);
+        var got = Arrivals.Where(a => a.at >= sp.at - 0.2f && a.at <= sp.at + ArrivalWindow).ToList();
+        if (got.Count == 0)
+        {
+            var d = sp.delta;
+            NetSession.SendGame(sp.w.DeltaMsg, x => { x.Put(d); x.Put(-1); }, DeliveryMethod.ReliableOrdered);
+            Plugin.Logger.LogInfo($"[MoneySync] {sp.w.Name}: gasto {d} recusado, mas não virou item (nada a desfazer): mandado sem recusa");
+            return;
+        }
+        var inv = InventoryManager.Instance;
+        var removed = 0;
+        foreach (var a in got)
+        {
+            var it = new BokuMono.Data.ItemData { ItemId = a.item, QualityValue = a.quality, Stack = a.n };
+            var left = FarmSync.TakeFrom(a.house ? inv.HouseStorage : inv.BagItemStorage, it, a.n);
+            if (left > 0) left = FarmSync.TakeFrom(a.house ? inv.BagItemStorage : inv.HouseStorage, it, left); // já mudou de lugar
+            removed += a.n - left;
+            Arrivals.Remove(a);
+        }
+        Plugin.Logger.LogInfo($"[MoneySync] {sp.w.Name}: gasto {sp.delta} recusado pelo host (saldo não cobria): {removed} item(ns) devolvido(s)");
+        GameNotify.Show("Não havia saldo para essa compra (outro jogador gastou ao mesmo tempo). A compra foi desfeita.");
+        DevBridge.PushEvent($"compra:desfeita:{removed}");
+    }
+
     private static void OnMessage(MsgType type, byte from, NetDataReader r)
     {
+        if (type == MsgType.MoneyRefused)
+        {
+            if (NetSession.Current != NetSession.Mode.Client || from != Protocol.HostPlayerId) return;
+            var wi = r.GetByte();
+            var sq = r.GetInt();
+            try { OnRefused(wi, sq); } catch (Exception e) { Plugin.Logger.LogWarning($"[MoneySync] desfazer compra: {e.Message}"); }
+            return;
+        }
         foreach (var w in Wallets)
         {
             if (type != w.DeltaMsg && type != w.StateMsg) continue;
@@ -161,24 +241,18 @@ public class MoneySync : MonoBehaviour
             if (type == w.DeltaMsg && NetSession.Current == NetSession.Mode.Host)
             {
                 var delta = r.GetLong();
+                var seq = r.AvailableBytes >= 4 ? r.GetInt() : -1;
                 var ui = ExternalData.Instance.UserInfo;
-                var raw = w.Get(ui) + delta;
-                if (raw < 0)
+                if (delta < 0 && seq > 0 && w.Get(ui) + delta < 0)
                 {
-                    // D96: gasto que passou do saldo (dois comprando ao mesmo tempo): o que faltou vira dívida.
-                    w.Debt += -raw;
-                    Plugin.Logger.LogInfo($"[MoneySync] {w.Name}: gasto de #{from} passou do saldo em {-raw} {w.Unit}; dívida {w.Debt}");
-                    try { DebtNotice(w, -raw, w.Debt); } catch { }
-                    raw = 0;
+                    // D98: o saldo não cobre (outro jogador gastou junto): não aplica; quem gastou desfaz a compra.
+                    var wi = w.Index;
+                    NetSession.SendTo(from, MsgType.MoneyRefused, x => { x.Put(wi); x.Put(seq); }, DeliveryMethod.ReliableOrdered);
+                    Broadcast(w, w.Get(ui)); // o total sem esse gasto: o dinheiro de quem gastou volta
+                    Plugin.Logger.LogInfo($"[MoneySync] {w.Name}: gasto de {delta} de #{from} recusado (saldo {w.Get(ui)})");
+                    return;
                 }
-                else if (delta > 0 && w.Debt > 0)
-                {
-                    var pay = Math.Min(w.Debt, delta);
-                    w.Debt -= pay;
-                    raw -= pay;
-                    Plugin.Logger.LogInfo($"[MoneySync] {w.Name}: {pay} {w.Unit} do ganho de #{from} pagaram a dívida (resta {w.Debt})");
-                }
-                var total = Math.Clamp(raw, 0, uint.MaxValue);
+                var total = Math.Clamp(w.Get(ui) + delta, 0, uint.MaxValue);
                 w.Set(ui, (uint)total);
                 w.Baseline = total;
                 Broadcast(w, total);
@@ -189,9 +263,6 @@ public class MoneySync : MonoBehaviour
             if (type == w.StateMsg && NetSession.Current == NetSession.Mode.Client && from == Protocol.HostPlayerId)
             {
                 var total = r.GetLong();
-                var debt = r.AvailableBytes >= 8 ? r.GetLong() : 0;
-                if (debt > w.KnownDebt) { try { DebtNotice(w, debt - w.KnownDebt, debt); } catch { } }
-                w.KnownDebt = debt;
                 var ui = ExternalData.Instance.UserInfo;
                 // Mudança local que ainda não saiu (a mensagem chegou antes do Update deste quadro): mantém ela
                 // por cima do total do host; a base fica no total, então o Update ainda manda essa diferença.
@@ -213,8 +284,6 @@ public class MoneySync : MonoBehaviour
             money = ui != null ? (long)ui.PlayerMoney : -1,
             happyBaseline = Wallets[1].Baseline,
             happy = ui != null ? (long)ui.PlayerHappyPoint : -1,
-            debt = NetSession.Current == NetSession.Mode.Host ? Wallets[0].Debt : Wallets[0].KnownDebt,
-            happyDebt = NetSession.Current == NetSession.Mode.Host ? Wallets[1].Debt : Wallets[1].KnownDebt,
         };
     }
 }
