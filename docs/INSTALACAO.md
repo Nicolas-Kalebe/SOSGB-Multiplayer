@@ -1,8 +1,8 @@
-# INSTALAÇÃO E COMO JOGAR (v0.5.1 — teste)
+# INSTALAÇÃO E COMO JOGAR (v0.6.7 — teste)
 
 > 🤖 **AUTODOCUMENTAÇÃO OBRIGATÓRIA.** Este projeto se documenta sozinho: registre toda decisão com contexto em [`DECISOES.md`](../DECISOES.md), mantenha um `CONTEXTO.md` em cada pasta e abra todo `.md` com este aviso. Regras completas em [`AGENTS.md`](../AGENTS.md).
 
-> ⚠️ **Versão de teste.** Já é compartilhado: o mundo do host, o relógio, o sono, o **dinheiro**, o **armazém da casa**, o **correio**, a **fazenda** (terra, plantas, árvores, pedras, minérios, flores, bichinhos), os **animais e celeiros** (ovos, ração, afeição), os **pets e o cavalo**, as **ampliações da casa**, o **deck do Bazaar**, os **eventos já vistos** e o progresso do mundo (missões, lojas, receitas, peixes...). Cada um tem a própria mochila, ferramentas, corações e aparência. Ainda falta testar a **venda no Bazaar** e os **festivais** em grupo (ver [`ROTEIRO.md`](../ROTEIRO.md)).
+> ⚠️ **Versão de teste.** Já é compartilhado: o mundo do host, o relógio, o sono, o **dinheiro**, o **armazém da casa**, o **correio**, a **fazenda** (terra, plantas, árvores, pedras, minérios, flores, bichinhos), os **animais e celeiros** (ovos, ração, afeição), os **pets e o cavalo**, as **ampliações da casa**, o **deck do Bazaar**, os **eventos já vistos** e o progresso do mundo (missões, lojas, receitas, peixes...). Cada um tem a própria mochila, ferramentas, corações e aparência. Os **moradores** ficam no mesmo lugar para todos. Falta o teste com pessoas de verdade da **venda no Bazaar** (com os moradores sincronizados) e dos **festivais** em grupo (ver [`ROTEIRO.md`](../ROTEIRO.md)).
 > **Todos precisam da mesma versão do mod** (o host recusa versões diferentes com uma mensagem).
 
 ## O que cada um precisa
@@ -85,6 +85,6 @@ Clique em **Gerar log** (painel da tela de título ou F9) e mande o `.zip` que a
 
 ### Para desenvolvedores: montar o pacote
 
-Use `python scripts/make-package.py --version 0.6.3 --ip <IP do host>` (gera `Downloads/SOSGB-Multiplayer-v<versão>-amiga.zip`; ver `scripts/CONTEXTO.md`).
+Use `python scripts/make-package.py --version 0.6.7 --ip <IP do host>` (gera `Downloads/SOSGB-Multiplayer-v<versão>-amiga.zip`; ver `scripts/CONTEXTO.md`).
 Pacote = da pasta do jogo do desenvolvedor: `winhttp.dll`, `doorstop_config.ini`, `.doorstop_version`, `dotnet/`, `BepInEx/core/`, `BepInEx/patchers/`, `BepInEx/plugins/SOSGB.Multiplayer/` + um `.cfg` com `AutoStart = join` + `LEIA-ME.txt`.
 **Nunca** incluir `BepInEx/interop/`, `BepInEx/unity-libs/` (gerados a partir do jogo), logs, `savedump/`, screenshots, nem um `.cfg` com `[DevBridge] Enabled = true`.
