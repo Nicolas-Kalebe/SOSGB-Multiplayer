@@ -84,7 +84,7 @@ public class MoneySync : MonoBehaviour
             if (!Ready()) return;
             if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava (D63)
             var ui = ExternalData.Instance.UserInfo;
-            if (NetSession.Current == NetSession.Mode.Client) TrackStock();
+            if (NetSession.Current == NetSession.Mode.Client && Time.unscaledTime >= _nextTrack) { _nextTrack = Time.unscaledTime + 0.1f; TrackStock(); }
             foreach (var w in Wallets) Tick(w, ui);
         }
         catch (Exception e) { Plugin.Logger.LogWarning($"[MoneySync] {e.Message}"); }
@@ -143,6 +143,7 @@ public class MoneySync : MonoBehaviour
     // ---------- D98: desfazer a compra recusada ----------
 
     private static int _spendSeq;
+    private static float _nextTrack;
     private static readonly Dictionary<int, (Wallet w, long delta, float at)> Spends = new();
     // Itens que entraram na mochila/armazém, com o instante (a compra põe o item no mesmo quadro ou logo depois do gasto).
     private static readonly List<(float at, bool house, uint item, int quality, int n)> Arrivals = new();

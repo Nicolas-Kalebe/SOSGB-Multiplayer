@@ -78,6 +78,8 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
 | `shared merge3` / `shared add <parte> <lista> <json>` / `shared get <parte> <caminho>` | D91: casos do mesclador em três vias / põe um item numa lista como ação LOCAL (o rodízio manda) / lê um trecho do estado de uma parte |
 | `shared lset <parte> <caminho> <valor>` / `shared bingocreate <id> [dificuldade]` | D93: muda um valor como AÇÃO LOCAL (o rodízio manda) / cria uma cartela de bingo só neste jogo (o jogo ignora números que não conhece) |
+| `bagfresh [house]` | D95: item, quantidade, qualidade e frescor de cada espaço da mochila (ou do armazém) |
+| `bmcall openshop` | D100: `ChoiceBarActionOpenShop()` (não abre a loja por fora do menu; registrado para não tentar de novo) |
 | `talksim <morador>` / `talksim end` | D94: o caminho do mod no início/fim de conversa (sem a conversa do jogo), para simular dois começando ao mesmo tempo |
 | `takeback <item> <qtd> <qualidade>` | D92: roda a devolução da coleta disputada (mochila → armazém → dinheiro) |
 | `npcs` / `npcpos` / `npchold <modo>` | Moradores do mapa (conversa, estado da NpcSync/NpcPosSync) / amostra compacta de posições / experimento de parada (`idle`, `all`, `agent`, `cmd`, `sch`, `pauser`, `list`, `info`, `off`), D90 |

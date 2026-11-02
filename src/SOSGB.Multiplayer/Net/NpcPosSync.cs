@@ -59,6 +59,39 @@ public class NpcPosSync : MonoBehaviour
     private static readonly int SpeedParam = Animator.StringToHash("Speed");
     private static readonly Dictionary<uint, Puppet> Puppets = new();
     private static readonly Dictionary<IntPtr, bool> HasSpeed = new();
+    private static readonly Dictionary<IntPtr, bool> IsVisitorCache = new();
+    private static readonly Dictionary<uint, float> PopTried = new();
+    private const float PopRetry = 10f;
+
+    /// <summary>Já existe (ou está sendo criado) um visitante com este número na lista do Bazaar? O PopVisitor demora alguns
+    /// quadros até o morador aparecer ativo; pedir de novo nesse meio tempo criava DOIS iguais (medido: 5 duplicados).</summary>
+    private static bool VisitorExists(uint id)
+    {
+        try
+        {
+            var l = BazaarManager.Instance.NpcAgentList;
+            if (l != null) foreach (var a in l) if (a != null && a.VisitorMaster != null && a.VisitorMaster.Id == id) return true;
+            // Também os INATIVOS (no pool do jogo, fora da lista): o jogo os reativa sozinho, e criar outro dava dois iguais
+            // (medido: 4 duplicados mesmo conferindo a lista).
+            foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>(true))
+                if (npc != null && npc.CharacterId == id) return true;
+        }
+        catch { }
+        return false;
+    }
+
+    /// <summary>Cliente/figurante do Bazaar (NPCBazaarVisitorAgent): em dia de venda a BazaarViewSync cuida deles (D100).</summary>
+    private static bool IsVisitor(NonPlayerCharacter npc)
+    {
+        if (IsVisitorCache.TryGetValue(npc.Pointer, out var v)) return v;
+        try { v = npc.NPCSchedule != null && npc.NPCSchedule.TryCast<NPCBazaarVisitorAgent>() != null; } catch { v = false; }
+        if (IsVisitorCache.Count > 512) IsVisitorCache.Clear();
+        IsVisitorCache[npc.Pointer] = v;
+        return v;
+    }
+
+    /// <summary>Figurantes são números de visitante (300–399) e o próprio jogo os cria por PopVisitor (como na D55).</summary>
+    private static bool IsVisitorId(uint id) => id >= 300 && id < 400;
 
     private static List<State> _states;
     private static bool _fresh;
@@ -69,7 +102,7 @@ public class NpcPosSync : MonoBehaviour
     private static bool _active, _clockWarned;
     private static bool _subscribed;
     private float _nextSend;
-    public static int Sent, Received;
+    public static int Sent, Received, Popped;
 
     private void Awake()
     {
@@ -151,6 +184,7 @@ public class NpcPosSync : MonoBehaviour
         foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
         {
             if (npc == null || !npc.gameObject.activeInHierarchy || npc.CharacterId == 0) continue;
+            if (BazaarViewSync.Governing && IsVisitor(npc)) continue; // D100: clientes da venda são da BazaarViewSync
             var s = new State { Id = npc.CharacterId, Pos = npc.transform.position, RotY = npc.transform.eulerAngles.y, Visible = true };
             try { s.Visible = !npc.IsGraphicCulling; } catch { }
             var an = AnimOf(npc);
@@ -293,7 +327,21 @@ public class NpcPosSync : MonoBehaviour
             if (!Puppets.TryGetValue(s.Id, out var p) || p.Npc == null)
             {
                 var npc = Find(s.Id);
-                if (npc == null) continue; // a agenda daqui ainda não o pôs neste mapa
+                if (npc == null)
+                {
+                    // D100: figurante (300–399) que só a referência criou: pede ao próprio jogo (PopVisitor, como os clientes
+                    // do Bazaar na D55); aparece na lista nos quadros seguintes e vira cópia. Moradores de verdade só a
+                    // agenda daqui põe no mapa (se ela não pôs, ele está em outro lugar aqui: fica como está).
+                    if (IsVisitorId(s.Id) && !BazaarViewSync.Governing && BazaarManager.IsInstance && !VisitorExists(s.Id)
+                        && (!PopTried.TryGetValue(s.Id, out var t) || Time.unscaledTime - t > PopRetry))
+                    {
+                        PopTried[s.Id] = Time.unscaledTime;
+                        try { BazaarManager.Instance.PopVisitor(s.Id, (Il2CppSystem.Action<NPCBazaarVisitorAgent>)null); Popped++; }
+                        catch (Exception e) { Plugin.Logger.LogWarning($"[NpcPos] criar figurante {s.Id}: {e.Message}"); }
+                    }
+                    continue;
+                }
+                if (BazaarViewSync.Governing && IsVisitor(npc)) continue;
                 p = new Puppet { Npc = npc, Anim = AnimOf(npc) };
                 Puppets[s.Id] = p;
             }
@@ -318,13 +366,26 @@ public class NpcPosSync : MonoBehaviour
         foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
         {
             if (npc == null || !npc.gameObject.activeInHierarchy || npc.CharacterId == 0 || npc.CharacterId == localTalk) continue;
+            if (BazaarViewSync.Governing && IsVisitor(npc))
+            {
+                // D100: durante a venda os clientes são da BazaarViewSync: devolve e não esconde.
+                if (Puppets.TryGetValue(npc.CharacterId, out var vp) && vp.Npc != null) { Release(vp); Puppets.Remove(npc.CharacterId); }
+                continue;
+            }
             if (Puppets.TryGetValue(npc.CharacterId, out var p) && p.Npc != null)
             {
-                if (!p.Seen)
+                if (p.Npc.Pointer == npc.Pointer)
                 {
-                    if (p.Driven) Release(p); // escondido: o agente volta a mover o corpo (a agenda daqui segue)
-                    Show(p, false);           // a cada pacote: o jogo daqui às vezes volta a mostrar
+                    if (!p.Seen)
+                    {
+                        if (p.Driven) Release(p); // escondido: o agente volta a mover o corpo (a agenda daqui segue)
+                        Show(p, false);           // a cada pacote: o jogo daqui às vezes volta a mostrar
+                    }
+                    continue;
                 }
+                // D100: SEGUNDO morador com o mesmo número (a agenda daqui criou o figurante que o PopVisitor já tinha criado;
+                // medido: até 7 duplicados andando soltos): fica escondido como extra enquanto a cópia vale.
+                HideExtra(npc);
                 continue;
             }
             // Só esconde: a agenda daqui continua rodando (congelada, ela divergia da referência sobre quem está na rua, e
@@ -338,10 +399,27 @@ public class NpcPosSync : MonoBehaviour
         foreach (var id in gone) Puppets.Remove(id);
     }
 
+    private static readonly Dictionary<IntPtr, NonPlayerCharacter> Extras = new();
+
+    private static void HideExtra(NonPlayerCharacter npc)
+    {
+        if (!Extras.ContainsKey(npc.Pointer)) Extras[npc.Pointer] = npc;
+        try { npc.SetActiveGraphic(false); npc.SetPlayerPenetrate(true); } catch { }
+    }
+
+    private static void ShowExtras()
+    {
+        foreach (var npc in Extras.Values)
+            try { if (npc != null) { npc.SetActiveGraphic(true); npc.SetPlayerPenetrate(false); } } catch { }
+        Extras.Clear();
+    }
+
     private static void Show(Puppet p, bool show)
     {
         p.Hidden = !show;
         try { p.Npc.SetActiveGraphic(show); } catch { }
+        // Escondido continua andando pela agenda daqui: sem isto o jogador esbarrava num morador invisível (D100).
+        try { p.Npc.SetPlayerPenetrate(!show); } catch { }
     }
 
     /// <summary>
@@ -396,6 +474,8 @@ public class NpcPosSync : MonoBehaviour
         foreach (var p in Puppets.Values) Release(p);
         if (_active) Plugin.Logger.LogInfo($"[NpcPos] moradores devolvidos à agenda ({Puppets.Count})");
         Puppets.Clear();
+        ShowExtras();
+        PopTried.Clear();
         _active = false;
         _states = null;
     }
@@ -409,8 +489,11 @@ public class NpcPosSync : MonoBehaviour
         localClock = DateManager.IsInstance ? DateManager.Instance.Now.ToString() : "-",
         puppets = Puppets.Count,
         hidden = CountHidden(),
+        extras = Extras.Count,
         sent = Sent,
         received = Received,
+        popped = Popped,
+        bazaarGoverning = BazaarViewSync.Governing,
     };
 
     private static int CountHidden()

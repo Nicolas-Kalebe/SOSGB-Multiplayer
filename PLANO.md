@@ -37,6 +37,8 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D100 | **Bazaar × moradores**: clientes da venda ficam com a BazaarViewSync; figurantes que faltam são criados (duplicados escondidos); escondidos não bloqueiam | ✅ Decidido (venda com as duas sincronias: teste do usuário) |
+| D99 | **Relógio preso**: Pause/Resume do DateManager aninháveis no multiplayer + vigia de 8 s | ✅ Decidido |
 | D98 | **Gasto ao mesmo tempo sem saldo**: o host recusa o gasto de quem chegou depois e a compra é desfeita (substitui a dívida da D96; revisão A09) | ✅ Decidido |
 | D97 | **Só o host noiva e casa**; convidados namoram (revisão A05, escolha do usuário) | ✅ Decidido |
 | D96 | **Gastos ao mesmo tempo acima do saldo** viram dívida do grupo (revisão A09) | 🔁 Substituída por D98 |

@@ -168,6 +168,10 @@ public class NpcSync : MonoBehaviour
 
     private static void Freeze(uint charaId, byte talker)
     {
+        // D94: os dois começaram a conversar com ele no mesmo instante (o aviso do outro chegou com a minha conversa aberta):
+        // não segurar nem virar o morador da MINHA conversa (ele olharia para o outro jogador no meio da fala). Quando a
+        // minha conversa acabar, o tick seguinte o segura normalmente.
+        if (charaId == _localTalk) return;
         if (!Frozen.TryGetValue(charaId, out var npc) || npc == null)
         {
             npc = Find(charaId);

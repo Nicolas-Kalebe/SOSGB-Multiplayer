@@ -81,6 +81,9 @@ public class ClockSync : MonoBehaviour
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
         NetSession.OnPlayerLeft += id => { GuestInPause.Remove(id); GuestHold.Remove(id); };
+        NetSession.OnHosting += Patches.ClockPausePatch.Reset;
+        NetSession.OnJoined += Patches.ClockPausePatch.Reset;
+        WorldSync.OnWorldReceived += Patches.ClockPausePatch.Reset;
         WorldSync.OnWorldReceived += () => _hostBehind = 0;
     }
 
@@ -120,6 +123,7 @@ public class ClockSync : MonoBehaviour
             if (!DateManager.IsInstance) return;
             InPauseMenu = PauseMenuOpen();
             _ = DateManager.Instance.IsUpdateEnabled; // atualiza LocalPaused pelo patch
+            Patches.ClockPausePatch.Watchdog();       // D99: relógio preso com a tela normal → religa
             LocalHold = FestivalHold();
 
             if (NetSession.Current == NetSession.Mode.Host) HostTick();
@@ -318,6 +322,8 @@ public class ClockSync : MonoBehaviour
     {
         localPaused = LocalPaused,
         inPauseMenu = InPauseMenu,
+        pauseDepth = Patches.ClockPausePatch.Depth,
+        clockRescues = Patches.ClockPausePatch.Rescues,
         pausedBy = PausedBy,
         frozenByPause = _frozenByPause,
         groupPaused = GroupPaused,

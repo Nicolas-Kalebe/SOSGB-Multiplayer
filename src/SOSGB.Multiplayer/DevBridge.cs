@@ -618,11 +618,13 @@ public class DevBridge : MonoBehaviour
 
             case "bmcall":
             {
-                // bmcall initshelf | setupfield — chama rotinas internas do BazaarManager (experimento D55)
+                // bmcall initshelf | setupfield | openshop — chama rotinas internas do BazaarManager (experimento D55;
+                // openshop = a escolha "Abrir loja" do menu da barraca, ChoiceBarActionOpenShop, para testes sem teclas)
                 var bmC = BazaarManager.Instance;
                 string R(Func<object> f) { try { return f()?.ToString() ?? "ok"; } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
                 var r0 = arg.Trim() switch
                 {
+                    "openshop" => R(() => { bmC.ChoiceBarActionOpenShop(); return "ok"; }),
                     "initshelf" => R(() => { bmC.InitShopShelfRoot(); return null; }),
                     "setupfield" => R(() => { bmC.SetupFieldRoot(out var isOpen); return "isOpenField=" + isOpen; }),
                     "custom" => R(() => { bmC.SetupPartsBuff(); return null; }),
@@ -1466,6 +1468,16 @@ public class DevBridge : MonoBehaviour
                     pz.SetIgnorePause(PauseTarget.Bgm, false);
                 }
                 return Json(new { ok = true, pausingAny = pz.IsPausingAny, pausingAll = pz.IsPausingAll });
+            }
+
+            case "bagfresh":
+            {
+                // bagfresh [house] — item, quantidade, qualidade e FRESCOR de cada espaço da mochila (ou do armazém): teste da D95
+                var st = arg.Trim() == "house" ? (StorageManager)InventoryManager.Instance.HouseStorage : InventoryManager.Instance.BagItemStorage;
+                var rows = new List<string>();
+                var datas = st.ItemDatas;
+                for (var i = 0; i < datas.Length; i++) { var d = datas[i]; if (d != null && d.ItemId != 0) rows.Add($"{i}:{d.ItemId}x{d.Stack} q{d.QualityValue} f{d.FreshnessValue}"); }
+                return Json(new { ok = true, items = rows });
             }
 
             case "talksim":

@@ -99,6 +99,11 @@ public class BazaarViewSync : MonoBehaviour
     private static bool _subscribed;
     public static int Sent, Received;
 
+    /// <summary>D100: os clientes do Bazaar (NPCBazaarVisitorAgent) estão sob esta classe: o dono os move e quem assiste os
+    /// copia. A NpcPosSync (D90) não mexe neles enquanto isso (senão o dono recebia de volta o eco atrasado dos próprios
+    /// clientes pela referência do mapa).</summary>
+    public static bool Governing => _wasOwner || _active;
+
     private void Awake()
     {
         if (_subscribed) return;

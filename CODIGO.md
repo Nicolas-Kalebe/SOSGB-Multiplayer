@@ -322,3 +322,12 @@ Armadilhas das flags de evento:
 - `NPCManager.GetPausables(null)` não traz todos os moradores do mapa (12 de 19 no teste).
 - ⚠️ `NavMeshAgent.Warp` apaga a rota do morador: ele fica parado até a agenda mandar o próximo destino e depois corre para recuperar o atraso. Para reposicionar o agente sem perder a rota: `nextPosition`.
 - Ponte: `npchold <idle|all|agent|cmd|sch|pauser|list|info|off>` aplica cada tipo de parada em todos os moradores do mapa; `npcpos` mede posição e pausa.
+
+### Relógio: Pause/Resume do DateManager NÃO aninham (D99, medido 2026-11-02) ✅
+- Campos: `updateEnabled`, `storedUpdateEnabled`, `previousUpdateEnabled`. `Pause()` guarda o estado atual em `stored` e desliga; `Resume()` restaura `stored`. Dois `Pause()` seguidos → `stored` = desligado → nenhum `Resume()` liga mais (ponte: pause, pause, resume ×3 → parado). `Play()` liga. O mod torna os pares aninháveis no multiplayer e tem um vigia (`Patches/ClockPausePatch`).
+- `IsPlay()` = flag bruta `updateEnabled`; `IsUpdateEnabled` (getter) = a flag E a lógica de menus/telas.
+
+### Bazaar: menu da barraca e figurantes (D100)
+- O menu da barraca (`RequestOpenShopDialog`) mostra uma mensagem ("Um turno do bazar está para começar!" / "O turno da tarde vai começar logo") e as opções Ver estoque / Redecorar / Abrir loja / Cancelar. Pela automação, "Abrir loja" ficou **cinza** mesmo com itens no balcão, no horário (`IsEnableOpenMyShopTime` = true) e com `bmcall initshelf`; `ChoiceBarActionOpenShop()` por código não abre. Provável exigência de o personagem estar na barraca de verdade. Navegação do menu: W/S (as setas injetadas não registraram), Enter confirma; a mensagem sobre o menu some com Enter.
+- Figurantes da cidade (300–399) são `NPCBazaarVisitorAgent` no estado `WanderField`, criados pelo jogo; `BazaarManager.PopVisitor(id)` cria mais um mesmo que já exista um inativo, e a agenda do jogo cria o dela depois → duplicados com o mesmo `CharacterId` (o mod esconde o segundo).
+- `NonPlayerCharacter.SetPlayerPenetrate(true)` faz o jogador atravessar o morador (usado nos escondidos).

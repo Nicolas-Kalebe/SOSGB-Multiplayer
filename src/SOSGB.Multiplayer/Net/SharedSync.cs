@@ -879,6 +879,13 @@ public class SharedSync : MonoBehaviour
         string res;
         try { res = ApplyVersioned(name, version, LetterSync.Unpack(packed), from, ack); }
         finally { _applyingFromGuest = false; }
+        // Convidado: a confirmação liberou a parte; se há mudança daqui feita enquanto a anterior estava no ar, manda já
+        // (senão esperaria o rodízio, até ~7 s; antes de dormir isso podia ficar de fora do save da manhã, A03).
+        if (ack && NetSession.Current == NetSession.Mode.Client)
+        {
+            var own = Parts.FirstOrDefault(x => x.Name == name);
+            try { if (own != null) TrySend(own); } catch (Exception e) { Plugin.Logger.LogWarning($"[SharedSync] reenviar '{name}': {e.Message}"); }
+        }
         if (res == "ok" || res == "igual") Received++;
         if (NetSession.Current == NetSession.Mode.Host && res == "ok")
         {
