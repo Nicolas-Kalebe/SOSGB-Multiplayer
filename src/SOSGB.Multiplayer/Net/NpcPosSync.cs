@@ -336,7 +336,7 @@ public class NpcPosSync : MonoBehaviour
                         && (!PopTried.TryGetValue(s.Id, out var t) || Time.unscaledTime - t > PopRetry))
                     {
                         PopTried[s.Id] = Time.unscaledTime;
-                        try { BazaarManager.Instance.PopVisitor(s.Id, (Il2CppSystem.Action<NPCBazaarVisitorAgent>)null); Popped++; }
+                        try { BazaarManager.Instance.PopVisitor(s.Id, (Il2CppSystem.Action<NPCBazaarVisitorAgent>)null); Popped++; PoppedIds.Add(s.Id); }
                         catch (Exception e) { Plugin.Logger.LogWarning($"[NpcPos] criar figurante {s.Id}: {e.Message}"); }
                     }
                     continue;
@@ -400,6 +400,8 @@ public class NpcPosSync : MonoBehaviour
     }
 
     private static readonly Dictionary<IntPtr, NonPlayerCharacter> Extras = new();
+    private static readonly HashSet<uint> PoppedIds = new();   // figurantes que ESTE jogo criou por PopVisitor (D100)
+    private static readonly List<NonPlayerCharacter> Parked = new(); // cópias criadas por nós que ficaram sem uso: escondidas até o mapa mudar
 
     private static void HideExtra(NonPlayerCharacter npc)
     {
@@ -471,11 +473,24 @@ public class NpcPosSync : MonoBehaviour
 
     private static void ReleaseAll()
     {
-        foreach (var p in Puppets.Values) Release(p);
+        // D100: figurante que NÓS criamos e que tem um gêmeo do próprio jogo (extra escondido): ao devolver, mostra o do jogo
+        // e deixa o nosso escondido (senão ficavam dois andando). Some na troca de mapa.
+        var twins = new HashSet<uint>();
+        foreach (var e in Extras.Values) try { if (e != null) twins.Add(e.CharacterId); } catch { }
+        foreach (var p in Puppets.Values)
+        {
+            if (p.Npc != null && PoppedIds.Contains(p.Npc.CharacterId) && twins.Contains(p.Npc.CharacterId))
+            {
+                try { if (p.Driven) { p.Driven = false; if (p.Anim != null) p.Anim.applyRootMotion = p.RootMotion; } p.Npc.SetActiveGraphic(false); p.Npc.SetPlayerPenetrate(true); Parked.Add(p.Npc); } catch { }
+                continue;
+            }
+            Release(p);
+        }
         if (_active) Plugin.Logger.LogInfo($"[NpcPos] moradores devolvidos à agenda ({Puppets.Count})");
         Puppets.Clear();
         ShowExtras();
         PopTried.Clear();
+        Parked.RemoveAll(n => n == null);
         _active = false;
         _states = null;
     }
@@ -490,6 +505,7 @@ public class NpcPosSync : MonoBehaviour
         puppets = Puppets.Count,
         hidden = CountHidden(),
         extras = Extras.Count,
+        parked = Parked.Count,
         sent = Sent,
         received = Received,
         popped = Popped,
