@@ -397,6 +397,21 @@ public class DevBridge : MonoBehaviour
                     BokuMono.Bingo.BingoManager.Instance.CreateCard(uint.Parse(sa2[1]), (BokuMono.Bingo.BingoDifficulty)(sa2.Length > 2 ? int.Parse(sa2[2]) : 0), 0);
                     return Json(new { ok = true, cards = BokuMono.Bingo.BingoManager.Instance.GetAllBingoCard().Count });
                 }
+                if (sa2.Length >= 2 && sa2[0] == "keys")
+                {
+                    // shared keys <parte> — caminhos de todos os números da parte (até 3 níveis; listas longas resumidas): D101
+                    var rootK = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]) ?? "{}")!;
+                    var outK = new List<string>();
+                    void Walk(System.Text.Json.Nodes.JsonNode n, string path, int depth)
+                    {
+                        if (outK.Count > 200) return;
+                        if (n is System.Text.Json.Nodes.JsonObject o) { foreach (var kv in o) Walk(kv.Value, path.Length == 0 ? kv.Key : path + "." + kv.Key, depth + 1); }
+                        else if (n is System.Text.Json.Nodes.JsonArray a) { if (a.Count > 0 && depth < 3) Walk(a[0], path + ".0", depth + 1); outK.Add($"{path}[{a.Count}]"); }
+                        else if (n is System.Text.Json.Nodes.JsonValue v && v.TryGetValue<double>(out var num)) outK.Add($"{path}={num}");
+                    }
+                    Walk(rootK, "", 0);
+                    return Json(new { ok = true, keys = outK });
+                }
                 if (sa2.Length >= 3 && sa2[0] == "get")
                 {
                     System.Text.Json.Nodes.JsonNode nodeG = System.Text.Json.Nodes.JsonNode.Parse(Net.SharedSync.CaptureJson(sa2[1]))!;

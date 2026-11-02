@@ -42,7 +42,13 @@ public static class JsonMerge3
     /// Contadores de progresso (D93, revisão A07/A06): os dois avançaram o mesmo contador → soma as duas contribuições
     /// (base + o que cada um fez). Ex.: título em 5, um faz +1 e o outro +2 → 8 (sem isto, vencia o remoto: 7).
     /// </summary>
-    public static readonly HashSet<string> ProgressKeys = new() { "ProgressNumber", "progress", "easy", "hard" };
+    public static readonly HashSet<string> ProgressKeys = new()
+    {
+        "ProgressNumber", "progress", "easy", "hard",
+        // D101: Nature Sprites (experiência por sprite, lista de números), balanço do mundo (receita/despesa de cada dia e
+        // total), peixes do dia: cada jogo conta o que o SEU jogador fez; o do grupo é a soma.
+        "MissionExp", "totalIncome", "income", "expenditure", "oneDayAchievement",
+    };
 
     /// <summary>Chaves que identificam um objeto numa lista (casam por elas, como o Guid): títulos, cartelas.</summary>
     private static readonly string[] IdKeys = { "Guid", "CardId", "AwardId" };
@@ -74,11 +80,25 @@ public static class JsonMerge3
             var rv = r.ContainsKey(k) ? r[k] : null;
             if (vol.Contains(k)) { res[k] = Clone(l.ContainsKey(k) ? lv : rv); continue; }
             var bv = b != null && b.ContainsKey(k) ? b[k] : null;
-            if (_additive != null && _additive.Contains(k) && Num(bv, out var bn) && Num(lv, out var ln) && Num(rv, out var rn)
-                && ln != bn && rn != bn && ln != rn)
+            if (_additive != null && _additive.Contains(k))
             {
-                res[k] = JsonValue.Create(bn + (ln - bn) + (rn - bn));
-                continue;
+                if (Num(bv, out var bn) && Num(lv, out var ln) && Num(rv, out var rn) && ln != bn && rn != bn && ln != rn)
+                {
+                    res[k] = JsonValue.Create(bn + (ln - bn) + (rn - bn));
+                    continue;
+                }
+                // D101: lista de números do mesmo tamanho (ex.: MissionExp, um por sprite): soma posição a posição.
+                if (bv is JsonArray ba && lv is JsonArray la && rv is JsonArray ra && ba.Count == la.Count && la.Count == ra.Count)
+                {
+                    var arr = new JsonArray();
+                    var ok = true;
+                    for (var i = 0; i < la.Count; i++)
+                    {
+                        if (!Num(ba[i], out var b0) || !Num(la[i], out var l0) || !Num(ra[i], out var r0)) { ok = false; break; }
+                        arr.Add(JsonValue.Create(l0 != b0 && r0 != b0 && l0 != r0 ? b0 + (l0 - b0) + (r0 - b0) : l0 != b0 ? l0 : r0));
+                    }
+                    if (ok) { res[k] = arr; continue; }
+                }
             }
             res[k] = Node(bv, lv, rv, vol);
         }
@@ -192,6 +212,9 @@ public static class JsonMerge3
              "{\"A\":[{\"AwardId\":1,\"ProgressNumber\":6},{\"AwardId\":2,\"IsComplete\":true},{\"AwardId\":3,\"IsComplete\":false}]}",
              "{\"A\":[{\"AwardId\":1,\"ProgressNumber\":7},{\"AwardId\":2,\"IsComplete\":false},{\"AwardId\":3,\"IsComplete\":true}]}",
              "{\"A\":[{\"AwardId\":1,\"ProgressNumber\":8},{\"AwardId\":2,\"IsComplete\":true},{\"AwardId\":3,\"IsComplete\":true}]}"),
+            // D101: experiência dos sprites (lista de números): cada um deu a um sprite diferente, e os dois ao mesmo
+            ("{\"MissionExp\":[0,100,200]}", "{\"MissionExp\":[0,150,200]}", "{\"MissionExp\":[0,100,230]}", "{\"MissionExp\":[0,150,230]}"),
+            ("{\"MissionExp\":[0,100,200]}", "{\"MissionExp\":[0,160,200]}", "{\"MissionExp\":[0,130,200]}", "{\"MissionExp\":[0,190,200]}"),
             // D93: cartela nova só de um lado + progresso do outro numa cartela existente
             ("{\"cards\":[{\"CardId\":1,\"sq\":[{\"slot\":0,\"progress\":1}]}]}",
              "{\"cards\":[{\"CardId\":1,\"sq\":[{\"slot\":0,\"progress\":2}]}]}",

@@ -23,6 +23,8 @@ Legenda: ✅ corrigido e testado com duas instâncias · ⏳ falta fazer · 🟨
 | A09 | Duas compras simultâneas acima do saldo podem sair parcialmente de graça (dinheiro e Happy Energy) | ✅ o gasto de quem chegou depois é recusado e a compra desfeita (sem item para desfazer: corta em 0) | [D98](../DECISOES.md#d98--gasto-ao-mesmo-tempo-sem-saldo-a-compra-de-quem-chegou-depois-é-desfeita-revisão-a09) |
 | A10 | Convidado que volta depois de vários dias: só uma virada de frescor é aplicada | ✅ regra do usuário (P19): a mochila congela enquanto ele está fora | [D95](../DECISOES.md#d95--quem-volta-depois-de-dias-fora-encontra-a-mochila-como-deixou-revisão-a10-p19) |
 
+**Coberturas (2026-11-02):** Nature Sprites: a experiência por sprite agora soma as contribuições (D101, testado); fundo de apoio do Bazaar e porão analisados (D101: dados simples sob a mescla; dois doando na mesma janela pagam os dois). Ainda sem teste a dois: concursos com item, saída do vendedor com ajudante (P14), queda do host.
+
 **Coberturas ainda não testadas** (a revisão não achou falta de código, só não há teste): fundo de apoio do Bazaar, porão (Cellar) e virada de estação, Nature Sprites (contribuições de jogadores diferentes), concursos com item (suco, culinária), saída do vendedor do Bazaar com ajudante (P14), queda do host e consistência entre o mundo salvo e os perfis.
 
 ## Ordem sugerida (2026-10-28)

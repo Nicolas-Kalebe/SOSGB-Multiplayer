@@ -77,6 +77,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `bazaar [open]` | Estado do Bazaar e do relógio (aberto hoje, horário, na barraca, relógio parado...) / abre o menu da barraca (D47). Para testar: chegar ao Bazaar andando pela cidade (o `field 10001` direto pula a chegada) |
 | `romance [fiance <npc> \| reset \| check <npc> <item>]` | Romance (D44): noivado forçado, desfazer, testar `CheckMarryable` |
 | `shared merge3` / `shared add <parte> <lista> <json>` / `shared get <parte> <caminho>` | D91: casos do mesclador em três vias / põe um item numa lista como ação LOCAL (o rodízio manda) / lê um trecho do estado de uma parte |
+| `shared keys <parte>` | D101: caminhos de todos os números de uma parte (para achar contadores que devem somar) |
 | `shared lset <parte> <caminho> <valor>` / `shared bingocreate <id> [dificuldade]` | D93: muda um valor como AÇÃO LOCAL (o rodízio manda) / cria uma cartela de bingo só neste jogo (o jogo ignora números que não conhece) |
 | `bagfresh [house]` | D95: item, quantidade, qualidade e frescor de cada espaço da mochila (ou do armazém) |
 | `bmcall openshop` | D100: `ChoiceBarActionOpenShop()` (não abre a loja por fora do menu; registrado para não tentar de novo) |
