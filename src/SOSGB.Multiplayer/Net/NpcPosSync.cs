@@ -60,6 +60,22 @@ public class NpcPosSync : MonoBehaviour
     private static readonly Dictionary<uint, Puppet> Puppets = new();
     private static readonly Dictionary<IntPtr, bool> HasSpeed = new();
     private static readonly Dictionary<IntPtr, bool> IsVisitorCache = new();
+
+    // A lista de moradores do mapa, renovada a cada 0,5 s (FindObjectsOfType varre a cena inteira; 10×/s nos dois lados
+    // era custo de quadro à toa). Morador novo (PopVisitor, agenda) entra na próxima renovação.
+    private static NonPlayerCharacter[] _npcs = Array.Empty<NonPlayerCharacter>();
+    private static float _npcsAt = -1;
+    private const float NpcListRefresh = 0.5f;
+
+    private static NonPlayerCharacter[] Npcs(bool force = false)
+    {
+        if (force || Time.unscaledTime - _npcsAt >= NpcListRefresh)
+        {
+            _npcs = UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>();
+            _npcsAt = Time.unscaledTime;
+        }
+        return _npcs;
+    }
     private static readonly Dictionary<uint, float> PopTried = new();
     private const float PopRetry = 10f;
 
@@ -181,7 +197,7 @@ public class NpcPosSync : MonoBehaviour
     private static void Send(uint field)
     {
         var list = new List<State>();
-        foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+        foreach (var npc in Npcs())
         {
             if (npc == null || !npc.gameObject.activeInHierarchy || npc.CharacterId == 0) continue;
             if (BazaarViewSync.Governing && IsVisitor(npc)) continue; // D100: clientes da venda são da BazaarViewSync
@@ -307,7 +323,7 @@ public class NpcPosSync : MonoBehaviour
 
     private static NonPlayerCharacter Find(uint id)
     {
-        foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+        foreach (var npc in Npcs())
             if (npc != null && npc.CharacterId == id && npc.gameObject.activeInHierarchy) return npc;
         return null;
     }
@@ -363,7 +379,7 @@ public class NpcPosSync : MonoBehaviour
             }
         }
         // Moradores daqui que a referência não tem neste mapa: escondidos enquanto a cópia vale.
-        foreach (var npc in UnityEngine.Object.FindObjectsOfType<NonPlayerCharacter>())
+        foreach (var npc in Npcs())
         {
             if (npc == null || !npc.gameObject.activeInHierarchy || npc.CharacterId == 0 || npc.CharacterId == localTalk) continue;
             if (BazaarViewSync.Governing && IsVisitor(npc))
@@ -489,6 +505,7 @@ public class NpcPosSync : MonoBehaviour
         if (_active) Plugin.Logger.LogInfo($"[NpcPos] moradores devolvidos à agenda ({Puppets.Count})");
         Puppets.Clear();
         ShowExtras();
+        _npcsAt = -1;
         PopTried.Clear();
         Parked.RemoveAll(n => n == null);
         _active = false;
