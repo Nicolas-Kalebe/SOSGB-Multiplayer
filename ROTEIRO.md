@@ -184,5 +184,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **2026-11-02 (continuação):** queda do host testada: a convidada volta ao título em 16 s, sem erros.
 - **2026-11-02 (continuação):** D102: dois colhendo o mesmo ovo testado a dois; a devolução espera a mochila (antes podia descer ao armazém com o item ainda no ar). Esc de verdade reconferido com a D99 (tecla `ESC` no press-keys).
 - **2026-11-02 (continuação):** venda no Bazaar reproduzida por automação (`bmcall openaction`): P20 e a saída do dono com ajudante (P14) conferidas sem erros; detecção de cliente do Bazaar pelo número.
-- **2026-11-02 (fim):** relógio da ajudante acompanha o dono na venda; NullReference da BazaarView só com duas donas (artefato da ponte); concurso com item tentado por automação (a inscrição com o item em mãos não abre pela injeção; fica para o usuário).
+- **2026-11-02 (fim):** relógio da ajudante acompanha o dono na venda; NullReference da BazaarView só com duas donas (artefato da ponte); concurso com item tentado por automação: cheguei à fala de inscrição com o item em mãos (Q), mas a troca do item na barra não registra pela injeção e a janela acabou; fica para o usuário (1 min de jogo).
 - **Última atualização:** 2026-11-02 (D99–D102, P20/P14 por automação, mod 0.6.7)
