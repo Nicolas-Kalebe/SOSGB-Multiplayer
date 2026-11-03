@@ -59,7 +59,6 @@ public class NpcPosSync : MonoBehaviour
     private static readonly int SpeedParam = Animator.StringToHash("Speed");
     private static readonly Dictionary<uint, Puppet> Puppets = new();
     private static readonly Dictionary<IntPtr, bool> HasSpeed = new();
-    private static readonly Dictionary<IntPtr, bool> IsVisitorCache = new();
 
     // A lista de moradores do mapa, renovada a cada 0,5 s (FindObjectsOfType varre a cena inteira; 10×/s nos dois lados
     // era custo de quadro à toa). Morador novo (PopVisitor, agenda) entra na próxima renovação.
@@ -96,14 +95,21 @@ public class NpcPosSync : MonoBehaviour
         return false;
     }
 
-    /// <summary>Cliente/figurante do Bazaar (NPCBazaarVisitorAgent): em dia de venda a BazaarViewSync cuida deles (D100).</summary>
+    /// <summary>
+    /// Cliente/figurante do Bazaar: em dia de venda a BazaarViewSync cuida deles (D100). Pelo NÚMERO (300–399, os
+    /// visitantes do VisitorMaster) e, por garantia, pelo agente (NPCBazaarVisitorAgent no NPCSchedule ou no objeto).
+    /// Só o agente falhava no mapa do Bazaar (a convidada escondia os 27 clientes da venda, medido); a cache por ponteiro
+    /// também podia envelhecer entre mapas.
+    /// </summary>
     private static bool IsVisitor(NonPlayerCharacter npc)
     {
-        if (IsVisitorCache.TryGetValue(npc.Pointer, out var v)) return v;
-        try { v = npc.NPCSchedule != null && npc.NPCSchedule.TryCast<NPCBazaarVisitorAgent>() != null; } catch { v = false; }
-        if (IsVisitorCache.Count > 512) IsVisitorCache.Clear();
-        IsVisitorCache[npc.Pointer] = v;
-        return v;
+        try
+        {
+            if (IsVisitorId(npc.CharacterId)) return true;
+            if (npc.NPCSchedule != null && npc.NPCSchedule.TryCast<NPCBazaarVisitorAgent>() != null) return true;
+            return npc.GetComponent<NPCBazaarVisitorAgent>() != null;
+        }
+        catch { return false; }
     }
 
     /// <summary>Figurantes são números de visitante (300–399) e o próprio jogo os cria por PopVisitor (como na D55).</summary>

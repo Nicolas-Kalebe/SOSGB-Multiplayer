@@ -183,4 +183,5 @@ Legenda de tamanho: **P** = horas · **M** = 1–3 dias · **G** = 1–2 semanas
 - **2026-11-02 (continuação):** D101: contadores dos Nature Sprites, do balanço e dos peixes do dia somam as contribuições; fundo do Bazaar e porão analisados; menu de pausa por código conferido com o patch do relógio.
 - **2026-11-02 (continuação):** queda do host testada: a convidada volta ao título em 16 s, sem erros.
 - **2026-11-02 (continuação):** D102: dois colhendo o mesmo ovo testado a dois; a devolução espera a mochila (antes podia descer ao armazém com o item ainda no ar). Esc de verdade reconferido com a D99 (tecla `ESC` no press-keys).
-- **Última atualização:** 2026-11-02 (D99–D102, mod 0.6.7)
+- **2026-11-02 (continuação):** venda no Bazaar reproduzida por automação (`bmcall openaction`): P20 e a saída do dono com ajudante (P14) conferidas sem erros; detecção de cliente do Bazaar pelo número.
+- **Última atualização:** 2026-11-02 (D99–D102, P20/P14 por automação, mod 0.6.7)

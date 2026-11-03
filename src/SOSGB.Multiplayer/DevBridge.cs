@@ -637,9 +637,17 @@ public class DevBridge : MonoBehaviour
                 // openshop = a escolha "Abrir loja" do menu da barraca, ChoiceBarActionOpenShop, para testes sem teclas)
                 var bmC = BazaarManager.Instance;
                 string R(Func<object> f) { try { return f()?.ToString() ?? "ok"; } catch (Exception e) { return "erro: " + e.Message.Split((char)10)[0]; } }
+                if (arg.StartsWith("procedure "))
+                {
+                    // bmcall procedure <n> — força ChangeProcedure(ProcedureMask n) (experimento: abrir a venda por código)
+                    try { bmC.ChangeProcedure((BazaarManager.ProcedureMask)int.Parse(arg.Substring(10).Trim())); return Json(new { ok = true, procedure = bmC.CurrentProcedureMask.ToString(), inShop = bmC.IsInShop }); }
+                    catch (Exception e) { return Json(new { ok = false, error = e.Message.Split((char)10)[0] }); }
+                }
                 var r0 = arg.Trim() switch
                 {
                     "openshop" => R(() => { bmC.ChoiceBarActionOpenShop(); return "ok"; }),
+                    "openaction" => R(() => { bmC.OpenAction(); return "ok"; }),   // a abertura em si (depois da confirmação do menu)
+                    "checkopen" => R(() => { bmC.CheckOpen(); return "ok"; }),
                     "initshelf" => R(() => { bmC.InitShopShelfRoot(); return null; }),
                     "setupfield" => R(() => { bmC.SetupFieldRoot(out var isOpen); return "isOpenField=" + isOpen; }),
                     "custom" => R(() => { bmC.SetupPartsBuff(); return null; }),
