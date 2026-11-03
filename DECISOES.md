@@ -911,6 +911,8 @@ Regras deste arquivo:
   - **interações entre moradores** (conversas aleatórias entre eles) são sorteadas em cada jogo e não batem; diferença conhecida.
 - **Decisão por ora:** continua desligado por padrão (`[Multiplayer] WatchFestivalScenes = false`) até o usuário testar com a amiga; ligar só nesse teste.
 
+- **Reconferido (2026-11-02, Exposição de Colheitas, com a sincronia de moradores D90 e o NpcHold D89/D100):** ligado, a convidada assistiu à cena inteira no ritmo dela (45 Enter), saiu com HUD e controle normais, `JoinAfter` com o mesmo resultado do host, moradores soltos e sincronia de volta; sem avisos além da captura de recuperação desarmada durante a cena (D63), refeita com sucesso depois.
+
 ### D85 — Dono por encomenda de ferramenta no moinho (revisão A01)
 - **Status:** ✅ Decidido · **Data:** 2026-10-27 · **Decidido por:** usuário (pediu as correções da revisão externa na ordem A08, A03, A01, A02)
 - **Contexto:** a D66 decidia de quem é a ferramenta pronta no moinho por ausência: a receita de upgrade consome a ferramenta antiga, então quem já tem uma daquele tipo na mochila "não é o dono". A revisão apontou que dois jogadores melhorando o mesmo tipo passam os dois nessa conferência (os dois estão sem a ferramenta).
