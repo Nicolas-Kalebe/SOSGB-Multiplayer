@@ -1710,6 +1710,17 @@ public class DevBridge : MonoBehaviour
             case "farm":
             {
                 // farm | farm dump <tipo> [n] — objetos do mapa atual por tipo / dados de alguns (investigação da Fase 5)
+                if (arg.StartsWith("harvest "))
+                {
+                    // farm harvest <guid> — pega o ovo pela rotina do jogo (FieldEggEntity.Harvest), para o teste de dois
+                    // pegando o mesmo ovo (D92/D100): o item sai do mapa e voa para o jogador como no "Pegar" de verdade.
+                    var gH = arg.Substring(8).Trim();
+                    var eH = Net.FieldState.Find(FarmLab.Cache, gH);
+                    var egg = eH?.TryCast<FieldEggEntity>();
+                    if (egg == null) return Json(new { ok = false, error = eH == null ? "não achei o objeto" : "não é ovo" });
+                    bool resH; try { resH = egg.Harvest((Il2CppSystem.Action<DynamicObjectResult>)null); } catch (Exception e) { return Json(new { ok = false, error = e.Message.Split((char)10)[0] }); }
+                    return Json(new { ok = true, harvested = resH });
+                }
                 if (arg == "cap") return Json(new { ok = true, cap = FarmLab.Cap() });
                 if (arg == "apply") return Json(new { ok = true, apply = FarmLab.ApplyCaptured() });
                 if (arg.StartsWith("saved ")) return Json(new { ok = true, saved = FarmLab.Saved(uint.Parse(arg.Substring(6))) });

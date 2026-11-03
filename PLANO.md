@@ -37,6 +37,7 @@
 | D20 | **Ponte de teste** (só dev): log de estado + comandos em `127.0.0.1` + screenshots + auto-load de save, para a IA testar sozinha | ✅ Decidido (a implementar) |
 | D21 | **Jogo não pausa sem foco**: patch em `AppManager.OnFocusChanged` + `runInBackground`; aberto por script precisa do `kick-window.ps1` | ✅ Decidido |
 | D22 | **Roteiro** em `ROTEIRO.md` (fases 0–8); commit a cada tarefa, **push só quando o usuário pedir** | ✅ Decidido |
+| D102 | **Devolução da coleta disputada espera a mochila** por 2 s antes de usar armazém/dinheiro; ovo disputado testado a dois | ✅ Decidido |
 | D101 | **Contadores que somam** (sprites, balanço do mundo, peixes do dia) na mescla, inclusive listas de números; fundo do Bazaar e porão analisados | ✅ Decidido |
 | D100 | **Bazaar × moradores**: clientes da venda ficam com a BazaarViewSync; figurantes que faltam são criados (duplicados escondidos); escondidos não bloqueiam | ✅ Decidido (venda com as duas sincronias: teste do usuário) |
 | D99 | **Relógio preso**: Pause/Resume do DateManager aninháveis no multiplayer + vigia de 8 s | ✅ Decidido |

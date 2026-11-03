@@ -60,7 +60,7 @@ public class FarmSync : MonoBehaviour
         if (_subscribed) return;
         _subscribed = true;
         NetSession.OnGameMessage += OnMessage;
-        WorldSync.OnWorldReceived += () => { _baseline = null; _dirtyNonResident = false; _lastRoot = 0; MyPickups.Clear(); };
+        WorldSync.OnWorldReceived += () => { _baseline = null; _dirtyNonResident = false; _lastRoot = 0; MyPickups.Clear(); PendingTakeBacks.Clear(); };
         NetSession.OnHosting += () => { _baseline = null; TakenItems.Clear(); };
         NetSession.OnJoined += () => { _baseline = null; MyPickups.Clear(); };
     }
@@ -92,6 +92,7 @@ public class FarmSync : MonoBehaviour
         {
             if (!Ready()) return;
             if (Held.Count > 0) Held.Drain(OnMessage); // o que chegou enquanto carregava/trocava de mapa (D63)
+            ProcessPendingTakeBacks(); // D102
             if (Time.unscaledTime < _nextTick) return;
             _nextTick = Time.unscaledTime + 0.5f;
             Flush();
@@ -187,10 +188,42 @@ public class FarmSync : MonoBehaviour
         }
         else item = StringExtensions.JsonToObject<FieldItemEntityData>(p.json)?.ItemDataInField;
         if (item == null) return;
-        GiveBack(item, Math.Max(1, item.Stack), $"mapa {root}");
+        // D102: o item pego entra na mochila só no fim da animação de pegar (~1 s); o aviso do host pode chegar antes.
+        // Devolver na hora descia para o armazém/dinheiro com o item ainda "no ar" (medido com o ovo). Espera a mochila
+        // por até 2 s; só então a cadeia completa.
+        PendingTakeBacks.Add((item, Math.Max(1, item.Stack), $"mapa {root}", Time.unscaledTime));
+        ProcessPendingTakeBacks();
     }
 
     /// <summary>Devolve n unidades de um item pego em disputa (D92). Público para o teste da ponte (takeback).</summary>
+    private static readonly List<(BokuMono.Data.ItemData item, int n, string where, float at)> PendingTakeBacks = new();
+    private const float TakeBackWait = 2f;
+
+    /// <summary>D102: devoluções à espera do item chegar à mochila. Mochila primeiro; depois de 2 s, a cadeia completa.</summary>
+    private static void ProcessPendingTakeBacks()
+    {
+        if (PendingTakeBacks.Count == 0) return;
+        for (var i = PendingTakeBacks.Count - 1; i >= 0; i--)
+        {
+            var (item, n, where, at) = PendingTakeBacks[i];
+            int left;
+            try { left = TakeFrom(InventoryManager.Instance.BagItemStorage, item, n); }
+            catch { left = n; }
+            if (left < n) Plugin.Logger.LogInfo($"[FarmSync] devolução: {n - left} de {n} do item {item.ItemId} saíram da mochila ({where})");
+            if (left == 0)
+            {
+                PendingTakeBacks.RemoveAt(i);
+                TakeBacks++;
+                GameNotify.Show("Outro jogador pegou esse item primeiro.");
+                DevBridge.PushEvent($"item:devolvido:{item.ItemId}:{n}:0:0");
+                continue;
+            }
+            if (Time.unscaledTime - at < TakeBackWait) { PendingTakeBacks[i] = (item, left, where, at); continue; }
+            PendingTakeBacks.RemoveAt(i);
+            GiveBack(item, left, where + ", depois de esperar a mochila");
+        }
+    }
+
     public static string GiveBack(BokuMono.Data.ItemData item, int n, string where)
     {
         // D92 (revisão A12): antes só tirava de UM espaço da mochila com o mesmo item; se o item já tinha sido guardado,

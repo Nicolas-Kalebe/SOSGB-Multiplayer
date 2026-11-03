@@ -13,7 +13,7 @@ Scripts de desenvolvimento para **testar o jogo sem intervenção humana**, usan
 | `ui [closedialog \| closemessage]` | Tela atual do jogo (UIManager) / tenta fechar diálogo ou mensagem |
 | `make-package.py [--version 0.5.1] [--ip <IP do host>]` | Monta o pacote para os amigos (`Downloads/SOSGB-Multiplayer-v<versão>-amiga.zip`) a partir da pasta do jogo: só carregador, runtime, núcleo do BepInEx e o mod, um `.cfg` com `AutoStart = join` e a ponte desligada, e o LEIA-ME. Recusa interop, unity-libs, logs e capturas |
 | `instance.py` | Abre uma instância de teste e **reabre sozinho** se ela travar na tela inicial (Launcher), se a ponte não abrir ou se o processo morrer (até 3 tentativas). `health --port N` diz se a instância está `ok <cena>`, `sem-ponte` (congelada) ou `morto`. Usado por `dev-cycle.sh` e `second-instance.sh` |
-| `press-keys.ps1` | Aperta teclas de verdade numa instância (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte. Pular o evento da manhã: `-Keys TAB -Milliseconds 1500` e depois `ENTER`. Setas: `LEFT`/`RIGHT`/`UP`/`DOWN` (teclas estendidas) |
+| `press-keys.ps1` | Aperta teclas de verdade numa instância (nomes da tabela do script: `ESC`, `ENTER`, `W/A/S/D`, setas; `ESCAPE` NÃO existe e não envia nada) (`-ProcessId`, `-Keys "W,D"`, `-Milliseconds`). Rouba o foco da tela. O PID vem do `ping` da ponte. Pular o evento da manhã: `-Keys TAB -Milliseconds 1500` e depois `ENTER`. Setas: `LEFT`/`RIGHT`/`UP`/`DOWN` (teclas estendidas) |
 | `two-instances.sh` | **Atalho:** recompila e abre host (47800) + convidado (47801) conectados, esperando o mundo carregar |
 | `click.ps1` | Clique de mouse real numa coordenada da janela do jogo (`-ProcessId -X -Y`) |
 | `second-instance.sh` | Abre uma **segunda instância** do jogo com a ponte em outra porta (padrão 47801). Para testar host + convidado no mesmo PC |
@@ -79,6 +79,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `shared merge3` / `shared add <parte> <lista> <json>` / `shared get <parte> <caminho>` | D91: casos do mesclador em três vias / põe um item numa lista como ação LOCAL (o rodízio manda) / lê um trecho do estado de uma parte |
 | `shared keys <parte>` | D101: caminhos de todos os números de uma parte (para achar contadores que devem somar) |
 | `shared lset <parte> <caminho> <valor>` / `shared bingocreate <id> [dificuldade]` | D93: muda um valor como AÇÃO LOCAL (o rodízio manda) / cria uma cartela de bingo só neste jogo (o jogo ignora números que não conhece) |
+| `farm harvest <guid>` | D102: colhe o ovo pela rotina do jogo (teste de dois pegando o mesmo ovo; o item NÃO vai para a mochila por este caminho) |
 | `bagfresh [house]` | D95: item, quantidade, qualidade e frescor de cada espaço da mochila (ou do armazém) |
 | `bmcall openshop` | D100: `ChoiceBarActionOpenShop()` (não abre a loja por fora do menu; registrado para não tentar de novo) |
 | `talksim <morador>` / `talksim end` | D94: o caminho do mod no início/fim de conversa (sem a conversa do jogo), para simular dois começando ao mesmo tempo |
