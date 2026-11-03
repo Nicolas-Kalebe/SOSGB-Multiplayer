@@ -80,6 +80,7 @@ O `kick-window.ps1` aceita `-ProcessId`. Sem ele, ativa a instância mais recent
 | `shared keys <parte>` | D101: caminhos de todos os números de uma parte (para achar contadores que devem somar) |
 | `shared lset <parte> <caminho> <valor>` / `shared bingocreate <id> [dificuldade]` | D93: muda um valor como AÇÃO LOCAL (o rodízio manda) / cria uma cartela de bingo só neste jogo (o jogo ignora números que não conhece) |
 | `farm harvest <guid>` | D102: colhe o ovo pela rotina do jogo (teste de dois pegando o mesmo ovo; o item NÃO vai para a mochila por este caminho) |
+| `crops [spring\|summer\|autumn\|winter]` | Cultivos que crescem na estação e os itens que dão (para pôr uma colheita "da estação" na mochila com `bag put`, inscrição no festival) |
 | `bagfresh [house]` | D95: item, quantidade, qualidade e frescor de cada espaço da mochila (ou do armazém) |
 | `bmcall openshop` / `openaction` / `checkopen` / `procedure <n>` | D100: `openaction` = `BazaarManager.OpenAction()` **abre a venda de verdade** (pula o menu e a trava da D51: não usar nas duas instâncias ao mesmo tempo); `openshop` (a escolha do menu) não abre por fora do menu |
 | `talksim <morador>` / `talksim end` | D94: o caminho do mod no início/fim de conversa (sem a conversa do jogo), para simular dois começando ao mesmo tempo |

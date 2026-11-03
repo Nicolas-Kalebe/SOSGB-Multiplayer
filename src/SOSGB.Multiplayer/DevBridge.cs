@@ -1493,6 +1493,24 @@ public class DevBridge : MonoBehaviour
                 return Json(new { ok = true, pausingAny = pz.IsPausingAny, pausingAll = pz.IsPausingAll });
             }
 
+            case "crops":
+            {
+                // crops [spring|summer|autumn|winter] — cultivos que crescem na estação (CropMaster) e os itens que dão:
+                // para pôr na mochila uma colheita "da estação" (inscrição na Exposição de Colheitas, teste do festival)
+                var want = arg.Trim().ToLowerInvariant();
+                var rows = new List<string>();
+                foreach (var c in MasterDataManager.Instance.CropMaster.list)
+                {
+                    if (c == null) continue;
+                    var grow = want == "spring" ? c.GrowInSpring : want == "summer" ? c.GrowInSummer : want == "winter" ? c.GrowInWinter : c.GrowInAutumn;
+                    if (want.Length > 0 && grow == 0) continue;
+                    var ids = new List<uint>(); if (c.ItemIds != null) foreach (var i in c.ItemIds) ids.Add(i);
+                    rows.Add($"crop {c.Id} tipo={c.TypeId} itens=[{string.Join(",", ids)}] primavera={c.GrowInSpring} verão={c.GrowInSummer} outono={c.GrowInAutumn} inverno={c.GrowInWinter}");
+                    if (rows.Count >= 60) break;
+                }
+                return Json(new { ok = true, crops = rows });
+            }
+
             case "bagfresh":
             {
                 // bagfresh [house] — item, quantidade, qualidade e FRESCOR de cada espaço da mochila (ou do armazém): teste da D95
